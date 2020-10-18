@@ -1,0 +1,28 @@
+{
+  "name": "gazelearning",
+  "version": "1.0.0",
+  "description": "xxx",
+  "main": "client.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ruw001/gazelearning.git"
+  },
+  "keywords": [
+    "gaze"
+  ],
+  "author": "Ru",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ruw001/gazelearning/issues"
+  },
+  "homepage": "https://github.com/ruw001/gazelearning#readme",
+  "dependencies": {
+    "experss": "0.0.1-security",
+    "express": "^4.17.1",
+    "webgazer": "^2.0.1"
+  }
+}
