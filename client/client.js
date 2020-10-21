@@ -1,12 +1,13 @@
 var calibrated = false;
 var wg_started = false;
+var gc_started = false;
 var heatmapInstance = null;
 var hm_left = 0;
 var hm_top = 0;
 
-window.onload = function() {
-    // document.getElementById('et1').onchange = function() {changeGC()};
-    //////set callbacks/////////
+window.onload = async function () {
+
+    //////set callbacks for GazeCloudAPI/////////
     GazeCloudAPI.OnCalibrationComplete = function () {
         console.log('gaze Calibration Complete');
         calibrated = true;
@@ -19,25 +20,7 @@ window.onload = function() {
     GazeCloudAPI.UseClickRecalibration = true;
     GazeCloudAPI.OnResult = PlotGaze;
 
-    // WebGazer
-    webgazer.setGazeListener(function (data, elapsedTime) {
-        if (data == null) {
-            return;
-        }
-        var xprediction = data.x; //these x coordinates are relative to the viewport
-        var yprediction = data.y; //these y coordinates are relative to the viewport
-        var dataPoint = {
-            x: xprediction, // x coordinate of the datapoint, a number
-            y: yprediction, // y coordinate of the datapoint, a number
-            value: 100 // the value at datapoint(x, y)
-        };
-        heatmapInstance.addData(dataPoint);
-        console.log(xprediction, yprediction);
-        console.log(elapsedTime); //elapsed time is based on time since begin was called
-    });
-
-    console.log('here!!!!!');
-
+    // create heatmap with configuration
     // create configuration object
     var config = {
         container: document.getElementById('container'),
@@ -46,43 +29,111 @@ window.onload = function() {
         minOpacity: 0,
         blur: .75
     };
-    // create heatmap with configuration
     heatmapInstance = h337.create(config);
+
+    // WebGazer
+    webgazer.params.showVideoPreview = true;
+    //start the webgazer tracker
+    await webgazer.setRegression('ridge') /* currently must set regression and tracker */
+        //.setTracker('clmtrackr')
+        .setGazeListener(function (data, clock) {
+            //   console.log(data); /* data is an object containing an x and y key which are the x and y prediction coordinates (no bounds limiting) */
+            //   console.log(clock); /* elapsed time in milliseconds since webgazer.begin() was called */
+            if (data == null) {
+                return;
+            }
+            var xprediction = data.x; //these x coordinates are relative to the viewport
+            var yprediction = data.y; //these y coordinates are relative to the viewport
+            var dataPoint = {
+                x: xprediction - hm_left, // x coordinate of the datapoint, a number
+                y: yprediction - hm_top, // y coordinate of the datapoint, a number
+                value: 10 // the value at datapoint(x, y)
+            };
+
+            try {
+                heatmapInstance.addData(dataPoint);
+            } catch (err) {
+                console.log('Error caught!', err);
+            }
+
+            // console.log(xprediction, yprediction);
+            // console.log(elapsedTime);
+        });
+    webgazer.showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
+
+    console.log('here!!!!!');
 }
 
-function changeGC() {
+async function changeGC() {
     // change to enabled
     if (document.getElementById("et2").checked) {
         document.getElementById("et1").checked = false;
         document.getElementById("webgazeropts").style.display = 'none';
+        if (wg_started) {
+            await webgazer.end();
+            closeWebGazer();
+            wg_started = false;
+        }
         document.getElementById("gazecloudopts").style.display = 'initial';
+        gc_started = true;
         if (calibrated)
             document.getElementById("gaze").style.display = 'block';
 
     } else {
         document.getElementById("gazecloudopts").style.display = 'none';
         GazeCloudAPI.StopEyeTracking();
+        gc_started = false;
         document.getElementById("gaze").style.display = 'none';
     }
 }
 // document.getElementById('et2').onchange = function () { changeWG() };
-function changeWG() {
+async function changeWG() {
     if (document.getElementById("et1").checked) {
         document.getElementById("et2").checked = false;
         document.getElementById("gazecloudopts").style.display = 'none';
+        document.getElementById("gaze").style.display = 'none';
+        GazeCloudAPI.StopEyeTracking();
+        gc_started = false;
         document.getElementById("webgazeropts").style.display = 'initial';
     } else {
         document.getElementById("webgazeropts").style.display = 'none';
-        webgazer.end();
+        if (wg_started) {
+            await webgazer.end();
+            closeWebGazer();
+            wg_started = false;
+        }
     }
 }
 
-function beginWG() {
+function closeWebGazer() {
+    var webgazer_elems = ['webgazerFaceOverlay',
+        'webgazerFaceFeedbackBox',
+        'webgazerGazeDot',
+        'webgazerFaceOverlay',
+        'webgazerVideoCanvas'];
+    for (var i = 0; i < 5; ++i) {
+        try {
+            document.getElementById(webgazer_elems[i]).remove();
+        } catch (err) {
+            console.log('Error caught!', err);
+        }
+    }
+    // webgazer_elems.forEach(elem => document.getElementById(elem).remove());
+}
+
+
+async function beginWG() {
     if (!wg_started) {
-        webgazer.begin();
-        console.log('began!!!!');
-    } else {
-        webgazer.resume();
+        await webgazer.begin();
+        wg_started = true;
+    }
+}
+
+async function endWG() {
+    if (wg_started) {
+        await webgazer.end();
+        closeWebGazer();
+        wg_started = false;
     }
 }
 
@@ -116,7 +167,7 @@ function PlotGaze(GazeData) {
         var dataPoint = {
             x: docx - hm_left, // x coordinate of the datapoint, a number
             y: docy - hm_top, // y coordinate of the datapoint, a number
-            value: 100 // the value at datapoint(x, y)
+            value: 10 // the value at datapoint(x, y)
         };
         heatmapInstance.addData(dataPoint);
     }
@@ -138,5 +189,13 @@ function PlotGaze(GazeData) {
             gaze.style.display = 'block';
     }
 }
+window.onbeforeunload = function () {
+    webgazer.end();
+    closeWebGazer();
+}
 
+// Kalman Filter defaults to on. Can be toggled by user.
+window.applyKalmanFilter = true;
 
+// Set to true if you want to save the data even if you reload the page.
+window.saveDataAcrossSessions = true;
