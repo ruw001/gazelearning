@@ -77,13 +77,13 @@ $(document).ready(function(){
 
             // notification for the measurement process
             swal({
-              title: "Calculating measurement",
-              text: "Please don't move your mouse & stare at the middle dot for the next 5 seconds. This will allow us to calculate the accuracy of our predictions.",
+              title: "Calibration done!",
+              text: "Please click 'OK' to go back to main page!",
               closeOnEsc: false,
               allowOutsideClick: false,
               closeModal: true
             }).then( isConfirm => {
-              history.back();
+              window.location.href = "./index.html"
             });
           }
     });

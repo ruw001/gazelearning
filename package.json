@@ -21,12 +21,17 @@
   },
   "homepage": "https://github.com/ruw001/gazelearning#readme",
   "dependencies": {
+    "@zoomus/websdk": "^1.8.1",
     "bootstrap": "^4.5.3",
     "experss": "0.0.1-security",
     "express": "^4.17.1",
     "jquery": "^3.5.1",
     "jsrsasign": "^10.0.3",
     "jsrsasign-util": "^1.0.0",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-json": "^4.0.0",
+    "rollup-plugin-node-builtins": "^2.1.2",
+    "rollup-plugin-node-resolve": "^5.2.0",
     "sweetalert": "^2.1.2",
     "webgazer": "^2.0.1"
   },
