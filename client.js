@@ -1,3 +1,6 @@
+// import { ZoomMtg } from '@zoomus/websdk';
+
+// var ZoomMtg = require('@zoomus/websdk');
 var calibrated = false;
 var wg_started = false;
 var gc_started = false;
@@ -50,6 +53,13 @@ window.onload = async function () {
                 value: 10 // the value at datapoint(x, y)
             };
 
+            var gaze = document.getElementById("gaze");
+            xprediction -= gaze.clientWidth / 2;
+            yprediction -= gaze.clientHeight / 2;
+
+            gaze.style.left = xprediction + "px";
+            gaze.style.top = yprediction + "px";
+
             try {
                 heatmapInstance.addData(dataPoint);
             } catch (err) {
@@ -59,7 +69,21 @@ window.onload = async function () {
             // console.log(xprediction, yprediction);
             // console.log(elapsedTime);
         });
-    webgazer.showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
+    // webgazer.showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
+    function hideVideoElements() {
+        webgazer.showPredictionPoints(false);
+        webgazer.showVideo(false);
+        webgazer.showFaceOverlay(false);
+        webgazer.showFaceFeedbackBox(false);
+        //webgazer.showGazeDot(false);
+    };
+    hideVideoElements();
+
+    // ZoomMtg.setZoomJSLib('node_modules/@zoomus/websdk/dist/lib', '/av');
+    // ZoomMtg.preLoadWasm();
+    // ZoomMtg.prepareJssdk();
+
+    // const zoomMeeting = document.getElementById("zmmtg-root");
 
 }
 
@@ -70,7 +94,7 @@ async function changeGC() {
         document.getElementById("webgazeropts").style.display = 'none';
         if (wg_started) {
             await webgazer.end();
-            closeWebGazer();
+            // closeWebGazer();
             wg_started = false;
         }
         document.getElementById("gazecloudopts").style.display = 'initial';
@@ -98,9 +122,10 @@ async function changeWG() {
         document.getElementById("webgazeropts").style.display = 'none';
         if (wg_started) {
             await webgazer.end();
-            closeWebGazer();
+            // closeWebGazer();
             wg_started = false;
         }
+        document.getElementById("gaze").style.display = 'none';
     }
 }
 
@@ -125,13 +150,14 @@ async function beginWG() {
     if (!wg_started) {
         await webgazer.begin();
         wg_started = true;
+        document.getElementById("gaze").style.display = 'block';
     }
 }
 
 async function endWG() {
     if (wg_started) {
         await webgazer.end();
-        closeWebGazer();
+        // closeWebGazer();
         wg_started = false;
     }
 }
@@ -190,7 +216,7 @@ function PlotGaze(GazeData) {
 }
 window.onbeforeunload = function () {
     webgazer.end();
-    closeWebGazer();
+    // closeWebGazer();
 }
 
 // Kalman Filter defaults to on. Can be toggled by user.
@@ -198,3 +224,5 @@ window.applyKalmanFilter = true;
 
 // Set to true if you want to save the data even if you reload the page.
 window.saveDataAcrossSessions = true;
+
+// @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
