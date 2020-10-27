@@ -7,6 +7,7 @@ var gc_started = false;
 var heatmapInstance = null;
 var hm_left = 0;
 var hm_top = 0;
+var hm_created = false;
 
 window.onload = async function () {
 
@@ -22,17 +23,6 @@ window.onload = async function () {
     GazeCloudAPI.OnError = function (msg) { console.log('err: ' + msg) }
     GazeCloudAPI.UseClickRecalibration = true;
     GazeCloudAPI.OnResult = PlotGaze;
-
-    // create heatmap with configuration
-    // create configuration object
-    var config = {
-        container: document.getElementById('container'),
-        radius: 50,
-        maxOpacity: .5,
-        minOpacity: 0,
-        blur: .75
-    };
-    heatmapInstance = h337.create(config);
 
     // WebGazer
     webgazer.params.showVideoPreview = true;
@@ -61,7 +51,8 @@ window.onload = async function () {
             gaze.style.top = yprediction + "px";
 
             try {
-                heatmapInstance.addData(dataPoint);
+                if (hm_created)
+                    heatmapInstance.addData(dataPoint);
             } catch (err) {
                 console.log('Error caught!', err);
             }
@@ -79,12 +70,43 @@ window.onload = async function () {
     };
     hideVideoElements();
 
+    const domain = 'meet.jit.si';
+    const options = {
+        roomName: 'gazelearningtesting',
+        width: '100%',
+        height: screen.height * 0.8 + 'px',
+        parentNode: document.querySelector('#container')
+    };
+    const api = new JitsiMeetExternalAPI(domain, options);
+
+    // create heatmap with configuration
+    // create configuration object
+    // toggleHeatmap();
+
     // ZoomMtg.setZoomJSLib('node_modules/@zoomus/websdk/dist/lib', '/av');
     // ZoomMtg.preLoadWasm();
     // ZoomMtg.prepareJssdk();
 
     // const zoomMeeting = document.getElementById("zmmtg-root");
 
+}
+
+async function toggleHeatmap() {
+    if (hm_created) {
+        document.getElementsByClassName('heatmap-canvas')[0].remove();
+        hm_created = false;
+    } else {
+        var config = {
+            container: document.getElementById('container'),
+            radius: 50,
+            maxOpacity: .5,
+            minOpacity: 0,
+            blur: .75
+        };
+        heatmapInstance = h337.create(config);
+        heatmapInstance.setDataMax(200);
+        hm_created = true;
+    }
 }
 
 async function changeGC() {
@@ -159,6 +181,7 @@ async function endWG() {
         await webgazer.end();
         // closeWebGazer();
         wg_started = false;
+        document.getElementById("gaze").style.display = 'none';
     }
 }
 
@@ -194,7 +217,8 @@ function PlotGaze(GazeData) {
             y: docy - hm_top, // y coordinate of the datapoint, a number
             value: 10 // the value at datapoint(x, y)
         };
-        heatmapInstance.addData(dataPoint);
+        if (hm_created)
+            heatmapInstance.addData(dataPoint);
     }
 
     var gaze = document.getElementById("gaze");
