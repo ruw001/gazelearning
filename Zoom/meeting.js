@@ -109,3 +109,6 @@ const zoomMeeting = document.getElementById("zmmtg-root");
 
 let container = document.getElementById("container");
 container.insertAdjacentElement("beforeend", zoomMeeting);
+window.onload = function () {
+  document.getElementsByClassName('meeting-client-inner')[0].style.width = '80%';
+}
