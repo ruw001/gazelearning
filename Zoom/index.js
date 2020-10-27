@@ -144,10 +144,3 @@
 
 
 })();
-
-
-// 2020.10.26 Try to embed zoomMeeting UI inside heat-map container
-const zoomMeeting = document.getElementById("zmmtg-root");
-
-let container = document.getElementById("container");
-container.insertAdjacentElement("beforeend", zoomMeeting);
