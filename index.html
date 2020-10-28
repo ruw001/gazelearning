@@ -127,6 +127,27 @@
             title="show or hide top test tool">Show</button>
     </div>
 
+    <!-- My layouts -->
+    <input id="et1" type="checkbox" onchange="changeWG()"></input>
+    <label id="et1_label">WebGazer.js</label>
+    <input id="et2" type="checkbox" onchange="changeGC()"></input>
+    <label id="et2_label">GazeCloudAPI</label>
+    <div id="gazecloudopts" style='display:none'>
+        <button id="gc_start" type="button" onclick="GazeCloudAPI.StartEyeTracking();">Start tracking</button>
+        <button id="gc_stop" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
+    </div>
+    <form id="webgazeropts" style='display:none' method="get" action="calibration.html">
+        <button id="cali" type="submit">Start calibrating</button>
+        <button id="wg_start" type="button" onclick="beginWG()">Start tracking</button>
+        <button id="wg_stop" type="button" onclick="endWG();">Stop tracking</button>
+    </form>
+    <div id="gaze"
+        style='position: absolute;display:none;width: 100px;height: 100px;border-radius: 50%;border: solid 2px  rgba(255, 255,255, .2);	box-shadow: 0 0 100px 3px rgba(125, 125,125, .5);	pointer-events: none;	z-index: 999999'>
+    </div>
+    <div id="container">
+        <img src='regression.jpg'>
+    </div>
+
     <script>
         document.getElementById('show-test-tool-btn').addEventListener("click", function (e) {
             var textContent = e.target.textContent;

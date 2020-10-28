@@ -107,7 +107,9 @@
           meetingConfig.apiKey = API_KEY;
           var joinUrl = "/meeting.html?" + testTool.serialize(meetingConfig);
           console.log(joinUrl);
-          window.open(joinUrl, "_blank");
+          // window.open(joinUrl, "_blank");
+          // 2020.10.28 
+          testTool.createZoomNode("websdk-iframe", joinUrl);
         },
       });
     });
@@ -144,3 +146,9 @@
 
 
 })();
+
+// 2020.10.26 Try to embed zoomMeeting UI inside heat-map container
+const zoomMeeting = document.getElementById("zmmtg-root");
+
+let container = document.getElementById("container");
+container.insertAdjacentElement("beforeend", zoomMeeting);
