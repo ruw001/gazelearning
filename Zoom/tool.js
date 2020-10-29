@@ -52,6 +52,7 @@ var testTool = {
   createZoomNode: function (id, url) {
     const zoomIframe = document.createElement("iframe");
     zoomIframe.id = id;
+    zoomIframe.name = id;
     zoomIframe.sandbox =
       "allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox";
     zoomIframe.allow = "microphone; camera; fullscreen;";
