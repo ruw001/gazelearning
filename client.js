@@ -87,9 +87,9 @@ window.onload = async function () {
 
 }
 
-async function heatmapDisplay() {
+async function heatmapDisplay(event) {
     let heatmapCanvas = document.querySelector(".heatmap-canvas");
-    heatmapCanvas.innerHTML = heatmapCanvas.hidden ? "Hide Heatmap" : "Show Heatmap";
+    event.target.value = heatmapCanvas.hidden ? "Hide Heatmap" : "Show Heatmap";
     heatmapCanvas.hidden = !heatmapCanvas.hidden;
 }
 
