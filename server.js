@@ -7,6 +7,7 @@ var http = require('http');
 var server = http.Server(app);
 
 app.use(express.static('./'));
+app.use(express.json({ type: '*/*' }));
 
 server.listen(PORT, function () {
     console.log('gaze server running');
@@ -31,39 +32,37 @@ function generateSignature(apiKey, apiSecret, meetingNumber, role) {
     return signature
 }
 
+var all_points = {};
+var last_seen = {}
 
-// var sdk_key = "Mp3WNg7cR5Se5eseb20xX2sRBk4eARKfrsCP";
-// var sdk_secret = "Ovbr5wsX7kmgN23dTEn19vSY7fg0Juenl86S";
-// var session_ID = "2530883354";
-// var session_pwd = "";
+// signaling stuff
+app.post('/signaling/sync', async (req, res) => {
+    let { name, role, pts } = req.body;
+    try {
+        if (role === 'teacher') {
+            res.send({
+                all_points
+            });
+        } else {
+            all_points[name] = pts;
+            res.send({
+                result: 'OK'
+            });
+            last_seen[name] = Date.now();
+        }
+        
+    } catch (e) {
+        console.error(e.message);
+        res.send({ error: e.message });
+    }
+});
 
-// function generateInstantToken(sdkKey, sdkSecret, topic, password = "") {
-//     let signature = "";
-//     // try {
-//     const iat = Math.round(new Date().getTime() / 1000);
-//     const exp = iat + 60 * 60 * 2;
-
-//     // Header
-//     const oHeader = { alg: "HS256", typ: "JWT" };
-//     // Payload
-//     const oPayload = {
-//         app_key: sdkKey,
-//         iat,
-//         exp,
-//         tpc: topic,
-//         pwd: password,
-//     };
-//     // Sign JWT
-//     const sHeader = JSON.stringify(oHeader);
-//     const sPayload = JSON.stringify(oPayload);
-//     signature = KJUR.jws.JWS.sign("HS256", sHeader, sPayload, sdkSecret);
-//     return signature;
-// }
-
-// generateInstantToken(
-//     sdk_key,
-//     sdk_secret,
-//     session_ID,
-//     session_pwd
-// ); // call the generateInstantToken function
-
+setInterval(() => {
+    let now = Date.now();
+    Object.entries(last_seen).forEach(([name, ts]) => {
+        if ((now - ts) > 5000) {
+            // console.log(`${name} lost connection. remove!`);
+            all_points[name] = [];
+        }
+    });
+}, 5000);

@@ -1,8 +1,9 @@
-'use strict';
+// import { ZoomMtg } from '@zoomus/websdk';
 
-var websdk = require('@zoomus/websdk');
-
+// var ZoomMtg = require('@zoomus/websdk');
 var calibrated = false;
+var wg_started = false;
+var gc_started = false;
 var heatmapInstance = null;
 var hm_left = 0;
 var hm_top = 0;
@@ -16,9 +17,9 @@ window.onload = async function () {
         var pos = findAbsolutePosition(document.getElementById('container'));
         hm_left = pos.left;
         hm_top = pos.top;
-    };
-    GazeCloudAPI.OnCamDenied = function () { console.log('camera  access denied'); };
-    GazeCloudAPI.OnError = function (msg) { console.log('err: ' + msg); };
+    }
+    GazeCloudAPI.OnCamDenied = function () { console.log('camera  access denied') }
+    GazeCloudAPI.OnError = function (msg) { console.log('err: ' + msg) }
     GazeCloudAPI.UseClickRecalibration = true;
     GazeCloudAPI.OnResult = PlotGaze;
 
@@ -52,6 +53,13 @@ window.onload = async function () {
                 value: 10 // the value at datapoint(x, y)
             };
 
+            var gaze = document.getElementById("gaze");
+            xprediction -= gaze.clientWidth / 2;
+            yprediction -= gaze.clientHeight / 2;
+
+            gaze.style.left = xprediction + "px";
+            gaze.style.top = yprediction + "px";
+
             try {
                 heatmapInstance.addData(dataPoint);
             } catch (err) {
@@ -68,15 +76,97 @@ window.onload = async function () {
         webgazer.showFaceOverlay(false);
         webgazer.showFaceFeedbackBox(false);
         //webgazer.showGazeDot(false);
-    }    hideVideoElements();
+    };
+    hideVideoElements();
 
-    websdk.ZoomMtg.setZoomJSLib('node_modules/@zoomus/websdk/dist/lib', '/av');
-    websdk.ZoomMtg.preLoadWasm();
-    websdk.ZoomMtg.prepareJssdk();
+    // ZoomMtg.setZoomJSLib('node_modules/@zoomus/websdk/dist/lib', '/av');
+    // ZoomMtg.preLoadWasm();
+    // ZoomMtg.prepareJssdk();
 
     // const zoomMeeting = document.getElementById("zmmtg-root");
 
-};
+}
+
+async function heatmapDisplay(event) {
+    let heatmapCanvas = document.querySelector(".heatmap-canvas");
+    event.target.value = heatmapCanvas.hidden ? "Hide Heatmap" : "Show Heatmap";
+    heatmapCanvas.hidden = !heatmapCanvas.hidden;
+}
+
+async function changeGC() {
+    // change to enabled
+    if (document.getElementById("et2").checked) {
+        document.getElementById("et1").checked = false;
+        document.getElementById("webgazeropts").style.display = 'none';
+        if (wg_started) {
+            await webgazer.end();
+            // closeWebGazer();
+            wg_started = false;
+        }
+        document.getElementById("gazecloudopts").style.display = 'initial';
+        gc_started = true;
+        if (calibrated)
+            document.getElementById("gaze").style.display = 'block';
+
+    } else {
+        document.getElementById("gazecloudopts").style.display = 'none';
+        GazeCloudAPI.StopEyeTracking();
+        gc_started = false;
+        document.getElementById("gaze").style.display = 'none';
+    }
+}
+// document.getElementById('et2').onchange = function () { changeWG() };
+async function changeWG() {
+    if (document.getElementById("et1").checked) {
+        document.getElementById("et2").checked = false;
+        document.getElementById("gazecloudopts").style.display = 'none';
+        document.getElementById("gaze").style.display = 'none';
+        GazeCloudAPI.StopEyeTracking();
+        gc_started = false;
+        document.getElementById("webgazeropts").style.display = 'initial';
+    } else {
+        document.getElementById("webgazeropts").style.display = 'none';
+        if (wg_started) {
+            await webgazer.end();
+            // closeWebGazer();
+            wg_started = false;
+        }
+        document.getElementById("gaze").style.display = 'none';
+    }
+}
+
+function closeWebGazer() {
+    var webgazer_elems = ['webgazerFaceOverlay',
+        'webgazerFaceFeedbackBox',
+        'webgazerGazeDot',
+        'webgazerFaceOverlay',
+        'webgazerVideoCanvas'];
+    for (var i = 0; i < 5; ++i) {
+        try {
+            document.getElementById(webgazer_elems[i]).remove();
+        } catch (err) {
+            console.log('Error caught!', err);
+        }
+    }
+    // webgazer_elems.forEach(elem => document.getElementById(elem).remove());
+}
+
+
+async function beginWG() {
+    if (!wg_started) {
+        await webgazer.begin();
+        wg_started = true;
+        document.getElementById("gaze").style.display = 'block';
+    }
+}
+
+async function endWG() {
+    if (wg_started) {
+        await webgazer.end();
+        // closeWebGazer();
+        wg_started = false;
+    }
+}
 
 function findAbsolutePosition(htmlElement) {
     var x = htmlElement.offsetLeft;
@@ -133,7 +223,7 @@ function PlotGaze(GazeData) {
 window.onbeforeunload = function () {
     webgazer.end();
     // closeWebGazer();
-};
+}
 
 // Kalman Filter defaults to on. Can be toggled by user.
 window.applyKalmanFilter = true;

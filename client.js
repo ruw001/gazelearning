@@ -1,234 +1,208 @@
-// import { ZoomMtg } from '@zoomus/websdk';
+let heatmapInstance = null;
+let maxH = 0;
+let maxW = 0;
+var role = 'student';
+let username = "";
+let updateInterval;
+let loggedin = false;
 
-// var ZoomMtg = require('@zoomus/websdk');
-var calibrated = false;
-var wg_started = false;
-var gc_started = false;
-var heatmapInstance = null;
-var hm_left = 0;
-var hm_top = 0;
+function getRandomIntInclusive(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min; //含最大值，含最小值 
+}
+
+function startRandom(num, w, h, heatmap) {
+    console.log(`RANDON ${num} points`);
+
+    let dataSet = [];
+
+    for (let i = 0; i < num; i++) {
+        let posX = getRandomIntInclusive(0, w);
+        let posY = getRandomIntInclusive(0, h);
+        dataSet.push({
+            x: posX, // x coordinate of the datapoint, a number
+            y: posY, // y coordinate of the datapoint, a number
+            value: 1 // the value at datapoint(x, y)
+        });
+    }
+
+    heatmap.addData(dataSet);
+}
+
+function startFix(num, w, h, heatmap) {
+    console.log(`Fix ${num} points`)
+
+    let dataSet = [];
+
+    for (let i = 0; i < num; i++) {
+        let posX = Math.floor(w / 2);
+        let posY = Math.floor(h / 2);
+        dataSet.push({
+            x: posX, // x coordinate of the datapoint, a number
+            y: posY, // y coordinate of the datapoint, a number
+            value: 1 // the value at datapoint(x, y)
+        });
+    }
+
+    heatmap.addData(dataSet);
+}
 
 window.onload = async function () {
 
-    //////set callbacks for GazeCloudAPI/////////
-    GazeCloudAPI.OnCalibrationComplete = function () {
-        console.log('gaze Calibration Complete');
-        calibrated = true;
-        var pos = findAbsolutePosition(document.getElementById('container'));
-        hm_left = pos.left;
-        hm_top = pos.top;
-    }
-    GazeCloudAPI.OnCamDenied = function () { console.log('camera  access denied') }
-    GazeCloudAPI.OnError = function (msg) { console.log('err: ' + msg) }
-    GazeCloudAPI.UseClickRecalibration = true;
-    GazeCloudAPI.OnResult = PlotGaze;
-
-    // create heatmap with configuration
-    // create configuration object
     var config = {
         container: document.getElementById('container'),
         radius: 50,
-        maxOpacity: .5,
+        maxOpacity: .8,
         minOpacity: 0,
-        blur: .75
+        blur: 0.75,
+        // gradient: {
+        //     // enter n keys between 0 and 1 here
+        //     // for gradient color customization
+        //     '.01': '#1d976c',
+        //     '.98': '#93F9B9'
+        // }
     };
-    heatmapInstance = h337.create(config);
 
-    // WebGazer
-    webgazer.params.showVideoPreview = true;
-    //start the webgazer tracker
-    await webgazer.setRegression('ridge') /* currently must set regression and tracker */
-        //.setTracker('clmtrackr')
-        .setGazeListener(function (data, clock) {
-            //   console.log(data); /* data is an object containing an x and y key which are the x and y prediction coordinates (no bounds limiting) */
-            //   console.log(clock); /* elapsed time in milliseconds since webgazer.begin() was called */
-            if (data == null) {
-                return;
-            }
-            var xprediction = data.x; //these x coordinates are relative to the viewport
-            var yprediction = data.y; //these y coordinates are relative to the viewport
-            var dataPoint = {
-                x: xprediction - hm_left, // x coordinate of the datapoint, a number
-                y: yprediction - hm_top, // y coordinate of the datapoint, a number
-                value: 10 // the value at datapoint(x, y)
-            };
+    new Promise((resolve, reject) => {
+        heatmapInstance = h337.create(config);
+        if (heatmapInstance) resolve(true);
+    }).then(() => {
+        // MUST REMEMBER SET TO 0! Otherwise will not show small values
+        // CHECK https://developer.mozilla.org/zh-CN/docs/Web/API/CanvasRenderingContext2D/createRadialGradient
+        //   and https://github.com/pa7/heatmap.js/blob/4e64f5ae5754c84fea363f0fcf24bea4795405ff/src/renderer/canvas2d.js#L196
+        //   for how interpolation is done
+        let flag = heatmapInstance.setData({ max: 1, min: 0, data: [] });
+        if (flag) Promise.resolve(true);
+    }).then(() => {
+        console.log('Heatmap initialized and update MIN finished');
+    })
 
-            var gaze = document.getElementById("gaze");
-            xprediction -= gaze.clientWidth / 2;
-            yprediction -= gaze.clientHeight / 2;
+    
+    // heatmapInstance = h337.create(config);
+    // heatmapInstance.setData({ max: 1, min: 0, data: [] });
 
-            gaze.style.left = xprediction + "px";
-            gaze.style.top = yprediction + "px";
+    let containerRect = document.getElementById("container").getBoundingClientRect();
+    maxH = containerRect.height;
+    maxW = containerRect.width;
 
-            try {
-                heatmapInstance.addData(dataPoint);
-            } catch (err) {
-                console.log('Error caught!', err);
-            }
-
-            // console.log(xprediction, yprediction);
-            // console.log(elapsedTime);
-        });
-    // webgazer.showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
-    function hideVideoElements() {
-        webgazer.showPredictionPoints(false);
-        webgazer.showVideo(false);
-        webgazer.showFaceOverlay(false);
-        webgazer.showFaceFeedbackBox(false);
-        //webgazer.showGazeDot(false);
-    };
-    hideVideoElements();
-
-    // ZoomMtg.setZoomJSLib('node_modules/@zoomus/websdk/dist/lib', '/av');
-    // ZoomMtg.preLoadWasm();
-    // ZoomMtg.prepareJssdk();
-
-    // const zoomMeeting = document.getElementById("zmmtg-root");
-
-}
-
-async function heatmapDisplay(event) {
-    let heatmapCanvas = document.querySelector(".heatmap-canvas");
-    event.target.value = heatmapCanvas.hidden ? "Hide Heatmap" : "Show Heatmap";
-    heatmapCanvas.hidden = !heatmapCanvas.hidden;
-}
-
-async function changeGC() {
-    // change to enabled
-    if (document.getElementById("et2").checked) {
-        document.getElementById("et1").checked = false;
-        document.getElementById("webgazeropts").style.display = 'none';
-        if (wg_started) {
-            await webgazer.end();
-            // closeWebGazer();
-            wg_started = false;
+    document.getElementById("random").addEventListener(
+        "click",
+        (event) => {
+            let points = event.target.nextElementSibling.value;
+            startRandom(document.getElementById("random-num").value, maxW, maxH, heatmapInstance)
         }
-        document.getElementById("gazecloudopts").style.display = 'initial';
-        gc_started = true;
-        if (calibrated)
-            document.getElementById("gaze").style.display = 'block';
+    );
 
+    document.getElementById("fix").addEventListener(
+        "click",
+        (event) => {
+            let points = event.target.nextElementSibling.value;
+            startFix(points, maxW, maxH, heatmapInstance)
+        }
+    );
+
+    document.getElementById("clean").addEventListener(
+        "click",
+        () => {
+            console.log("Cleaning...");
+            console.log(`We have ${heatmapInstance.getData().data.length} points now. MAX: ${heatmapInstance.getData().max} MIN: ${heatmapInstance.getData().min}`);
+            let myCan = document.querySelector(".heatmap-canvas");
+            myCan.getContext('2d').clearRect(0, 0, myCan.width, myCan.height);
+            new Promise((resolve, reject) => {
+                let flag = heatmapInstance.setData({ max: 1, min: 0, data: [] });
+                if (flag) resolve(true)
+            }).then(() => { console.log('Heatmap update finished') })
+        }
+    );
+
+    document.getElementById("scale").addEventListener(
+        'click',
+        () => {
+            console.log("Rescaling...");
+            heatmapInstance.setDataMin(0);
+        }
+    );
+
+    document.getElementById("display").addEventListener(
+        'click',
+        () => {
+            let dataset = heatmapInstance.getData().data;
+            dataset.forEach((dataPoint, index) => {
+                console.log(`#${index} : ${dataPoint.value} @ (${dataPoint.x},${dataPoint.y}) `);
+            })
+        }
+    );
+    document.getElementById("username_submit").addEventListener(
+        'click',
+        () => {
+            // TODO: add a login step
+            username = document.getElementById('username').value;
+            document.getElementById('username').disabled = true;
+            document.getElementById('role_opt').disabled = true;
+            loggedin = true;
+        }
+    );
+
+    updateInterval = setInterval(async () => {
+        let { error } = await updateGazePoints();
+        if (error) {
+            clearInterval(updateInterval);
+            console.log(error);
+        }
+    }, 1000);
+}
+
+async function changeRole() {
+    if (document.getElementById("role_opt").checked) {
+        role = 'teacher';
     } else {
-        document.getElementById("gazecloudopts").style.display = 'none';
-        GazeCloudAPI.StopEyeTracking();
-        gc_started = false;
-        document.getElementById("gaze").style.display = 'none';
+        role = 'student';
+    }
+    
+}
+
+async function signaling(endpoint, data) {
+    try {
+        let headers = { 'Content-Type': 'application/json' },
+            body = JSON.stringify({ ...data, role: role });
+
+        let response = await fetch(
+            '/signaling/' + endpoint, { method: 'POST', body, headers }
+        );
+        return await response.json();
+    } catch (e) {
+        console.error(e);
+        return { error: e };
     }
 }
-// document.getElementById('et2').onchange = function () { changeWG() };
-async function changeWG() {
-    if (document.getElementById("et1").checked) {
-        document.getElementById("et2").checked = false;
-        document.getElementById("gazecloudopts").style.display = 'none';
-        document.getElementById("gaze").style.display = 'none';
-        GazeCloudAPI.StopEyeTracking();
-        gc_started = false;
-        document.getElementById("webgazeropts").style.display = 'initial';
+
+async function updateGazePoints() {
+    if (!loggedin)
+        return ({});
+    if (role == 'teacher') {
+        let { all_points, error } = await signaling('sync', { name: username, pts: [] });
+        console.log(all_points);
+        let points_arr = []
+        for (var k in all_points) {
+            points_arr = points_arr.concat(all_points[k]);
+        }
+        heatmapInstance.setData({ max: 1, min: 0, data: points_arr });
+        if (error) {
+            return ({ error});
+        }
     } else {
-        document.getElementById("webgazeropts").style.display = 'none';
-        if (wg_started) {
-            await webgazer.end();
-            // closeWebGazer();
-            wg_started = false;
-        }
-        document.getElementById("gaze").style.display = 'none';
-    }
-}
-
-function closeWebGazer() {
-    var webgazer_elems = ['webgazerFaceOverlay',
-        'webgazerFaceFeedbackBox',
-        'webgazerGazeDot',
-        'webgazerFaceOverlay',
-        'webgazerVideoCanvas'];
-    for (var i = 0; i < 5; ++i) {
-        try {
-            document.getElementById(webgazer_elems[i]).remove();
-        } catch (err) {
-            console.log('Error caught!', err);
+        let { result, error } = await signaling('sync', { name: username, pts: heatmapInstance.getData().data });
+        if (error) {
+            return ({ error });
         }
     }
-    // webgazer_elems.forEach(elem => document.getElementById(elem).remove());
+    return ({});
 }
 
-
-async function beginWG() {
-    if (!wg_started) {
-        await webgazer.begin();
-        wg_started = true;
-        document.getElementById("gaze").style.display = 'block';
-    }
-}
-
-async function endWG() {
-    if (wg_started) {
-        await webgazer.end();
-        // closeWebGazer();
-        wg_started = false;
-    }
-}
-
-function findAbsolutePosition(htmlElement) {
-    var x = htmlElement.offsetLeft;
-    var y = htmlElement.offsetTop;
-    for (var x = 0, y = 0, el = htmlElement;
-        el != null;
-        el = el.offsetParent) {
-        x += el.offsetLeft;
-        y += el.offsetTop;
-    }
-    return {
-        "left": x,
-        "top": y
-    };
-}
-
-function PlotGaze(GazeData) {
-    /*
-        GazeData.state // 0: valid gaze data; -1 : face tracking lost, 1 : gaze uncalibrated
-        GazeData.docX // gaze x in document coordinates
-        GazeData.docY // gaze y in document cordinates
-        GazeData.time // timestamp
-    */
-
-    var docx = GazeData.docX;
-    var docy = GazeData.docY;
-
-    if (calibrated) {
-        var dataPoint = {
-            x: docx - hm_left, // x coordinate of the datapoint, a number
-            y: docy - hm_top, // y coordinate of the datapoint, a number
-            value: 10 // the value at datapoint(x, y)
-        };
-        heatmapInstance.addData(dataPoint);
-    }
-
-    var gaze = document.getElementById("gaze");
-    docx -= gaze.clientWidth / 2;
-    docy -= gaze.clientHeight / 2;
-
-    gaze.style.left = docx + "px";
-    gaze.style.top = docy + "px";
-
-
-    if (GazeData.state != 0) {
-        if (gaze.style.display == 'block')
-            gaze.style.display = 'none';
-    }
-    else {
-        if (gaze.style.display == 'none')
-            gaze.style.display = 'block';
-    }
-}
-window.onbeforeunload = function () {
-    webgazer.end();
-    // closeWebGazer();
-}
-
-// Kalman Filter defaults to on. Can be toggled by user.
-window.applyKalmanFilter = true;
-
-// Set to true if you want to save the data even if you reload the page.
-window.saveDataAcrossSessions = true;
-
-// @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
+        // 2020.10.31
+        // @TODO:
+        // 0. fix error in safari/MacOS/iOS platforms
+        // 1. code organize
+        // 2. heatmap discretify
+        // 3. POST/GET method for passing heatmap
