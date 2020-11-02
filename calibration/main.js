@@ -29,6 +29,9 @@ window.applyKalmanFilter = true;
 
 // Set to true if you want to save the data even if you reload the page.
 window.saveDataAcrossSessions = true;
+// 2020.10.30 How do I know if the data is saved?
+// check L88119 @ webgazer.js, the definition of clickListener()
+// check L88172 @ webgazer.js, for loadGlobalData()/setGlobalData()/clearData()
 
 window.onbeforeunload = function() {
     webgazer.end();
