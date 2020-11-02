@@ -87,6 +87,12 @@ window.onload = async function () {
 
 }
 
+async function heatmapDisplay(event) {
+    let heatmapCanvas = document.querySelector(".heatmap-canvas");
+    event.target.value = heatmapCanvas.hidden ? "Hide Heatmap" : "Show Heatmap";
+    heatmapCanvas.hidden = !heatmapCanvas.hidden;
+}
+
 async function changeGC() {
     // change to enabled
     if (document.getElementById("et2").checked) {
