@@ -7,6 +7,8 @@ var gc_started = false;
 var heatmapInstance = null;
 var hm_left = 0;
 var hm_top = 0;
+let maxH = 0;
+let maxW = 0;
 
 window.onload = async function () {
 
@@ -33,6 +35,12 @@ window.onload = async function () {
         blur: .75
     };
     heatmapInstance = h337.create(config);
+    heatmapInstance.setData({ max: 1, min: 0, data: [] }); // For proper display
+    console.log('Heatmap initialized and update MIN finished');
+
+    let containerRect = document.getElementById("container").getBoundingClientRect();
+    maxH = containerRect.height;
+    maxW = containerRect.width;
 
     // WebGazer
     webgazer.params.showVideoPreview = true;
@@ -232,3 +240,181 @@ window.applyKalmanFilter = true;
 window.saveDataAcrossSessions = true;
 
 // @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
+
+// From heatmapTest
+function getRandomIntInclusive(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min; //含最大值，含最小值 
+}
+
+function startRandom(num, w, h, heatmap) {
+    console.log(`RANDON ${num} points`);
+
+    let dataSet = [];
+
+    for (let i = 0; i < num; i++) {
+        let posX = getRandomIntInclusive(0, w);
+        let posY = getRandomIntInclusive(0, h);
+        dataSet.push({
+            x: posX, // x coordinate of the datapoint, a number
+            y: posY, // y coordinate of the datapoint, a number
+            value: 1 // the value at datapoint(x, y)
+        });
+    }
+
+    heatmap.addData(dataSet);
+}
+
+function startFix(num, w, h, heatmap) {
+    console.log(`Fix ${num} points`)
+
+    let dataSet = [];
+
+    for (let i = 0; i < num; i++) {
+        let posX = Math.floor(w / 2);
+        let posY = Math.floor(h / 2);
+        dataSet.push({
+            x: posX, // x coordinate of the datapoint, a number
+            y: posY, // y coordinate of the datapoint, a number
+            value: 1 // the value at datapoint(x, y)
+        });
+    }
+
+    heatmap.addData(dataSet);
+}
+
+document.getElementById("random").addEventListener(
+    "click",
+    (event) => {
+        let points = event.target.nextElementSibling.value;
+        startRandom(points, maxW, maxH, heatmapInstance)
+    }
+);
+
+document.getElementById("fix").addEventListener(
+    "click",
+    (event) => {
+        let points = event.target.nextElementSibling.value;
+        startFix(points, maxW, maxH, heatmapInstance)
+    }
+);
+
+document.getElementById("clean").addEventListener(
+    "click",
+    () => {
+        console.log("Cleaning...");
+        console.log(`We have ${heatmapInstance.getData().data.length} points now. MAX: ${heatmapInstance.getData().max} MIN: ${heatmapInstance.getData().min}`);
+        let myCan = document.querySelector(".heatmap-canvas");
+        myCan.getContext('2d').clearRect(0, 0, myCan.width, myCan.height);
+        new Promise((resolve, reject) => {
+            let flag = heatmapInstance.setData({ max: 1, min: 0, data: [] });
+            if (flag) resolve(true)
+        }).then(() => { console.log('Heatmap update finished') })
+    }
+);
+
+document.getElementById("scale").addEventListener(
+    'click',
+    () => {
+        console.log("Rescaling...");
+        heatmapInstance.setDataMin(0);
+    }
+);
+
+document.getElementById("display").addEventListener(
+    'click',
+    () => {
+        let dataset = heatmapInstance.getData().data;
+        dataset.forEach((dataPoint, index) => {
+            console.log(`#${index} : ${dataPoint.value} @ (${dataPoint.x},${dataPoint.y}) `);
+        })
+    }
+);
+
+// Sync heatmap
+
+function getCookie(name) {
+    let matches = document.cookie.match(new RegExp(
+        "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+    ));
+    return matches ? decodeURIComponent(matches[1]) : undefined;
+}
+
+document.getElementById("sync").addEventListener(
+    'click',
+    async () => {
+        console.log('Syncing...');
+        let userInfo = getCookie('userInfo');
+
+        if (!userInfo) throw Error('No user information. Please log in.');
+
+        userInfo = JSON.parse(userInfo);
+
+        setInterval(async () => {
+            updateGazePoints(userInfo).catch(err => {
+                clearInterval(updateInterval);
+                console.log(err)
+            });
+        }, 1000);
+    }
+);
+
+async function signaling(endpoint, data, role) {
+
+        let headers = { 'Content-Type': 'application/json' },
+            body = JSON.stringify({ ...data, role: role });
+
+        let res = await fetch('/gazeData/' + endpoint,
+            { method: 'POST', body, headers }
+        );
+
+        return res.json();
+}
+
+async function updateGazePoints(userInfo) {
+
+    let identity =  userInfo['identity']; //teacher(2) or student(1)
+    let studentNumber = userInfo['number'];
+    console.log(`identity ${identity}, studentNumber ${studentNumber}`)
+
+
+    switch (+identity) {
+        case 1: //student, should post
+            console.log('Updating student...')
+
+            signaling(
+                'sync', 
+                {
+                    stuNum: studentNumber,
+                    pts: heatmapInstance.getData().data
+                }, 
+                identity
+            );
+            break;
+        case 2: // teacher, should get
+            console.log('Updating teacher...')
+                    
+            signaling(
+                'sync',
+                {
+                    stuNum: studentNumber,
+                    pts: [] 
+                },
+                identity
+            ).then(res => {
+                let all_points = res.all_points;
+                let points_arr = [];
+                for (var k in all_points) {
+                    points_arr = points_arr.concat(all_points[k]);
+                }
+                console.log(points_arr);
+
+                heatmapInstance.setData({ max: 1, min: 0, data: points_arr });
+            });
+            break;
+        default:
+
+            return ({});
+    }
+}

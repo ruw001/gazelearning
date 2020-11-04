@@ -24,6 +24,7 @@
   "dependencies": {
     "@zoomus/websdk": "^1.8.1",
     "bootstrap": "^4.5.3",
+    "connect-multiparty": "^2.2.0",
     "experss": "0.0.1-security",
     "express": "^4.17.1",
     "jquery": "^3.5.1",

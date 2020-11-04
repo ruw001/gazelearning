@@ -10,7 +10,6 @@
 
     <script src="https://api.gazerecorder.com/GazeCloudAPI.js"></script>
     <script src="./webgazer.js"></script>
-    <script src="./client.js"></script>
     <script src="./heatmap.js"></script>
 
     <style type="text/css">
@@ -64,12 +63,27 @@
         <button id="wg_start" type="button" onclick="beginWG()">Start tracking</button>
         <button id="wg_stop" type="button" onclick="endWG();">Stop tracking</button>
     </form>
+
+    <br>
+
+    <button id="random" type="button">Start Random</button>
+    <input id="random-num" type="number" value=10></button>
+    <button id="fix" type="button">Start Fix</button>
+    <input id="fix-num" type="number" value=10></button>
+
+    <button id="clean" type="button">Clean heatmap</button>
+    <button id="display" type="button">Display dataset</button>
+    <button id="scale" type="button">Rescale heatmap</button>
+    <button id="sync" type="button">Sync heatmap</button>
+
     <div id="gaze"
         style='position: absolute;display:none;width: 100px;height: 100px;border-radius: 50%;border: solid 2px  rgba(255, 255,255, .2);	box-shadow: 0 0 100px 3px rgba(125, 125,125, .5);	pointer-events: none;	z-index: 999999'>
     </div>
     <div id="container">
         <!-- <img src='regression.jpg'> -->
     </div>
+    
+    <script src="./client_original.js"></script>
 
     <script src="Zoom/tool.js"></script>
     <script src="Zoom/embed.js"></script>

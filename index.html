@@ -1,64 +1,106 @@
 <!DOCTYPE html>
 
 <head>
-    <title>Heatmap test</title>
+    <title>Zoom WebSDK</title>
     <meta charset="utf-8" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/1.8.1/css/bootstrap.css" />
+
     <meta name="format-detection" content="telephone=no">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-
-    <script src="./heatmap.js"></script>
-    <script src="./client.js"></script>
 
     <style type="text/css">
         body {
             overflow: hidden;
         }
-    
-        img {
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-            margin-top: 5%;
-            width: 80%;
-        }
-        #container {
-            margin-left: auto;
-            margin-right: auto;
-            width: 100%;
-            height: 100%;
-        }
     </style>
 </head>
 
 <body>
-    <button id="random" type="button">Start Random</button>
-    <input id="random-num" type="number" value=10></button>
-    <button id="fix" type="button">Start Fix</button>
-    <input id="fix-num" type="number" value=10></button>
+    <!-- https://bootsnipp.com/forms for form generation -->
+    <form class="form-horizontal">
+        <fieldset>
+        
+        <!-- Form Name -->
+        <legend>Basic Information</legend>
+        
+        <!-- Multiple Radios -->
+        <div class="form-group">
+        <label class="col-md-4 control-label" for="identity">Identity</label>
+        <div class="col-md-4">
+        <div class="radio">
+            <label for="identity-0">
+            <input type="radio" name="identity" id="identity-0" value="1" checked="checked">
+            Student
+            </label>
+            </div>
+        <div class="radio">
+            <label for="identity-1">
+            <input type="radio" name="identity" id="identity-1" value="2">
+            Teacher
+            </label>
+            </div>
+        </div>
+        </div>
+        
+        <!-- Select Basic -->
+        <div class="form-group">
+        <label class="col-md-4 control-label" for="student-number">Student Number</label>
+        <div class="col-md-4">
+            <input type="number" name="student-number" id="student-number" class="form-control">
+            <!-- <option value="1">Option one</option>
+            <option value="2">Option two</option> -->
+            <!-- </select> -->
+        </div>
+        </div>
 
-    <button id="clean" type="button">Clean heatmap</button>
-    <button id="display" type="button">Display dataset</button>
-    <button id="scale" type="button">Rescale heatmap</button>
+        <!-- Privacy -->
+        <div class="form-group">
+            <label class="col-md-4 control-label" for="checkboxes"></label>
+            <div class="col-md-4">
+            <div class="checkbox">
+                <input type="checkbox" class="form-check-input" id="privacy">
+                <label class="form-check-label" for="privacy">I have read ralated <a href="#">privacy policy</a>.</label>
+            </div>
+            </div>
+        </div>
+        
+        <!-- Button -->
+        <div class="form-group">
+        <label class="col-md-4 control-label"></label>
+        <div class="col-md-4">
+            <button id="submitbtn" class="btn btn-primary">Submit</button>
+        </div>
+        </div>
+        
+        </fieldset>
+        </form>
 
-    <br>
+       <script>
+           document.addEventListener("submit", (e) => {
+               e.preventDefault(); // We will handle submit
+               let formData = new FormData(e.target);
 
-    <label id="role_label">Teacher?</label>
-    <input id="role_opt" type="checkbox" onchange="changeRole()"></input>
-    
-    <label id="username_label">User name</label>
-    <input id="username" type="text"></button>
-    <button id="username_submit" type="button">Submit</button>
-    
-    
-    <!-- <button id="postGaze" type="button">Post Gaze Data</button>
-    <button id="getGaze" type="button">Get Gaze Data</button>
-    <button id="stop" type="button">Stop Post/Get</button> -->
+               fetch('/users', {
+                    method: 'POST',
+                    body:formData
+                }).then(response => {
+                    if (response.ok) {
+                        console.log("User information posted.");
+                        window.open('index_original.html', '_self');
+                    }
+                }).catch(err => {
+                    console.error(err);
+                });
+           });
 
-    
-
-    <div id="container">
-        <img id="slice" src='regression.jpg'>
-    </div>
-
+           function getCookie(name) {
+                let matches = document.cookie.match(new RegExp(
+                    "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+                ));
+                return matches ? decodeURIComponent(matches[1]) : undefined;
+            }
+       </script> 
 </body>
+
 </html>
+    
