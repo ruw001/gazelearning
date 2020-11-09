@@ -333,7 +333,6 @@ document.getElementById("display").addEventListener(
 );
 
 // Sync heatmap
-
 function getCookie(name) {
     let matches = document.cookie.match(new RegExp(
         "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
@@ -352,6 +351,7 @@ document.getElementById("sync").addEventListener(
         userInfo = JSON.parse(userInfo);
 
         setInterval(async () => {
+            // error in updateGazePoints() is handled here
             updateGazePoints(userInfo).catch(err => {
                 clearInterval(updateInterval);
                 console.log(err)
@@ -361,7 +361,7 @@ document.getElementById("sync").addEventListener(
 );
 
 async function signaling(endpoint, data, role) {
-
+// post...
         let headers = { 'Content-Type': 'application/json' },
             body = JSON.stringify({ ...data, role: role });
 
@@ -370,13 +370,14 @@ async function signaling(endpoint, data, role) {
         );
 
         return res.json();
+// error will be handled by parent function, because its async, error are returned in Promise
 }
 
 async function updateGazePoints(userInfo) {
-
+// decide what to post, then post using function signaling()
     let identity =  userInfo['identity']; //teacher(2) or student(1)
     let studentNumber = userInfo['number'];
-    console.log(`identity ${identity}, studentNumber ${studentNumber}`)
+    // console.log(`identity ${identity}, studentNumber ${studentNumber}`) // debug line
 
 
     switch (+identity) {
@@ -417,4 +418,5 @@ async function updateGazePoints(userInfo) {
 
             return ({});
     }
+// error will be handled by parent function, because its async, error are returned in Promise
 }

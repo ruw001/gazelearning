@@ -1,1 +1,1 @@
-web: node server_postget.js
+web: node server.js

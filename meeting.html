@@ -1,8 +1,10 @@
 <!DOCTYPE HTML>
+<!-- This page is where meeting really happens. Jump from startMeeting.html -->
+
 <html>
 
 <head>
-    <title>Gaze APIs and Heatmap Demo</title>
+    <!-- <title>Gaze APIs and Heatmap Demo</title> -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://api.gazerecorder.com/GazeCloudAPI.js"></script>
     <script src="./webgazer.js"></script>
@@ -39,15 +41,15 @@
 
 <body>
     <!-- My layouts -->
-    <input id="et1" type="checkbox" onchange="changeWG()"></input>
-    <label id="et1_label">WebGazer.js</label>
-    <input id="et2" type="checkbox" onchange="changeGC()"></input>
-    <label id="et2_label">GazeCloudAPI</label>
-    <div id="gazecloudopts" style='display:none'>
+    <!-- <input id="et1" type="checkbox" onchange="changeWG()"></input> -->
+    <!-- <label id="et1_label">WebGazer.js</label> -->
+    <!-- <input id="et2" type="checkbox" onchange="changeGC()"></input> -->
+    <!-- <label id="et2_label">GazeCloudAPI</label> -->
+    <!-- <div id="gazecloudopts" style='display:none'>
         <button id="gc_start" type="button" onclick="GazeCloudAPI.StartEyeTracking();">Start tracking</button>
         <button id="gc_stop" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
-    </div>
-    <form id="webgazeropts" style='display:none' method="get" action="calibration.html">
+    </div> -->
+    <!-- <form id="webgazeropts" style='display:none' method="get" action="calibration.html">
         <button id="cali" type="submit">Start calibrating</button>
         <button id="wg_start" type="button" onclick="beginWG()">Start tracking</button>
         <button id="wg_stop" type="button" onclick="endWG();">Stop tracking</button>
@@ -55,9 +57,9 @@
     <div id="gaze"
         style='position: absolute;display:none;width: 100px;height: 100px;border-radius: 50%;border: solid 2px  rgba(255, 255,255, .2);	box-shadow: 0 0 100px 3px rgba(125, 125,125, .5);	pointer-events: none;	z-index: 999999'>
     </div>
-    <div id="container">
+    <div id="container"> -->
         <!-- <img src='regression.jpg'> -->
-    </div>
+    <!-- </div> -->
 
     <!-- import ZoomMtg dependencies -->
     <script src="https://source.zoom.us/1.8.1/lib/vendor/react.min.js"></script>

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 
 <head>
-    <title>Zoom WebSDK</title>
+    <title>Gaze Learning</title>
     <meta charset="utf-8" />
     <link type="text/css" rel="stylesheet" href="https://source.zoom.us/1.8.1/css/bootstrap.css" />
 
@@ -76,6 +76,14 @@
         </form>
 
        <script>
+           document.getElementById("identity-1").addEventListener("input", () => {
+                document.getElementById("student-number").disabled = true;
+           });
+
+           document.getElementById("identity-0").addEventListener("input", () => {
+                document.getElementById("student-number").disabled = false;
+           });
+
            document.addEventListener("submit", (e) => {
                e.preventDefault(); // We will handle submit
                let formData = new FormData(e.target);
@@ -86,7 +94,7 @@
                 }).then(response => {
                     if (response.ok) {
                         console.log("User information posted.");
-                        window.open('index_original.html', '_self');
+                        window.open('mainPage.html', '_self');
                     }
                 }).catch(err => {
                     console.error(err);
