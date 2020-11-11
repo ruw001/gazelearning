@@ -1,3 +1,8 @@
+// This is a lagacy version
+// It has implemented syncing, but not written in a Promise fashion
+// And it is not integrated with Login Form and Cookie
+// It is kept for possible usage/
+
 let heatmapInstance = null;
 let maxH = 0;
 let maxW = 0;
