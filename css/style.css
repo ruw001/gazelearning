@@ -10,6 +10,7 @@ body {
 /* Navbar styling */
 #webgazerNavbar {
     left: 320px;
+    width: calc(100% - 320px); /*Do not exceed the window*/
     z-index: 0;
     box-shadow: 0px 3px 5px #ddd;
     border:0px;
@@ -54,7 +55,7 @@ li {
 }
 
 /* Calibration button styling */
-.Calibration{
+.Calibration, .Test{
     width: 20px;
     height: 20px;
     -webkit-border-radius: 25px;
@@ -104,4 +105,23 @@ li {
 #Pt9{
     bottom:2vw;
     right:2vw;
+}
+
+/* Calibration test point position */
+
+#upperleft{
+    top:25vh;
+    left:25vw;
+}
+#upperright{
+    top:25vh;
+    left:75vw;
+}
+#lowerleft{
+    top:75vh;
+    left:25vw;
+}
+#lowerright{
+    top:75vh;
+    left:75vw;
 }

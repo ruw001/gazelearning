@@ -3,7 +3,7 @@
  * points are stored
  */
 function store_points_variable(){
-  store_points_var = true;
+  webgazer.params.storingPoints = true;
 }
 
 /*
@@ -11,7 +11,7 @@ function store_points_variable(){
  * stored any more
  */
 function stop_storing_points_variable(){
-  store_points_var = false;
+  webgazer.params.storingPoints = false;
 }
 
 /*
