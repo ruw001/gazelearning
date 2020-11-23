@@ -1,0 +1,139 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>Gaze APIs and Heatmap Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="module" src="./node_modules/math.js/lib/"></script>
+    <script src="./js/Engbert_Kliegl.js"></script>
+
+    <style type="text/css">
+        body {
+            overflow: hidden;
+        }
+
+        img {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: 5%;
+            width: 80%;
+        }
+        /* #container {
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
+            height: 100%;
+        } */
+        #plotting_canvas {
+            position: absolute;
+            z-index: 99;
+        }
+    </style>
+</head>
+
+<body>
+ 
+    <button id='toggle_bi' type='button' onclick='builtin()'> Use built-in samples </button>
+    <button id='toggle_click' type='button' onclick='toggleClick()'> Begin click samples </button>
+
+
+    <div id="gaze"
+        style='position: absolute;display:none;width: 100px;height: 100px;border-radius: 50%;border: solid 2px  rgba(255, 255,255, .2);	box-shadow: 0 0 100px 3px rgba(125, 125,125, .5);	pointer-events: none;	z-index: 999999'>
+    </div>
+    <div id="container">
+        <canvas id="plotting_canvas"></canvas>
+        <img id='regression' src='regression.jpg'>
+    </div>
+
+
+    <script>
+        let x,y, w,h;
+
+        let fakeGazeX = [];
+        let fakeGazeY = [];
+
+        let canvas = document.getElementById("plotting_canvas");
+        let ctx = canvas.getContext('2d');
+        let beginClick = false;
+
+        function builtin(){
+            fakeGazeX = [270, 239, 267, 313, 343, 306, 355, 398, 390, 337, 299, 302, 321, 326, 293, 287, 330, 388, 427, 587, 733, 781, 771, 742, 733, 716, 727, 754, 774, 779, 770, 742, 802, 689, 491, 383, 286, 269, 232, 230, 234, 260, 306, 273, 208, 192, 164, 187, 203, 220, 231];
+            fakeGazeY = [161, 193, 203, 211, 201, 159, 165, 173, 198, 185, 181, 189, 199, 212, 250, 212, 237, 254, 269, 297, 315, 354, 375, 361, 345, 364, 373, 380, 384, 392, 399, 400, 380, 411, 445, 454, 469, 489, 509, 524, 533, 524, 523, 500, 457, 480, 515, 541, 535, 501, 488];
+            fakeGazeX.map( x => x/1053*w );
+            fakeGazeY.map( y => y/592*h);
+
+            fakeGazeX.forEach((x, index) => {
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(x, fakeGazeY[index], 5, 0, Math.PI * 2, true);
+                ctx.fill();
+            });
+
+            let samples = {
+                x: fakeGazeX,
+                y: fakeGazeY,
+                t: [0,1,2], // not used right now
+            }
+
+            let fixations = startFixation(samples);
+
+        }
+
+        function toggleClick(){
+            canvas.addEventListener("click",(e)=>{
+                fakeGazeX.push(e.clientX-x);
+                fakeGazeY.push(e.clientY-y);
+
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(e.clientX-x, e.clientY-y, 5, 0, Math.PI * 2, true);
+                ctx.fill();
+            });
+
+            let btn = document.getElementById('toggle_click');
+            beginClick = !beginClick;
+
+            if (beginClick){
+                btn.innerHTML = 'Stop click samples';
+            } else {
+                btn.innerHTML = 'Begin click samples';
+                console.log('Click record stopped.');
+                console.log(fakeGazeX);
+                console.log(fakeGazeY);
+            }
+        }
+
+        window.onload = function(){
+            let img = document.getElementById("regression");
+
+            x = img.offsetLeft;
+            y = img.offsetTop;
+            w = img.clientWidth;
+            h = img.clientHeight;
+
+            // position it over the image
+            canvas.style.left = x+'px';
+            canvas.style.top = y+'px';
+            // make same size as the image
+            canvas.setAttribute('width', w+'px');
+            canvas.setAttribute('height', h+'px');
+        }
+
+        function startFixation(samples){
+            
+        }
+
+        // function resize() {
+        //     var canvas = document.getElementById('plotting_canvas');
+        //     var context = canvas.getContext('2d');
+        //     context.clearRect(0, 0, canvas.width, canvas.height);
+        //     canvas.width = window.innerWidth;
+        //     canvas.height = window.innerHeight;
+        // };
+        // window.addEventListener('resize', resize, false);
+    </script>
+
+</body>
+
+</html>
