@@ -15,7 +15,7 @@ Instructions on use can be found in the README repository.
         <TITLE>Calibration for Webgazer</TITLE>
         <link rel="stylesheet" type="text/css" href="./css/style.css">
         <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.min.css">
-        <script src="js/webgazer.js"></script>
+        <script src="js/webgazer_edited.js"></script>
         <style>
           button {
             border-radius: 4px;
@@ -29,7 +29,7 @@ Instructions on use can be found in the README repository.
         <script src="./node_modules/sweetalert/dist/sweetalert.min.js"></script>
 
         <script src="./calibration/main.js"></script>
-        <script src="./calibration/calibration.js"></script>
+        <script src="./calibration/calibration_preCalc.js"></script>
         <script src="./calibration/precision_calculation.js"></script>
         <script src="./calibration/precision_store_points.js"></script>
 
@@ -65,6 +65,12 @@ Instructions on use can be found in the README repository.
             <input type="button" class="Calibration" id="Pt7"></input>
             <input type="button" class="Calibration" id="Pt8"></input>
             <input type="button" class="Calibration" id="Pt9"></input>
+
+            <!-- 2020.11.21 More test points-->
+            <input type="button" class="Test" id="upperleft"></input>
+            <input type="button" class="Test" id="upperright"></input>
+            <input type="button" class="Test" id="lowerleft"></input>
+            <input type="button" class="Test" id="lowerright"></input>
         </div>
 
         <!-- Modal -->

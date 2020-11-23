@@ -2,7 +2,7 @@
  * This function calculates a measurement for how precise 
  * the eye tracker currently is which is displayed to the user
  */
-function calculatePrecision(past50Array) {
+function calculatePrecision(past50Array, pointName) {
   var windowHeight = $(window).height();
   var windowWidth = $(window).width();
 
@@ -11,8 +11,30 @@ function calculatePrecision(past50Array) {
   var y50 = past50Array[1];
 
   // Calculate the position of the point the user is staring at
-  var staringPointX = windowWidth / 2;
-  var staringPointY = windowHeight / 2;
+  var staringPointX = null;
+  var staringPointY = null;
+  switch (pointName) {
+    case 'middle':
+      staringPointX = windowWidth / 2;
+      staringPointY = windowHeight / 2;
+      break;
+    case 'upperleft':
+      staringPointX = windowWidth / 4;
+      staringPointY = windowHeight / 4;
+      break;
+    case 'upperright':
+      staringPointX = windowWidth * 3 / 4;
+      staringPointY = windowHeight / 4;
+      break;
+    case 'lowerleft':
+      staringPointX = windowWidth / 4;
+      staringPointY = windowHeight * 3 / 4;
+      break;
+    case 'lowerright':
+      staringPointX = windowWidth * 3 / 4;
+      staringPointY = windowHeight * 3 / 4;
+      break;
+  }
 
   var precisionPercentages = new Array(50);
   calculatePrecisionPercentages(precisionPercentages, windowHeight, x50, y50, staringPointX, staringPointY);

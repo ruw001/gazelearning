@@ -83,7 +83,7 @@ $(document).ready(function(){
               allowOutsideClick: false,
               closeModal: true
             }).then( isConfirm => {
-              window.location.href = "./index.html"
+              window.location.href = "./mainPage.html"
             });
           }
     });
