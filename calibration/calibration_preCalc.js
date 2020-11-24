@@ -157,7 +157,8 @@ function middlePointCalibrationTest (){
 async function fourPointCalibrationTest (){
   let testIds = ['upperleft', 'upperright', 'lowerleft', 'lowerright'];
   let colors = ['#DAF7A6', '#FFC300', '#FF5733', '#C70039'];
-  let pastGazes = [];
+  let pastGazesX = [];
+  let pastGazesY = [];
 
   ClearCanvas();
 
@@ -170,15 +171,15 @@ async function fourPointCalibrationTest (){
   }).then( async (isConfirm) => {  
     for (let testId of testIds) {
       let past50 = await singlePoint(testId);
-      pastGazes.push(past50.slice());
-      console.log(past50.slice());
+      pastGazesX.push(past50[0].slice());
+      pastGazesY.push(past50[1].slice());
     }
     return Promise.resolve(true);
   }).then( ()=>{
     // Visualize all calibration result
     testIds.forEach((element, index) =>{
       $('#'+element).show();
-      draw50(colors[index], pastGazes[index]);
+      draw50(colors[index], [pastGazesX[index], pastGazesY[index]]);
     });  
   });
 }
