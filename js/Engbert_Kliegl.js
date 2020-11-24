@@ -39,14 +39,9 @@
 // genuine fixations may be regarded as spurious.  Both cases are
 // unlikely to occur with current eye-trackers.
 
-import { create, all } from 'mathjs'
+function detectFixations(samples, lambda=6, smooth_coordinates=false, smooth_saccades=true) {
 
-const config = { }
-const math = create(all, config)
-
-function detectFixations(samples, lambda=6, smooth_coordinates=FALSE, smooth_saccades=TRUE) {
-
-    // samples = sample2matrix(samples);
+    sample2matrix(samples);
 
     if (smooth_coordinates) {
         samples.x = kernal(samples.x, math.multiply(1/3, math.ones(3)));
@@ -63,14 +58,14 @@ function detectFixations(samples, lambda=6, smooth_coordinates=FALSE, smooth_sac
 }
 
 function detectSaccades(samples, lambda, smooth_saccades){
-    let vx = kernal(samples.x, math.matrix([-0.5, 0, 0.5]));
-    let vy = kernal(samples.y, math.matrix([-0.5, 0, 0.5]));
+    let vx = kernal(samples.x, math.matrix([-0.5, 0, 0.5]), 'result');
+    let vy = kernal(samples.y, math.matrix([-0.5, 0, 0.5]), 'result');
 
-    let median_vx2 = math.median(math.pow(vx, 2));
+    let median_vx2 = math.median(pow2(vx));
     let medianvx_2 = math.pow(math.median(vx), 2);
     let msdx = math.sqrt(median_vx2 - medianvx_2);
 
-    let median_vy2 = math.median(math.pow(vy, 2));
+    let median_vy2 = math.median(pow2(vy));
     let medianvy_2 = math.pow(math.median(vy), 2);
     let msdy = math.sqrt(median_vy2 - medianvy_2);
 
@@ -78,7 +73,7 @@ function detectSaccades(samples, lambda, smooth_saccades){
     let radiusy = math.multiply(lambda, msdy);
 
     let sacc = math.larger(
-        math.pow(math.divide(vx, radiusx), 2) + math.pow(math.divide(vy, radiusy), 2),
+        math.add(pow2(math.divide(vx, radiusx)), pow2(math.divide(vy, radiusy))),
         1);
     if (smooth_saccades) {
         sacc = kernal(sacc, math.multiply(1/3, math.ones(3)));
@@ -93,21 +88,26 @@ function detectSaccades(samples, lambda, smooth_saccades){
 }
 
 function aggregateFixations(samples) {
-    let idx = math.range(0, samples.saccade.size());
+    let idx = math.range(0, samples.saccade.size()[0]);
 
-    let sacc_event = math.concat(0, math.diff(samples.saccade));
+    let sacc_event = math.concat([0], math.diff(samples.saccade));
 
-    let begin = idx.filter((i)=>{
-        math.equal(sacc_event.get(i),1);  
-    });
-    let end = idx.filter((i)=>{
-        math.equal(sacc_event.get(i),-1);  
-    });
+    let begin = math.concat([0], // start of trail
+        math.filter(idx, (i)=>{
+            return math.equal(sacc_event.get([i]),-1);  
+        })
+    ); // end of sacc, means fixation start
+    let end = math.concat( 
+        math.filter(idx, (i)=>{
+            return math.equal(sacc_event.get([i]),1);  
+        }), // start of sacc, means fixation ends
+        [math.subtract(samples.saccade.size()[0], 1)] // end of trail
+    );
 
     fixations = [];
     begin.forEach((element, i) => {
-        slice = math.chain().range(element,end.get(i)+1).index().done();
-        fixations.push(Fixation(
+        slice = math.index(math.range(element,end.get(i)+1));
+        fixations.push(new Fixation(
             samples.x.subset(slice),
             samples.y.subset(slice),
             element,
@@ -117,18 +117,32 @@ function aggregateFixations(samples) {
     return fixations;
 }
 
-function kernal(samples, kernal) {
-    let kernalSize = length(kernal);
-    let sampleSize = length(samples);
+function kernal(samples, kernal, mode='original') {
+    let kernalSize = math.squeeze(kernal.size());
+    let sampleSize = math.squeeze(samples.size());
 
-    let convMatrix = math.zeros(sampleSize, kernalSize);
-    for (let row in math.range(0,sampleSize)) {
-        convMatrix.subset(math.index(row, math.range(0,sampleSize)+row), kernal);
+    let convMatrix = math.zeros(sampleSize-kernalSize+1, sampleSize);
+    math.range(0,convMatrix.size()[0]).forEach( row => {
+        convMatrix.subset(math.index(row, math.add(math.range(0,kernalSize), row)), kernal);
+    });
+
+    let result = math.multiply(convMatrix, samples);
+    switch (mode) {
+        case 'original':
+            // use original value to fill empty
+            return math.concat([samples.get([0])], 
+                result,
+                [samples.get([sampleSize-1])], 0);
+            break;
+        case 'result':
+            // use computed result to fill empty
+            return math.concat([result.get([0])], 
+                result,
+                [result.get([sampleSize-kernalSize])], 0);
+            break;
+        default:
+            throw new Error('Wrong mode in function kernal()! Either original or result.');
     }
-
-    return math.concat(samples[0], 
-        math.multiply(convMatrix, samples),
-        samples[sampleSize-1]);
 }
 
 // Experimental: This function tries to detect blinks and artifacts
@@ -144,9 +158,13 @@ function removeArtifacts(fixations){
 }
 
 function sample2matrix(samples) {
-    let x = samples.x;
-    let y = samples.y;
-    let t = samples.timestamp;
+    samples.x = math.matrix(samples.x);
+    samples.y = math.matrix(samples.y);
+    samples.t = math.matrix(samples.t);
+}
+
+function pow2(vector){
+    return math.dotMultiply(vector, vector)
 }
 
 class Fixation{
@@ -167,9 +185,9 @@ class Fixation{
         ctx.fill();
     }
 
-    drawId(ctx, index, fontsize=16) {
+    drawId(ctx, index, r=10, fontsize=16) {
         ctx.font = fontsize+'px serif';
-        ctx.fillText(index, this.x, this.y);
+        ctx.fillText(index, this.x+r, this.y+r);
     }
 
 }
