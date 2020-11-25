@@ -4,7 +4,7 @@
 <head>
     <title>Gaze APIs and Heatmap Demo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script type="module" src="./node_modules/math.js/lib/"></script>
+    <script src="https://unpkg.com/mathjs@8.0.1/lib/browser/math.js"></script>
     <script src="./js/Engbert_Kliegl.js"></script>
 
     <style type="text/css">
@@ -56,32 +56,32 @@
         let canvas = document.getElementById("plotting_canvas");
         let ctx = canvas.getContext('2d');
         let beginClick = false;
+        let gazeCounter = 0;
 
         function builtin(){
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
             fakeGazeX = [270, 239, 267, 313, 343, 306, 355, 398, 390, 337, 299, 302, 321, 326, 293, 287, 330, 388, 427, 587, 733, 781, 771, 742, 733, 716, 727, 754, 774, 779, 770, 742, 802, 689, 491, 383, 286, 269, 232, 230, 234, 260, 306, 273, 208, 192, 164, 187, 203, 220, 231];
             fakeGazeY = [161, 193, 203, 211, 201, 159, 165, 173, 198, 185, 181, 189, 199, 212, 250, 212, 237, 254, 269, 297, 315, 354, 375, 361, 345, 364, 373, 380, 384, 392, 399, 400, 380, 411, 445, 454, 469, 489, 509, 524, 533, 524, 523, 500, 457, 480, 515, 541, 535, 501, 488];
             fakeGazeX.map( x => x/1053*w );
             fakeGazeY.map( y => y/592*h);
+
+            timestamp = [0,1,2]; // not used yet
 
             fakeGazeX.forEach((x, index) => {
                 ctx.fillStyle = 'red';
                 ctx.beginPath();
                 ctx.arc(x, fakeGazeY[index], 5, 0, Math.PI * 2, true);
                 ctx.fill();
+                ctx.fillText(index, x+5, fakeGazeY[index]+5);
             });
 
-            let samples = {
-                x: fakeGazeX,
-                y: fakeGazeY,
-                t: [0,1,2], // not used right now
-            }
-
-            let fixations = startFixation(samples);
+            sleep(100).then(()=>{startFixation(fakeGazeX, fakeGazeY, timestamp)});
 
         }
 
         function toggleClick(){
-            canvas.addEventListener("click",(e)=>{
+            function clickHandler(e) {
                 fakeGazeX.push(e.clientX-x);
                 fakeGazeY.push(e.clientY-y);
 
@@ -89,18 +89,29 @@
                 ctx.beginPath();
                 ctx.arc(e.clientX-x, e.clientY-y, 5, 0, Math.PI * 2, true);
                 ctx.fill();
-            });
+                ctx.fillText(gazeCounter, e.clientX-x+5, e.clientY-y+5);
+
+                gazeCounter += 1;
+            };
+
+            canvas.addEventListener("click", clickHandler);
 
             let btn = document.getElementById('toggle_click');
             beginClick = !beginClick;
 
             if (beginClick){
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 btn.innerHTML = 'Stop click samples';
             } else {
+                canvas.removeEventListener("click", clickHandler);
+                gazeCounter = 0;
+
                 btn.innerHTML = 'Begin click samples';
                 console.log('Click record stopped.');
                 console.log(fakeGazeX);
                 console.log(fakeGazeY);
+
+                sleep(100).then(()=>{startFixation(fakeGazeX, fakeGazeY, [0,1,2])});
             }
         }
 
@@ -120,8 +131,23 @@
             canvas.setAttribute('height', h+'px');
         }
 
-        function startFixation(samples){
-            
+        function startFixation(fakeGazeX, fakeGazeY, timestamp){
+            let samples = {
+                x: fakeGazeX,
+                y: fakeGazeY,
+                t: timestamp, // not used right now
+            }
+
+            let fixations = detectFixations(samples);
+            fixations.forEach((fixation, id) => {
+                fixation.draw(ctx);
+                fixation.drawId(ctx, id);
+                console.log(`#${id} fixation, ${fixation.start} => ${fixation.end}`);
+            });
+        }
+
+        function sleep (time) {
+            return new Promise((resolve) => setTimeout(resolve, time));
         }
 
         // function resize() {
