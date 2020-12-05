@@ -1,3 +1,4 @@
+// import { OneClassSVM } from '../node_modules/machinelearn/svm';
 var mouseX = 0;
 var mouseY = 0;
 var gazeList = [];
@@ -8,6 +9,8 @@ var grid_w = 13,
     grid_h = 8;
 var patch_w = 0,
     patch_h = 0;
+
+var confused = false;
 
 window.onload = async function () {
     // document.getElementById('container').onmousemove = function (event) {
@@ -29,6 +32,9 @@ window.onload = async function () {
     // }, 250);
 
     gaze_grid = new Array(grid_h * grid_w).fill(0);
+    patch_h = document.getElementById('video').offsetHeight / grid_h;
+    patch_w = document.getElementById('video').offsetWidth / grid_w;
+
 
     // WebGazer
     webgazer.params.showVideoPreview = true;
@@ -44,6 +50,14 @@ window.onload = async function () {
             var xprediction = data.x; //these x coordinates are relative to the viewport
             var yprediction = data.y; //these y coordinates are relative to the viewport
 
+            var loc_x = Math.floor((xprediction - document.getElementById('video').offsetLeft) / patch_w);
+            var loc_y = Math.floor((yprediction - document.getElementById('video').offsetTop) / patch_h);
+
+            if (loc_x >= 0 && loc_x <= grid_w && 
+                loc_y >= 0 && loc_y <= grid_h) {
+                    gaze_grid[loc_y * grid_w + loc_x] += 1;
+                }
+            
             var gaze = document.getElementById("gaze");
             xprediction -= gaze.clientWidth / 2;
             yprediction -= gaze.clientHeight / 2;
@@ -51,8 +65,8 @@ window.onload = async function () {
             gaze.style.left = xprediction + "px";
             gaze.style.top = yprediction + "px";
 
-            if (clearCmd) gazeList = [];
-            else gazeList.push({xprediction, yprediction});
+            // if (clearCmd) gazeList = [];
+            // else gazeList.push({xprediction, yprediction});
 
             // console.log(xprediction, yprediction);
             // console.log(elapsedTime);
@@ -64,7 +78,7 @@ window.onload = async function () {
             clearInterval(analyzeGaze);
             console.log(err)
         });
-    }, 10000);
+    }, 5000);
 }
 
 function hideVideoElements() {
@@ -75,13 +89,29 @@ function hideVideoElements() {
     //webgazer.showGazeDot(false);
 };
 
-async function addGaze() {
-    gazeList.push({mouseX, mouseY});
+async function report(event) {
+    if (event.key == 'c') {
+        document.getElementById('state_bar').innerHTML = 'confusion reported!';
+        document.getElementById('detection_result').innerHTML = 'detection result: ';
+        confused = true;
+    }
+    
 }
 
 async function analyzeGaze() {
-    console.log(gazeList);
-    clearCmd = true;
+    if (confused) {
+        confused = false;
+        let { result } = await signaling('svm', { grid: gaze_grid });
+        document.getElementById('state_bar').innerHTML = '';
+        // var result = Math.floor(Math.random()*10);
+        // if (result >= 5)
+        //     document.getElementById('detection_result').innerHTML = 'detection result: confused';
+        // else
+        //     document.getElementById('detection_result').innerHTML = 'detection result: not confused';
+        // console.log(result);
+        console.log(gaze_grid);
+        gaze_grid = new Array(grid_h * grid_w).fill(0);
+    }
 }
 
 async function beginWG() {
@@ -98,4 +128,17 @@ async function endWG() {
         // closeWebGazer();
         wg_started = false;
     }
+}
+
+async function signaling(endpoint, data) {
+    // post...
+    let headers = { 'Content-Type': 'application/json' },
+        body = JSON.stringify({ ...data, role: 'Test' });
+
+    let res = await fetch('/gazeData/' + endpoint,
+        { method: 'POST', body, headers }
+    );
+
+    return res.json();
+    // error will be handled by parent function, because its async, error are returned in Promise
 }
