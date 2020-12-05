@@ -92,17 +92,31 @@ function aggregateFixations(samples) {
 
     let sacc_event = math.concat([0], math.diff(samples.saccade));
 
-    let begin = math.concat([0], // start of trail
-        math.filter(idx, (i)=>{
-            return math.equal(sacc_event.get([i]),-1);  
-        })
-    ); // end of sacc, means fixation start
-    let end = math.concat( 
-        math.filter(idx, (i)=>{
-            return math.equal(sacc_event.get([i]),1);  
-        }), // start of sacc, means fixation ends
-        [math.subtract(samples.saccade.size()[0], 1)] // end of trail
-    );
+    // let begin = math.concat([0], // start of trail
+    //     math.filter(idx, (i)=>{
+    //         return math.equal(sacc_event.get([i]),-1);  
+    //     })
+    // ); // end of sacc, means fixation start
+    let begin = math.filter(idx, (i)=>{
+        return math.equal(sacc_event.get([i]),-1);  
+    });
+    // let end = math.concat( 
+    //     math.filter(idx, (i)=>{
+    //         return math.equal(sacc_event.get([i]),1);  
+    //     }), // start of sacc, means fixation ends
+    //     [math.subtract(samples.saccade.size()[0], 1)] // end of trail
+    // );
+    let end = math.filter(idx, (i)=>{
+        return math.equal(sacc_event.get([i]),1);  
+    });
+
+    if (end.get([0]) < begin.get([0])){ // happens when the gaze starts directly from a fixation, end before start
+        begin = math.concat([0], begin);
+    } 
+    if (begin.get([ begin.size()[0]-1 ]) > end.get([ end.size()[0]-1 ])) { // happens when the gaze ends with a fixation, begin after end
+        end = math.concat(end, [math.subtract(samples.saccade.size()[0], 1)]);
+    }
+
 
     fixations = [];
     begin.forEach((element, i) => {
@@ -173,6 +187,10 @@ class Fixation{
         this.y = math.median(y_coords);
         this.madx = math.mad(x_coords);
         this.mady = math.mad(y_coords);
+        this.xmax = math.max(x_coords);
+        this.xmin = math.min(x_coords);
+        this.ymax = math.max(y_coords);
+        this.ymin = math.min(y_coords);
         this.start = start;
         this.end = end;
         this.duration = end - start;
@@ -190,4 +208,8 @@ class Fixation{
         ctx.fillText(index, this.x+r, this.y+r);
     }
 
+    drawRectArea(ctx, color='#0B5345') {
+        ctx.strokeStyle = color;
+        ctx.strokeRect(this.xmin, this.ymin, this.xmax - this.xmin, this.ymax - this.ymin);
+    }
 }
