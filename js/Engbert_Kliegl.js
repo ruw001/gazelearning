@@ -50,16 +50,20 @@ function detectFixations(samples, lambda=6, smooth_coordinates=false, smooth_sac
 
     samples = detectSaccades(samples, lambda, smooth_saccades);
 
-    let fixations = aggregateFixations(samples);
+    let [fixations, saccades] = aggregateFixations(samples);
 
     removeArtifacts(fixations);
 
-    return fixations;
+    return [fixations, saccades];
 }
 
 function detectSaccades(samples, lambda, smooth_saccades){
-    let vx = kernal(samples.x, math.matrix([-0.5, 0, 0.5]), 'result');
-    let vy = kernal(samples.y, math.matrix([-0.5, 0, 0.5]), 'result');
+    let dx = kernal(samples.x, math.matrix([-1, 0, 1]), 'result');
+    let dy = kernal(samples.y, math.matrix([-1, 0, 1]), 'result');
+    let dt = kernal(samples.t, math.matrix([-1, 0, 1]), 'result');
+
+    let vx = math.dotDivide(dx, dt);
+    let vy = math.dotDivide(dy, dt);
 
     let median_vx2 = math.median(pow2(vx));
     let medianvx_2 = math.pow(math.median(vx), 2);
@@ -91,25 +95,19 @@ function aggregateFixations(samples) {
     let idx = math.range(0, samples.saccade.size()[0]);
 
     let sacc_event = math.concat([0], math.diff(samples.saccade));
+    // In sacc_event a 1 marks the start of a saccade and a -1 the
+    // start of a fixation.
 
-    // let begin = math.concat([0], // start of trail
-    //     math.filter(idx, (i)=>{
-    //         return math.equal(sacc_event.get([i]),-1);  
-    //     })
-    // ); // end of sacc, means fixation start
-    let begin = math.filter(idx, (i)=>{
+    let minusOnes = math.filter(idx, (i)=>{
         return math.equal(sacc_event.get([i]),-1);  
-    });
-    // let end = math.concat( 
-    //     math.filter(idx, (i)=>{
-    //         return math.equal(sacc_event.get([i]),1);  
-    //     }), // start of sacc, means fixation ends
-    //     [math.subtract(samples.saccade.size()[0], 1)] // end of trail
-    // );
-    let end = math.filter(idx, (i)=>{
+    }); // start of sacc, end of fixation
+    let plusOnes = math.filter(idx, (i)=>{
         return math.equal(sacc_event.get([i]),1);  
-    });
+    }); // start of fixation, end of sacc
 
+    // Generate Saccades
+    let begin = plusOnes;
+    let end = minusOnes;
     if (end.get([0]) < begin.get([0])){ // happens when the gaze starts directly from a fixation, end before start
         begin = math.concat([0], begin);
     } 
@@ -117,21 +115,43 @@ function aggregateFixations(samples) {
         end = math.concat(end, [math.subtract(samples.saccade.size()[0], 1)]);
     }
 
+    let saccades = [];
+    begin.forEach((element, i) => {
+        slice = math.index(math.range(element,end.get(i)+1));
+        saccades.push(new Saccade(
+            samples.x.subset(slice),
+            samples.y.subset(slice),
+            samples.vx.subset(slice),
+            samples.vy.subset(slice))
+        );
+    })
 
-    fixations = [];
+    // Genarate Fixations, special cases
+    begin = minusOnes;
+    end = plusOnes;
+    if (end.get([0]) < begin.get([0])){ // happens when the gaze starts directly from a fixation, end before start
+        begin = math.concat([0], begin);
+    } 
+    if (begin.get([ begin.size()[0]-1 ]) > end.get([ end.size()[0]-1 ])) { // happens when the gaze ends with a fixation, begin after end
+        end = math.concat(end, [math.subtract(samples.saccade.size()[0], 1)]);
+    }
+
+    // Genarate Fixations
+    let fixations = [];
     begin.forEach((element, i) => {
         slice = math.index(math.range(element,end.get(i)+1));
         fixations.push(new Fixation(
             samples.x.subset(slice),
             samples.y.subset(slice),
-            element,
-            end.get(i)));
+            samples.t.get([element]),
+            samples.t.get([end.get(i)]))
+        );
     });
 
-    return fixations;
+    return [fixations, saccades];
 }
 
-function kernal(samples, kernal, mode='original') {
+function kernal(samples, kernal, padMode='original') {
     let kernalSize = math.squeeze(kernal.size());
     let sampleSize = math.squeeze(samples.size());
 
@@ -141,7 +161,11 @@ function kernal(samples, kernal, mode='original') {
     });
 
     let result = math.multiply(convMatrix, samples);
-    switch (mode) {
+    switch (padMode) {
+        case 'none':
+            // Do not pad
+            return result;
+            break;
         case 'original':
             // use original value to fill empty
             return math.concat([samples.get([0])], 
@@ -155,7 +179,7 @@ function kernal(samples, kernal, mode='original') {
                 [result.get([sampleSize-kernalSize])], 0);
             break;
         default:
-            throw new Error('Wrong mode in function kernal()! Either original or result.');
+            throw new Error('Wrong padding mode in function kernal()! Either original or result.');
     }
 }
 
@@ -183,14 +207,18 @@ function pow2(vector){
 
 class Fixation{
     constructor(x_coords, y_coords, start, end){
-        this.x = math.median(x_coords);
-        this.y = math.median(y_coords);
-        this.madx = math.mad(x_coords);
-        this.mady = math.mad(y_coords);
+        this.xall = x_coords;
+        this.x = math.mean(x_coords);
+        this.xmad = math.mad(x_coords);
         this.xmax = math.max(x_coords);
         this.xmin = math.min(x_coords);
+
+        this.yall = y_coords;
+        this.y = math.mean(y_coords);
+        this.ymad = math.mad(y_coords);
         this.ymax = math.max(y_coords);
         this.ymin = math.min(y_coords);
+        
         this.start = start;
         this.end = end;
         this.duration = end - start;
@@ -212,4 +240,66 @@ class Fixation{
         ctx.strokeStyle = color;
         ctx.strokeRect(this.xmin, this.ymin, this.xmax - this.xmin, this.ymax - this.ymin);
     }
+}
+
+class Saccade{
+    constructor(x_coords, y_coords, vx, vy) {
+        this.xall = x_coords;
+        this.yall = y_coords;
+        this.vx = vx;
+        this.vy = vy;
+    }
+
+    drawVelocity(ctx, arrowLen = 14) {
+        this.xall.forEach((fromX, i)=>{
+            let fromY = this.yall.get(i);
+            let offsetX = arrowLen * math.cos(math.atan2( this.vy.get(i), this.vx.get(i) ));
+            let offsetY = arrowLen * math.sin(math.atan2( this.vy.get(i), this.vx.get(i) ));
+
+            drawArrow(ctx, fromX, fromY, fromX+offsetX, fromY+offsetY, 30, 2, 3, 'blue');
+
+            ctx.fillStyle = 'blue';
+            ctx.beginPath();
+            ctx.arc(fromX, fromY, 5, 0, Math.PI * 2, true);
+            ctx.fill();
+        });
+    }
+}
+
+function drawArrow(ctx, fromX, fromY, toX, toY,theta,headlen,width,color) {
+ 
+    theta = typeof(theta) != 'undefined' ? theta : 30;
+    headlen = typeof(headlen) != 'undefined' ? headlen : 10;
+    width = typeof(width) != 'undefined' ? width : 1;
+    color = typeof(color) != 'color' ? color : '#000';
+ 
+    // 计算各角度和对应的P2,P3坐标
+    var angle = Math.atan2(fromY - toY, fromX - toX) * 180 / Math.PI,
+        angle1 = (angle + theta) * Math.PI / 180,
+        angle2 = (angle - theta) * Math.PI / 180,
+        topX = headlen * Math.cos(angle1),
+        topY = headlen * Math.sin(angle1),
+        botX = headlen * Math.cos(angle2),
+        botY = headlen * Math.sin(angle2);
+ 
+    ctx.save();
+    ctx.beginPath();
+ 
+    var arrowX = fromX - topX,
+        arrowY = fromY - topY;
+ 
+    ctx.moveTo(arrowX, arrowY);
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    arrowX = toX + topX;
+    arrowY = toY + topY;
+    ctx.moveTo(arrowX, arrowY);
+    ctx.lineTo(toX, toY);
+    arrowX = toX + botX;
+    arrowY = toY + botY;
+    ctx.lineTo(arrowX, arrowY);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.stroke();
+    ctx.restore();
 }
