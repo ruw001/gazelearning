@@ -40,12 +40,11 @@
 // unlikely to occur with current eye-trackers.
 
 function detectFixations(samples, lambda=6, smooth_coordinates=false, smooth_saccades=true) {
-
-    sample2matrix(samples);
+    sample2tensor(samples);
 
     if (smooth_coordinates) {
-        samples.x = kernal(samples.x, math.multiply(1/3, math.ones(3)));
-        samples.y = kernal(samples.y, math.multiply(1/3, math.ones(3)));
+        samples.x = vectorConv(samples.x, tf.ones([3,1]).mul(1/3), 'original');
+        samples.y = vectorConv(samples.y, tf.ones([3,1]).mul(1/3), 'original');
     }
 
     samples = detectSaccades(samples, lambda, smooth_saccades);
@@ -58,30 +57,30 @@ function detectFixations(samples, lambda=6, smooth_coordinates=false, smooth_sac
 }
 
 function detectSaccades(samples, lambda, smooth_saccades){
-    let dx = kernal(samples.x, math.matrix([-1, 0, 1]), 'result');
-    let dy = kernal(samples.y, math.matrix([-1, 0, 1]), 'result');
-    let dt = kernal(samples.t, math.matrix([-1, 0, 1]), 'result');
+    let dx = vectorConv(samples.x, tf.tensor1d([-1, 0, 1]), 'result');
+    let dy = vectorConv(samples.y, tf.tensor1d([-1, 0, 1]), 'result');
+    let dt = vectorConv(samples.t, tf.tensor1d([-1, 0, 1]), 'result');
 
-    let vx = math.dotDivide(dx, dt);
-    let vy = math.dotDivide(dy, dt);
+    let vx = dx.div(dt);
+    let vy = dy.div(dt);
 
-    let median_vx2 = math.median(pow2(vx));
-    let medianvx_2 = math.pow(math.median(vx), 2);
-    let msdx = math.sqrt(median_vx2 - medianvx_2);
+    let median_vx2 = get_median(vx.pow(2));
+    let medianvx_2 = get_median(vx).pow(2);
+    let msdx = tf.sqrt(median_vx2.sub(medianvx_2));
 
-    let median_vy2 = math.median(pow2(vy));
-    let medianvy_2 = math.pow(math.median(vy), 2);
-    let msdy = math.sqrt(median_vy2 - medianvy_2);
+    let median_vy2 = get_median(vy.pow(2));
+    let medianvy_2 = get_median(vy).pow(2);
+    let msdy = tf.sqrt(median_vy2.sub(medianvy_2));
 
-    let radiusx = math.multiply(lambda, msdx);
-    let radiusy = math.multiply(lambda, msdy);
+    let radiusx = msdx.mul(lambda);
+    let radiusy = msdy.mul(lambda);
 
-    let sacc = math.larger(
-        math.add(pow2(math.divide(vx, radiusx)), pow2(math.divide(vy, radiusy))),
-        1);
+    let sacc = vx.div(radiusx).pow(2)
+                .add(vy.div(radiusy).pow(2))
+                .greater(1);
     if (smooth_saccades) {
-        sacc = kernal(sacc, math.multiply(1/3, math.ones(3)));
-        sacc = math.larger(sacc, 0.5);
+        sacc = vectorConv(sacc, tf.ones([3,1]).mul(1/3), 'original');
+        sacc = sacc.greater(0.5);
     }
 
     samples.saccade = sacc;
@@ -92,75 +91,89 @@ function detectSaccades(samples, lambda, smooth_saccades){
 }
 
 function aggregateFixations(samples) {
-    let idx = math.range(0, samples.saccade.size()[0]);
+    let idx = tf.range(0, samples.saccade.shape[0]);
 
-    let sacc_event = math.concat([0], math.diff(samples.saccade));
+    let sacc_event = tf.concat([tf.tensor2d([0], [1,1]),
+                                vectorConv(samples.saccade, tf.tensor1d([-1,1]), 'none')])
+                                .squeeze().arraySync();
     // In sacc_event a 1 marks the start of a saccade and a -1 the
     // start of a fixation.
 
-    let minusOnes = math.filter(idx, (i)=>{
-        return math.equal(sacc_event.get([i]),-1);  
-    }); // start of sacc, end of fixation
-    let plusOnes = math.filter(idx, (i)=>{
-        return math.equal(sacc_event.get([i]),1);  
-    }); // start of fixation, end of sacc
+    let minusOnes = [];
+    let plusOnes = [];
+    sacc_event.forEach((sacc_e, i)=>{
+        if (sacc_e == -1) minusOnes.push(i);
+        if (sacc_e == 1) plusOnes.push(i);
+    }); // have to remove the use of tf.booleanMaskAsync(), since is an async function
 
     // Generate Saccades
-    let begin = plusOnes;
-    let end = minusOnes;
-    if (end.get([0]) < begin.get([0])){ // happens when the gaze starts directly from a fixation, end before start
-        begin = math.concat([0], begin);
+    let begin = [...plusOnes];
+    let end = [...minusOnes];
+    let markBegin = false;
+    let markEnd = false;
+    if ( end[0] < begin[0] ){ // happens when the gaze starts directly from a fixation, end before start
+        begin.unshift(0);
+        markBegin = !markBegin;
     } 
-    if (begin.get([ begin.size()[0]-1 ]) > end.get([ end.size()[0]-1 ])) { // happens when the gaze ends with a fixation, begin after end
-        end = math.concat(end, [math.subtract(samples.saccade.size()[0], 1)]);
+    if ( begin[begin.length - 1] > end[end.length - 1] ) { // happens when the gaze ends with a fixation, begin after end
+        end.push(samples.saccade.shape[0] - 1);
+        markEnd = !markEnd;
     }
 
     let saccades = [];
     begin.forEach((element, i) => {
-        slice = math.index(math.range(element,end.get(i)+1));
+        let sliceLen = end[i] - element;
         saccades.push(new Saccade(
-            samples.x.subset(slice),
-            samples.y.subset(slice),
-            samples.vx.subset(slice),
-            samples.vy.subset(slice))
+            samples.x.slice(element, sliceLen),
+            samples.y.slice(element, sliceLen),
+            samples.vx.slice(element, sliceLen),
+            samples.vy.slice(element, sliceLen))
         );
-    })
+    });
+    if ( (markBegin&&!markEnd) || (!markBegin&&markBegin)) {
+        // markBegin xor markEnd, because there is no xor operator in js
+        if (markBegin) {
+            saccades[0].mark();
+        } else {
+            saccades[ saccades.length - 1 ].mark();
+        }
+    }
 
     // Genarate Fixations, special cases
-    begin = minusOnes;
-    end = plusOnes;
-    if (end.get([0]) < begin.get([0])){ // happens when the gaze starts directly from a fixation, end before start
-        begin = math.concat([0], begin);
+    begin = [...minusOnes];
+    end = [...plusOnes];
+    if ( end[0] < begin[0] ){ // happens when the gaze starts directly from a fixation, end before start
+        begin.unshift(0);
     } 
-    if (begin.get([ begin.size()[0]-1 ]) > end.get([ end.size()[0]-1 ])) { // happens when the gaze ends with a fixation, begin after end
-        end = math.concat(end, [math.subtract(samples.saccade.size()[0], 1)]);
+    if ( begin[begin.length - 1] > end[end.length - 1] ) { // happens when the gaze ends with a fixation, begin after end
+        end.push(samples.saccade.shape[0] - 1);
     }
 
     // Genarate Fixations
     let fixations = [];
     begin.forEach((element, i) => {
-        slice = math.index(math.range(element,end.get(i)+1));
+        let sliceLen = end[i] - element;
         fixations.push(new Fixation(
-            samples.x.subset(slice),
-            samples.y.subset(slice),
-            samples.t.get([element]),
-            samples.t.get([end.get(i)]))
+            samples.x.slice(element, sliceLen),
+            samples.y.slice(element, sliceLen),
+            samples.t.slice(element, 1).squeeze(),
+            samples.t.slice(end[i], 1).squeeze()) // Do we contain end[i] as fixation point?
         );
     });
 
     return [fixations, saccades];
 }
 
-function kernal(samples, kernal, padMode='original') {
-    let kernalSize = math.squeeze(kernal.size());
-    let sampleSize = math.squeeze(samples.size());
+function vectorConv(samples, kernal, padMode='original') {
 
-    let convMatrix = math.zeros(sampleSize-kernalSize+1, sampleSize);
-    math.range(0,convMatrix.size()[0]).forEach( row => {
-        convMatrix.subset(math.index(row, math.add(math.range(0,kernalSize), row)), kernal);
-    });
+    let result = tf.conv1d(samples.reshape([1, -1, 1]),
+                            kernal.reshape([-1, 1, 1]),
+                            1,'valid').reshape([-1, 1]);
+    // conv1d, x - [batch_size, input_size, feature_length]
+    //         kernal - [kernal_width, indpeth, ourdepth]
+    //         stride
+    //         pad - 'same' for same size, 'valid' for valid length (input - kernal + 1)
 
-    let result = math.multiply(convMatrix, samples);
     switch (padMode) {
         case 'none':
             // Do not pad
@@ -168,15 +181,15 @@ function kernal(samples, kernal, padMode='original') {
             break;
         case 'original':
             // use original value to fill empty
-            return math.concat([samples.get([0])], 
+            return tf.concat([samples.slice([0], [1]),
                 result,
-                [samples.get([sampleSize-1])], 0);
+                samples.slice([samples.shape[0]-1], [1])]);
             break;
         case 'result':
             // use computed result to fill empty
-            return math.concat([result.get([0])], 
+            return tf.concat([result.slice([0], [1]), 
                 result,
-                [result.get([sampleSize-kernalSize])], 0);
+                result.slice([result.shape[0]-1], [1])]);
             break;
         default:
             throw new Error('Wrong padding mode in function kernal()! Either original or result.');
@@ -195,111 +208,24 @@ function removeArtifacts(fixations){
     // })
 }
 
-function sample2matrix(samples) {
-    samples.x = math.matrix(samples.x);
-    samples.y = math.matrix(samples.y);
-    samples.t = math.matrix(samples.t);
-}
-
-function pow2(vector){
-    return math.dotMultiply(vector, vector)
-}
-
-class Fixation{
-    constructor(x_coords, y_coords, start, end){
-        this.xall = x_coords;
-        this.x = math.mean(x_coords);
-        this.xmad = math.mad(x_coords);
-        this.xmax = math.max(x_coords);
-        this.xmin = math.min(x_coords);
-
-        this.yall = y_coords;
-        this.y = math.mean(y_coords);
-        this.ymad = math.mad(y_coords);
-        this.ymax = math.max(y_coords);
-        this.ymin = math.min(y_coords);
-        
-        this.start = start;
-        this.end = end;
-        this.duration = end - start;
-    }
-
-    draw(ctx, r=10, color='#0B5345') {
-        ctx.fillStyle = color; 
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, r, 0, Math.PI * 2, true);
-        ctx.fill();
-    }
-
-    drawId(ctx, index, r=10, fontsize=16) {
-        ctx.font = fontsize+'px serif';
-        ctx.fillText(index, this.x+r, this.y+r);
-    }
-
-    drawRectArea(ctx, color='#0B5345') {
-        ctx.strokeStyle = color;
-        ctx.strokeRect(this.xmin, this.ymin, this.xmax - this.xmin, this.ymax - this.ymin);
+function sample2tensor(samples) {
+    if (!(samples.x instanceof tf.Tensor)) {
+        samples.x = tf.tensor2d(samples.x, [samples.x.length, 1]);
+        samples.y = tf.tensor2d(samples.y, [samples.y.length, 1]);
+        samples.t = tf.tensor2d(samples.t, [samples.t.length, 1]);
     }
 }
 
-class Saccade{
-    constructor(x_coords, y_coords, vx, vy) {
-        this.xall = x_coords;
-        this.yall = y_coords;
-        this.vx = vx;
-        this.vy = vy;
+function get_median(v) {
+    let flattenV = v.reshape([-1]);
+    let len = flattenV.shape[0]
+    let mid = Math.floor(len/2) + 1
+    let val = tf.topk(flattenV.arraySync(), mid).values.dataSync();
+    // I do not know why? Why must .arraySync()? Otherwise the topk() will raise an error.
+    
+    if (len % 2 == 1) {
+        return tf.scalar(val[val.length-1]);
+    } else {
+        return tf.scalar((val[val.length-1] + val[val.length-2])/2);
     }
-
-    drawVelocity(ctx, arrowLen = 14) {
-        this.xall.forEach((fromX, i)=>{
-            let fromY = this.yall.get(i);
-            let offsetX = arrowLen * math.cos(math.atan2( this.vy.get(i), this.vx.get(i) ));
-            let offsetY = arrowLen * math.sin(math.atan2( this.vy.get(i), this.vx.get(i) ));
-
-            drawArrow(ctx, fromX, fromY, fromX+offsetX, fromY+offsetY, 30, 2, 3, 'blue');
-
-            ctx.fillStyle = 'blue';
-            ctx.beginPath();
-            ctx.arc(fromX, fromY, 5, 0, Math.PI * 2, true);
-            ctx.fill();
-        });
-    }
-}
-
-function drawArrow(ctx, fromX, fromY, toX, toY,theta,headlen,width,color) {
- 
-    theta = typeof(theta) != 'undefined' ? theta : 30;
-    headlen = typeof(headlen) != 'undefined' ? headlen : 10;
-    width = typeof(width) != 'undefined' ? width : 1;
-    color = typeof(color) != 'color' ? color : '#000';
- 
-    // 计算各角度和对应的P2,P3坐标
-    var angle = Math.atan2(fromY - toY, fromX - toX) * 180 / Math.PI,
-        angle1 = (angle + theta) * Math.PI / 180,
-        angle2 = (angle - theta) * Math.PI / 180,
-        topX = headlen * Math.cos(angle1),
-        topY = headlen * Math.sin(angle1),
-        botX = headlen * Math.cos(angle2),
-        botY = headlen * Math.sin(angle2);
- 
-    ctx.save();
-    ctx.beginPath();
- 
-    var arrowX = fromX - topX,
-        arrowY = fromY - topY;
- 
-    ctx.moveTo(arrowX, arrowY);
-    ctx.moveTo(fromX, fromY);
-    ctx.lineTo(toX, toY);
-    arrowX = toX + topX;
-    arrowY = toY + topY;
-    ctx.moveTo(arrowX, arrowY);
-    ctx.lineTo(toX, toY);
-    arrowX = toX + botX;
-    arrowY = toY + botY;
-    ctx.lineTo(arrowX, arrowY);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = width;
-    ctx.stroke();
-    ctx.restore();
 }
