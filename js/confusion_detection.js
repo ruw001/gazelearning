@@ -87,22 +87,26 @@ window.onload = async function () {
     function onResults(results) {
         canvasCtx.save();
         canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-        canvasCtx.drawImage(
-            results.image, 0, 0, canvasElement.width, canvasElement.height);
+        // canvasCtx.drawImage(
+        //     results.image, 0, 0, canvasElement.width, canvasElement.height);
         if (results.multiFaceLandmarks) {
             for (const landmarks of results.multiFaceLandmarks) {
                 // drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION,
                 //     { color: '#C0C0C070', lineWidth: 1 });
-                drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, { color: '#FF3030' });
-                drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYEBROW, { color: '#FF3030' });
-                drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, { color: '#30FF30' });
-                drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYEBROW, { color: '#30FF30' });
+                // drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, { color: '#FF3030' });
+                // drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYEBROW, { color: '#FF3030' });
+                // drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, { color: '#30FF30' });
+                // drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYEBROW, { color: '#30FF30' });
                 // console.log(FACEMESH_RIGHT_EYE);
                 var srcTri = [landmarks[133], landmarks[362], landmarks[2]]
                 var dstTri = [{x: 150, y: 90}, {x: 170, y: 90}, {x: 120, y: 105}]
                 let { fromTriangles, applyToPoint } = window.TransformationMatrix;
                 var matrix = fromTriangles(srcTri, dstTri);
-                console.log(matrix);
+                let {a, b, c, d, e, f} = matrix;
+                canvasCtx.transform(a, b, c, d, e, f);
+                canvasCtx.drawImage(results.image, 0, 0);//, canvasElement.width, canvasElement.height);
+
+
                 // drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, { color: '#E0E0E0' });
                 // drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, { color: '#E0E0E0' });
             }
