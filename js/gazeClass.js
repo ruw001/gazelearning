@@ -113,9 +113,9 @@ class AoI{
 
         this.labelLineCount = 0;
         this.colorDict = {
-            'safe':'rgb(218, 247, 166)', // sprout green
-            'warning':'rgb(247, 220, 111)', // lemon yellow
-            'danger':'rgb(236, 112, 99)', // sunset red
+            'safe': "#06d6a0",
+            'warning':"#ffd166",
+            'danger':"#ef476f",
         };
 
         this.percentage = fixations.length / nFixations;
@@ -171,6 +171,18 @@ class AoI{
         }, 0).arraySync();
     }
     
+    getStatus() {
+        let randNum = Math.random();
+
+        if (randNum < 0.33) {
+            return "safe"
+        } else if (randNum < 0.66) {
+            return "warning"
+        } else {
+            return "danger"
+        }
+    }
+
     draw(ctx, status) {
         ctx.strokeStyle = this.colorDict[status];
         ctx.strokeRect(this.xmin, this.ymin, this.xmax - this.xmin, this.ymax - this.ymin);
@@ -241,27 +253,230 @@ function AoIBuilder (fixations, saccades, classes) {
     return [AoIs, TMatrix];
 }
 
-function showTransition(ctx, AoIs, TMatrix, width=20) {
+// function showTransition(ctx, AoIs, TMatrix, width=20) {
+//     let AoIX = [];
+//     let AoIY = [];
+
+//     let nTransition = tf.sum(tf.tensor2d(TMatrix, [AoIs.length, AoIs.length]).reshape([-1])).arraySync();
+
+//     AoIs.forEach((AoI)=>{
+//         AoIX[AoI.id] = ( (AoI.xmin + AoI.xmax) / 2 );
+//         AoIY[AoI.id] = ( (AoI.ymin + AoI.ymax) / 2 );
+//     });
+
+//     AoIX.forEach((fromX, id) => {
+//         let fromY = AoIY[id];
+//         TMatrix[id].forEach((transitionCount, classId)=>{
+//             if (transitionCount) {
+//                 let toX = AoIX[classId];
+//                 let toY = AoIY[classId];
+//                 let percent = transitionCount/nTransition;
+//                 console.log(`#${id}=>#${classId}:${percent}, width=${width*percent}, transparency=${percent}`);
+//                 drawArrow(ctx, fromX, fromY, toX, toY, 30, 10,width*percent,color=`rgba(0,0,255,${percent})`);
+//             }
+//         });
+//     });
+// }
+
+function showAoI(AoIs) {
+    // Powered with d3.js https://d3js.org/
+    let t = d3.transition()
+            .duration(500);
+
+    let strokeWidth = 10;
+
+    d3.select("#plotting_svg")
+    .selectAll('rect.AoI')
+    .data(AoIs)
+    .join(
+        enter => enter.append("rect")
+                        .attr("x", d => d.xmin)
+                        .attr("y", d => d.ymin)
+                        .attr("width", 0)
+                        .attr("height", 0)
+                        .style("fill", "none")
+                        .style("stroke-width", strokeWidth+"px")
+                        .classed("AoI", true),
+        update => update,
+        exit => exit.call(
+            rect => rect.transition(t)
+                    .remove()
+                    .attr("width", 0)
+                    .attr("height", 0)
+        )
+    ).call(rect => rect.transition(t)
+        .attr("x", d => d.xmin)
+        .attr("y", d => d.ymin)
+        .attr("width", d => d.xmax - d.xmin)
+        .attr("height", d => d.ymax - d.ymin)
+        .style("stroke", d => d.colorDict[d.getStatus()])
+        .style('opacity', d => d.percentage)
+    );
+
+    d3.select("#plotting_svg")
+    .selectAll('text')
+    .data(AoIs)
+    .join(
+        enter => enter.append("text")
+                        .attr("x", d => d.xmin)
+                        .attr("y", d => d.ymin)
+                        .attr("dx", -strokeWidth / 2)
+                        .attr("dy", strokeWidth / 2)
+                        .text(""),
+        update => update.text(""),
+        exit => exit.call(
+            rect => rect.transition(t)
+                    .remove()
+                    .text(" ")
+    ))
+    .transition(t)
+    .attr("x", d => d.xmin) //for Update
+    .attr("y", d => d.ymin)
+    .text(d => "Dwell Time:"+d.getDwellTime() );
+}
+
+function showTransition(AoIs, TMatrix) {
+    let t = d3.transition()
+            .duration(500);
+    let theta = 30;
+    let arrowLen = 20;
+    let margin = 10;
+    let arrowWidth = 10;
+
     let AoIX = [];
     let AoIY = [];
 
-    let nTransition = tf.sum(tf.tensor2d(TMatrix, [AoIs.length, AoIs.length]).reshape([-1])).arraySync();
+    let nTransition = d3.sum(d3.merge(TMatrix));
 
     AoIs.forEach((AoI)=>{
         AoIX[AoI.id] = ( (AoI.xmin + AoI.xmax) / 2 );
-        AoIY[AoI.id] = ( (AoI.ymin + AoI.ymax) / 2 );
+        AoIY[AoI.id] = ( (AoI.ymin + AoI.ymax) / 2 ) + 1;
+        // for transition calculation, otherwise initial arrow state calculation will thrwo error
     });
 
-    AoIX.forEach((fromX, id) => {
-        let fromY = AoIY[id];
-        TMatrix[id].forEach((transitionCount, classId)=>{
-            if (transitionCount) {
-                let toX = AoIX[classId];
-                let toY = AoIY[classId];
-                let percent = transitionCount/nTransition;
-                console.log(`#${id}=>#${classId}:${percent}, width=${width*percent}, transparency=${percent}`);
-                drawArrow(ctx, fromX, fromY, toX, toY, 30, 10,width*percent,color=`rgba(0,0,255,${percent})`);
+    let gSelection = d3.select("#plotting_svg")
+                    .selectAll("g")
+                    .data(TMatrix)
+                    .join("g");
+
+    gSelection.selectAll("path")
+        .data( (d, i) => {
+            let dataList = [];
+            for (let j = 0; j < d.length; j++) {
+                dataList.push({count:d[j],fixationId:i})
             }
-        });
-    });
+            return dataList
+        })
+        .join("path")
+        .attr("d", (d, i) => arrowGenerator(
+            AoIX[d.fixationId], AoIY[d.fixationId], AoIX[d.fixationId]+5, AoIY[d.fixationId]+5, arrowWidth, theta, arrowLen
+        ))
+        .attr("stroke", "#000")
+        // .attr("stroke-width", d => arrowWidth*d.count/nTransition)
+        .attr("opacity", d => d.count/nTransition)
+        .transition(t)
+        .attr("d", (d, i) => arrowGenerator(
+            AoIX[d.fixationId], AoIY[d.fixationId], AoIX[i], AoIY[i], arrowWidth, theta, arrowLen
+        ))
+
+
+    // gSelection.selectAll("path")
+    //             .data( (d, i) => {return {count:d,fixationId:i}})
+    //             .join(
+    //                 enter => enter,
+    //                 update => update.call(
+    //                     path => path.transition(t)
+    //                             .remove()
+    //                             .attr("d", (d, i) => arrowGenerator(AoIX[i], AoIX[i], AoIX[i], AoIX[i]))
+    //                 ),
+    //                 exit => exit.call(
+    //                     path => path.transition(t)
+    //                             .remove()
+    //                             .attr("d", (d, i) => arrowGenerator(AoIX[i], AoIX[i], AoIX[i], AoIX[i]))
+    //                 )
+    //             )
+    //             .append("path")
+    //             .call(
+    //                 path => path.transition(t)
+    //                             .attr("d", (d, i) => arrowGenerator(
+    //                                 AoIX[d.fixationId], AoIX[d.fixationId], AoIX[i], AoIX[i], 30, 10
+    //                             ))
+    //                             .attr("opacity", d => d/nTransition)
+    //                             .attr("stroke", "#aaa")
+    //                             .attr("stroke-width", d => 10*d/nTransition)
+    //             )
+
+}
+
+function arrowGenerator(fromX, fromY, toX, toY, width, theta,headlen) {
+    //         P4
+    //         |\
+    //       P5| \ 
+    // P6------|  \ 
+    // |           \P3 (toX, toY)
+    // |           /
+    // P0------|  /
+    //       P1| /
+    //         |/ 
+    //         P2 
+
+    let pathString = "";
+
+    theta = typeof(theta) != 'undefined' ? theta : 30;
+    headlen = typeof(headlen) != 'undefined' ? headlen : 10;
+
+    let angle = Math.atan2(toY - fromY, toX - fromX);
+    let perpendicularAngle = angle - Math.PI / 2;
+
+    let p0x = fromX + width / 2 * Math.cos(perpendicularAngle);
+    let p0y = fromY + (width / 2 * Math.sin(perpendicularAngle)); // y axis is inversed in JS 
+
+    let p1x = (toX - headlen * Math.cos(angle)) + width / 2 * Math.cos(perpendicularAngle);
+    let p1y = (toY - headlen * Math.sin(angle)) + width / 2 * Math.sin(perpendicularAngle);
+
+    let p2x = p1x + width / 2 * Math.cos(perpendicularAngle);
+    let p2y = p1y + (width / 2 * Math.sin(perpendicularAngle));
+
+    let p6x = fromX - width / 2 * Math.cos(perpendicularAngle);
+    let p6y = fromY - (width / 2 * Math.sin(perpendicularAngle));
+
+    let p5x = (toX - headlen * Math.cos(angle)) - width / 2 * Math.cos(perpendicularAngle);
+    let p5y = (toY - headlen * Math.sin(angle)) - width / 2 * Math.sin(perpendicularAngle);
+
+    let p4x = p5x - width / 2 * Math.cos(perpendicularAngle);
+    let p4y = p5y - width / 2 * Math.sin(perpendicularAngle);
+
+    let curveAngle = angle - theta * Math.PI / 180;
+    let curveLength = Math.round(Math.sqrt(Math.pow(fromY - toY, 2) + Math.pow(fromX - toX, 2)) * 0);
+
+    let fromDX = curveLength * Math.cos(curveAngle);
+    let fromDY = curveLength * Math.sin(curveAngle); // for Bézier Curves
+
+    let toDX, toDY;
+    if (Math.tan(angle) === NaN){
+        toDX = fromDX;
+        toDY = -fromDY; // for Bézier Curves
+    } else if (Math.tan(angle) == 0) {
+        toDX = -fromDX;
+        toDY = fromDY; // for Bézier Curves 
+    } else {
+        toDX = -fromDX / Math.tan(angle);
+        toDY = -fromDY * Math.tan(angle);
+    }
+
+
+
+    pathString += `M ${p0x} ${p0y} `;
+    pathString += `C ${p0x + fromDX} ${p0y + fromDY}, ${(p1x + toDX)} ${(p1y + toDY)}, ${p1x} ${p1y} `;
+    pathString += `L ${p2x} ${p2y} `;
+    pathString += `L ${toX} ${toY} `;
+    pathString += `L ${p4x} ${p4y} `;
+    pathString += `L ${p5x} ${p5y} `;
+    pathString += `C ${p5x + toDX} ${p5y + toDY}, ${(p6x + fromDX)} ${(p6y + fromDY)}, ${p6x} ${p6y} `;
+    pathString += `Z`; // Z for close path
+
+    console.log(`toDX : ${toDX}, toDY : ${fromDY}`)
+    console.log(`Path generated : ${pathString}`);
+
+    return pathString;
 }

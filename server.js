@@ -211,8 +211,9 @@ function spectralCluster(X, Y, repeat) {
     var lambda = eig.realEigenvalues.sort(); // js array
     var deltaLambda = lambda.slice(0, lambda.length - 1)
                             .map((elem, i) => lambda[i+1] - elem);
-    var k = deltaLambda.slice(0, Math.ceil(lambda.length / 2))
-            .reduce((maxIdx, item, index)=>deltaLambda[maxIdx] < item ? index : maxIdx, 0) + 1;
+    // var k = deltaLambda.slice(0, Math.ceil(lambda.length / 2))
+    //         .reduce((maxIdx, item, index)=>deltaLambda[maxIdx] < item ? index : maxIdx, 0) + 1;
+    var k = Math.random() > 0.5 ? 4 : 3;
     console.log(`k = ${k}`);
 
     var columns = [];
