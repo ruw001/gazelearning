@@ -2,6 +2,7 @@ var svmpkg = require('machinelearn/svm')
 var PORT = process.env.PORT || 5000;
 var express = require('express');
 var app = express();
+// var cors = require('cors')
 
 var http = require('http');
 var server = http.Server(app);
@@ -10,6 +11,8 @@ var server = http.Server(app);
 const multipart = require("connect-multiparty");
 const multipartyModdleware = multipart();
 
+
+// app.use(cors())
 app.use(express.static('./'));
 
 app.post('/users', multipartyModdleware, function (req, res, next) {
