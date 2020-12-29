@@ -1,10 +1,66 @@
-var PointCalibrate = 0;
-var CalibrationPoints={};
-const clickTimes = 2;
+/*========================
+========================
+    PUBLIC VARIABLES
+========================
+========================*/
 
-/**
- * Clear the canvas and the calibration button.
- */
+// Kalman Filter defaults to on. Can be toggled by user.
+window.applyKalmanFilter = true;
+
+// Set to true if you want to save the data even if you reload the page.
+window.saveDataAcrossSessions = true;
+// 2020.10.30 How do I know if the data is saved?
+// check L88119 @ webgazer.js, the definition of clickListener()
+// check L88172 @ webgazer.js, for loadGlobalData()/setGlobalData()/clearData()
+
+var PointCalibrate = 0;
+var CalibrationPoints=[];
+const clickTimes = 10;
+const points = 9;
+let randomClickCounter = points*clickTimes;
+let caliMode = null;
+
+/*========================
+========================
+SOME FUNCTION BEFORE CALI STARTS
+========================
+========================*/
+
+window.onload = async function() {
+
+  webgazer.params.showVideoPreview = true;
+  //start the webgazer tracker
+  await webgazer.setRegression('ridge') /* currently must set regression and tracker */
+      //.setTracker('clmtrackr')
+      .setGazeListener(function(data, clock) {
+        //   console.log(data); /* data is an object containing an x and y key which are the x and y prediction coordinates (no bounds limiting) */
+        //   console.log(clock); /* elapsed time in milliseconds since webgazer.begin() was called */
+      }).begin();
+      webgazer.showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
+
+
+  //Set up the webgazer video feedback.
+  var setup = function() {
+      //Set up the main canvas. The main canvas is used to calibrate the webgazer.
+      var canvas = document.getElementById("plotting_canvas");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      canvas.style.position = 'fixed';
+  };
+  setup();
+};
+
+window.onbeforeunload = function() {
+  webgazer.end();
+}
+
+// Runs when document is ready. HelpModal is showed immediately when document is ready.
+$(function(){
+  ClearCanvas();
+  helpModalShow();
+});
+
+// Clear the canvas and the calibration button.
 function ClearCanvas(){
   $(".Calibration").hide();
   $(".Test").hide();
@@ -12,94 +68,183 @@ function ClearCanvas(){
   canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
 }
 
-/**
- * Show the instruction of using calibration at the start up screen.
- */
-function PopUpInstruction(){
+// Show the help instructions right at the start.
+function helpModalShow() {
+  $('#helpModal').modal('show');
+}
+
+/*========================
+========================
+MAIN FUNCTIONS IN CALIBRATION
+========================
+========================*/
+
+// Restart the calibration process by clearing the local storage and reseting the calibration point
+// Also serves as the entry point when calibration mode is selected.
+function Restart(mode){
+  document.getElementById("Accuracy").innerHTML = "<a>Not yet Calibrated</a>";
+  webgazer.clearData();
+  ClearCalibration();
+  PopUpInstruction(mode);
+}
+
+// This function clears the calibration buttons memory
+function ClearCalibration(){
+  // Clear data from WebGazer
+  // webgazer.clearData();
+
+  // Initialize all calibration points
+  $(".Calibration").css('background-color','red');
+  $(".Calibration").css('opacity',1/clickTimes);
+  $(".Calibration").prop('disabled',false);
+
+  // Initialize some counters
+  CalibrationPoints = {};
+  PointCalibrate = 0;
+  randomClickCounter = points*clickTimes;
+}
+
+// Show the instruction of using calibration at the start up screen.
+function PopUpInstruction(mode){
+  caliMode = mode;
+
   ClearCanvas();
   swal({
     title:"Calibration",
     text: `Please click on each of the 9 points on the screen. You must click on each point ${clickTimes} times till it goes yellow. This will calibrate your eye movements.`,
     buttons:{
       cancel: false,
-      confirm: true
+      confirm: {className:'btn btn-primary'}
     }
   }).then(isConfirm => {
     ShowCalibrationPoint();
   });
-
-}
-/**
-  * Show the help instructions right at the start.
-  */
-function helpModalShow() {
-    $('#helpModal').modal('show');
 }
 
-/**
- * Load this function when the index page starts.
-* This function listens for button clicks on the html page
-* checks that all buttons have been clicked 5 times each, and then goes on to measuring the precision
-*/
-$(document).ready(function(){
-  ClearCanvas();
-  helpModalShow();
-  $(".Calibration").click(function(){ // click event on the calibration buttons
-
-      var id = $(this).attr('id');
-
-      if (!CalibrationPoints[id]){ // initialises if not done
-        CalibrationPoints[id]=0;
-      }
-      CalibrationPoints[id]++; // increments values
-
-      if (CalibrationPoints[id]==clickTimes){ //only turn to yellow after 5 clicks
-        $(this).css('background-color','yellow');
-        $(this).prop('disabled', true); //disables the button
-        PointCalibrate++;
-      }else if (CalibrationPoints[id]<clickTimes){
-        //Gradually increase the opacity of calibration points when click to give some indication to user.
-        var opacity = (1/clickTimes)*CalibrationPoints[id]+(1/clickTimes);
-        $(this).css('opacity',opacity);
-      }
-
-      //Show the middle calibration point after all other points have been clicked.
-      if (PointCalibrate == 8){
-        $("#Pt5").show();
-      }
-
-      if (PointCalibrate >= 9){   // last point is calibrated
-        fourPointCalibrationTest();
-      }
-    });
-});
-
-/**
- * Show the Calibration Points
- */
+// Show the Calibration Points
 function ShowCalibrationPoint() {
-  $(".Calibration").show();
-  $("#Pt5").hide(); // initially hides the middle button
+  // $(".Calibration").show();
+  // $("#Pt5").hide(); // initially hides the middle button
+
+  switch (caliMode) {
+    case 0:
+      console.log('Calibration mode: traditional');
+      $('#Pt0').show();
+      traditional(false);
+      break;
+    case 1:
+      console.log('Calibration mode: traditional, in sequence');
+      $('#Pt0').show();
+      traditional(true);
+      break;
+    case 2:
+      console.log('Calibration mode: random calibration points');
+      $('#PtRandom').css({
+        'background-color':'red',
+        'opacity':0.5,
+        'top':getRandomIntInclusive(2,98)+'vh',
+        'left':getRandomIntInclusive(2,98)+'vw',
+        'z-index': 99,
+      });
+      $('#PtRandom').show();
+      randomCali();
+      break;
+  }
 }
 
-/**
-* This function clears the calibration buttons memory
-*/
-function ClearCalibration(){
-  // Clear data from WebGazer
+// Traditional 9 points calibration.
+// If sequence is true, each calibration point will be hidden after each single click, and next calibration point is shown until a round is done
+function traditional(sequence = false){
 
-  $(".Calibration").css('background-color','red');
-  $(".Calibration").css('opacity',1/clickTimes);
-  $(".Calibration").prop('disabled',false);
+  function clickHandler(e) {
+    var id = +$(this).attr('id').slice(2);
 
-  CalibrationPoints = {};
-  PointCalibrate = 0;
+    if (!CalibrationPoints[id]){ // initialises if not done
+      CalibrationPoints[id]=0;
+    }
+    CalibrationPoints[id]++; // increments values
+
+    if (CalibrationPoints[id]<clickTimes){ 
+      //Gradually increase the opacity of calibration points when click to give some indication to user.
+      var opacity = (1/clickTimes)*CalibrationPoints[id]+(1/clickTimes);
+      $(this).css('opacity',opacity);
+
+      if (sequence) {
+        $(this).hide();
+        $('#Pt'+(id+1)%points).show();
+      }
+      
+    } else if (CalibrationPoints[id]==clickTimes){
+      //turn to yellow after clicks done
+
+      $(this).css('background-color','yellow');
+      $(this).prop('disabled', true); //disables the button
+      PointCalibrate++;
+
+      if (PointCalibrate == points){
+        fourPointCalibrationTest(); // calibration is done
+      } else {
+        if (!sequence) {
+          $('#Pt'+(id+1)).show();
+        } else {
+          $('#Pt'+(id+1)%points).show();
+        }
+        
+        // not done yet, add new point to the 
+        // let newPoint = document.createElement('input');
+        // newPoint.setAttribute('type', 'button');
+        // newPoint.setAttribute('class', 'Clibration');
+        // newPoint.setAttribute('id', 'Pt'+PointCalibrate);
+        // newPoint.addEventListener('click', clickHandler);
+
+        // document.querySelector('.calibrationDiv').insertAdjacentElement('afterbegin', newPoint);
+      }
+    }
+  }
+
+  $(".Calibration").on('click', clickHandler);
 }
 
-// sleep function because java doesn't have one, sourced from http://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep
-function sleep (time) {
-  return new Promise((resolve) => setTimeout(resolve, time));
+// random calibration
+function randomCali(){
+  $(".Calibration").on('click',()=>{
+    $('#PtRandom').css({'background-color':'yellow','disabled':''});
+    randomClickCounter-=1;
+
+    //Calibration is done
+    if (!randomClickCounter) fourPointCalibrationTest();
+
+    //Calibration is not finished
+    sleep(100).then(()=>{
+      let newTop = getRandomIntInclusive(2,98);
+      let newLeft = getRandomIntInclusive(2,98);
+      $('#PtRandom').css({
+        'background-color':'red',
+        'opacity':0.5,
+        'top':newTop+'vh',
+        'left':newLeft+'vw',
+        'z-index': 99,
+        'disabled':'false',
+      });
+
+      var canvas = document.getElementById("plotting_canvas");
+      let ctx = canvas.getContext('2d');
+      var canvas = document.getElementById("plotting_canvas");
+      canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.font = 16+'px serif';
+      ctx.fillStyle = 'red'; 
+      ctx.fillText(randomClickCounter, newLeft/100*window.innerWidth+20, newTop/100*window.innerHeight+20);
+    });
+
+  });
 }
+
+/*========================
+========================
+    TEST FUNCTIONS
+========================
+========================*/
 
 function middlePointCalibrationTest (){
   //using jquery to grab every element in Calibration class and hide them except the middle point.
@@ -185,7 +330,6 @@ async function fourPointCalibrationTest (){
 }
 
 async function singlePoint(testId) {
-  console.log(testId);
   $('#'+testId).show();
   let past50 = null;
   // $(document).ready(async function(){
@@ -198,6 +342,7 @@ async function singlePoint(testId) {
     draw50('green', past50);
     sleep(1000);
     var precision_measurement = calculatePrecision(past50, testId);
+    console.log(testId+':'+precision_measurement+'%');
     var accuracyLabel = "<a>Accuracy | "+precision_measurement+"%</a>";
     document.getElementById("Accuracy").innerHTML = accuracyLabel; // Show the accuracy in the nav bar.
     return swal({
@@ -225,6 +370,18 @@ async function singlePoint(testId) {
   return past50;
 }
 
+/*========================
+========================
+      UTILITIES
+========================
+========================*/
+
+// sleep function because java doesn't have one, sourced from http://stackoverflow.com/questions/951021/what-is-the-javascript-version-of-sleep
+function sleep (time) {
+  return new Promise((resolve) => setTimeout(resolve, time));
+}
+
+// Draw 50 gaze points which are used for precision calculation
 function draw50(color,gaze){
   let x = gaze[0];
   let y = gaze[1];  
@@ -237,4 +394,11 @@ function draw50(color,gaze){
     ctx.arc(element, y[index], 5, 0, Math.PI * 2, true);
     ctx.fill();
   });
+}
+
+// Random interger grnerator
+function getRandomIntInclusive(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min; // Including both min and max
 }

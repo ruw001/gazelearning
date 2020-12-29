@@ -23,7 +23,22 @@ app.post('/users', multipartyModdleware, function (req, res, next) {
     );
 
     res.format({'application/json': function(){
-        res.send({ message: 'hey' });
+        res.send({ message: 'Cookie set.' });
+      }
+    });
+
+    res.send();
+});
+
+app.post('/gazeData/cluster', express.json(), function (req, res, next) {
+    let fixations = req.body;
+    console.log(`Recieve ${fixations.length} fixations at ${new Date()}`);
+
+    let fixationX = fixations.map(fixation => [fixation.x]);
+    let fixationY = fixations.map(fixation => [fixation.y]);
+
+    res.format({'application/json': function(){
+        res.send({ result: JSON.stringify(spectralCluster(fixationX, fixationY, 5)) });
       }
     });
 
@@ -173,4 +188,87 @@ function sendGazePoints(req, res, next) {
         res.statusCode = 200;
         res.end();
     });
+}
+
+// Some code about spectral clustering
+const kmeans = require('ml-kmeans');
+const { Matrix, EigenvalueDecomposition } = require('ml-matrix');
+
+function spectralCluster(X, Y, repeat) {
+    let matX = X instanceof Matrix ? X : new Matrix(X);
+    let matY = Y instanceof Matrix ? Y : new Matrix(Y);
+
+    // Construct similarity matrix
+    let sigma = 5;
+    let distance = matX.repeat({columns:matX.rows})
+                    .subtract(matX.transpose().repeat({rows:matX.rows}))
+                    .pow(2)
+                    .add(
+                        matY.repeat({columns:matY.rows})
+                        .subtract(matY.transpose().repeat({rows:matY.rows}))
+                        .pow(2)
+                    ).sqrt().div(-2*sigma*sigma).exp();
+    let D = Matrix.diag(
+        distance.mmul(Matrix.ones(distance.rows, 1)).to1DArray()
+    );
+
+    // Eigenvalue decomposition
+    var eig = new EigenvalueDecomposition(D.sub(distance));
+    var lambda = eig.realEigenvalues.sort(); // js array
+    var deltaLambda = lambda.slice(0, lambda.length - 1)
+                            .map((elem, i) => lambda[i+1] - elem);
+    // var k = deltaLambda.slice(0, Math.ceil(lambda.length / 2))
+    //         .reduce((maxIdx, item, index)=>deltaLambda[maxIdx] < item ? index : maxIdx, 0) + 1;
+    var k = Math.random() > 0.5 ? 4 : 3;
+    console.log(`k = ${k}`);
+
+    var columns = [];
+    for (let i = 0; i < k; i+=1) {
+        columns.push(i);
+    } // it suprises me that JS has no native function to generate a range...
+    var data = eig.eigenvectorMatrix.subMatrixColumn(columns).to2DArray(); // Dimension reduced
+
+    // K-means, run repeat times for stable clustering
+    let trails = []
+    for (let i = 0; i < repeat; i+=1) {
+        trails.push(reorder(kmeans(data, k).clusters, k));
+    }
+    return mode(trails, k); 
+}
+
+function shapeLog(name, data) {
+    console.log(`${name} shape: ${data.rows} x ${data.columns}`);
+}
+
+function reorder(cluster, k) {
+    let prev = 0;
+    let nClass = 1;
+    let order = [cluster[prev]];
+
+    while (nClass <= k) {
+        if (cluster[prev] != cluster[prev + 1] && order.indexOf(cluster[prev + 1])==-1 ) {
+            nClass+=1;
+            order.push(cluster[prev + 1]);
+        }
+        prev += 1;
+    }
+
+    return cluster.map(elem=>order.indexOf(elem));
+}
+
+function mode(nestedArray, max) {
+    let depth = nestedArray.length;
+    let arrLen = nestedArray[0].length;
+    let mode = [];
+
+    for (let i = 0; i < arrLen; i+=1) {
+        let elemCount = Matrix.zeros(1, max).to1DArray();
+        for (let j = 0; j < depth; j+=1) {
+            elemCount[ nestedArray[j][i] ] += 1;
+        }
+        mode.push( elemCount.indexOf( Math.max(...elemCount) ));
+    }
+
+    console.log(mode);
+    return mode
 }

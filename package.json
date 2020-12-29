@@ -32,6 +32,8 @@
     "jsrsasign-util": "^1.0.0",
     "machinelearn": "^2.1.5",
     "math.js": "^1.1.46",
+    "ml-kmeans": "^5.0.0",
+    "ml-matrix": "^6.5.3",
     "rollup-plugin-commonjs": "^10.1.0",
     "rollup-plugin-json": "^4.0.0",
     "rollup-plugin-node-builtins": "^2.1.2",
