@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+var svmpkg = require('machinelearn/svm')
 var PORT = process.env.PORT || 5000;
 var express = require('express');
 var app = express();
@@ -67,17 +67,6 @@ server.listen(PORT, function () {
 //     });
 // });
 
-function generateSignature(apiKey, apiSecret, meetingNumber, role) {
-
-    // Prevent time sync issue between client signature generation and zoom 
-    const timestamp = new Date().getTime() - 30000
-    const msg = Buffer.from(apiKey + meetingNumber + timestamp + role).toString('base64')
-    const hash = crypto.createHmac('sha256', apiSecret).update(msg).digest('base64')
-    const signature = Buffer.from(`${apiKey}.${meetingNumber}.${timestamp}.${role}.${hash}`).toString('base64')
-
-    return signature
-}
-
 
 // var sdk_key = "Mp3WNg7cR5Se5eseb20xX2sRBk4eARKfrsCP";
 // var sdk_secret = "Ovbr5wsX7kmgN23dTEn19vSY7fg0Juenl86S";
@@ -118,6 +107,9 @@ function generateSignature(apiKey, apiSecret, meetingNumber, role) {
 // signaling stuff
 var all_points = {};
 var last_seen = {}
+// const { OneClassSVM } = svmpkg;
+// const svm = new OneClassSVM();
+var dataset = []
 
 app.post('/gazeData/sync', express.json({ type: '*/*' }), async (req, res) => {
     // let { , role, pts } = req.body;
@@ -142,6 +134,20 @@ app.post('/gazeData/sync', express.json({ type: '*/*' }), async (req, res) => {
         console.error(e.message);
         res.send({ error: e.message });
     }
+});
+
+app.post('/gazeData/svm', express.json({ type: '*/*' }), async (req, res) => {
+    let {grid} = req.body;
+    dataset.push(grid);
+    res.send(Math.floor(Math.random() * 10));
+    
+    // svm.loadASM().then((loadedSVM) => {
+    //     var clf_res = loadedSVM.predict([grid]);
+    //     res.send({ result: clf_res });
+    //     if (dataset.length < 50)
+    //         loadedSVM.fit(dataset, new Array(dataset.length).fill(0));
+    // });
+
 });
 
 setInterval(() => {
