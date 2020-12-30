@@ -117,6 +117,27 @@
                     .attr("width", w)
                     .attr("height", h)
                     .attr("font-family", "sans-serif");
+
+            svg.append("defs");
+            let gradient = d3.select("#plotting_svg")
+                                .select("defs")
+                                .append("linearGradient")
+                                .attr("id", "arrowGradient");
+
+            gradient.append("stop")
+            .attr("offset", "5%")
+            .attr("stop-color", "white");
+
+            gradient.append("stop")
+            .attr("offset", "95%")
+            .attr("stop-color", "blue");
+
+// <defs>
+// <linearGradient id="myGradient" gradientTransform="rotate(90)">
+// <stop offset="5%"  stop-color="gold" />
+// <stop offset="95%" stop-color="red" />
+// </linearGradient>
+// </defs>
         }
 
         function builtin(){
@@ -278,7 +299,7 @@
 
             // LAMBDA = 3
             let [fixations, saccades] = detectFixations(samples, lambda = 3);
-            // Visualize fixations
+            // // Visualize fixations
             // fixations.forEach((fixation, id) => {
             //     fixation.draw(ctx, r=10, color='green');
             //     fixation.drawId(ctx, id);

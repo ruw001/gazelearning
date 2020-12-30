@@ -118,6 +118,8 @@ class AoI{
             'danger':"#ef476f",
         };
 
+        this.status;
+
         this.percentage = fixations.length / nFixations;
 
         let min = null;
@@ -172,15 +174,20 @@ class AoI{
     }
     
     getStatus() {
+
+        if (this.status !== undefined) return this.status;
+
         let randNum = Math.random();
 
         if (randNum < 0.33) {
-            return "safe"
+            this.status = "safe";
         } else if (randNum < 0.66) {
-            return "warning"
+            this.status = "warning";
         } else {
-            return "danger"
+            this.status = "danger";
         }
+
+        return this.status
     }
 
     draw(ctx, status) {
@@ -294,7 +301,6 @@ function showAoI(AoIs) {
                         .attr("y", d => d.ymin)
                         .attr("width", 0)
                         .attr("height", 0)
-                        .style("fill", "none")
                         .style("stroke-width", strokeWidth+"px")
                         .classed("AoI", true),
         update => update,
@@ -309,6 +315,8 @@ function showAoI(AoIs) {
         .attr("y", d => d.ymin)
         .attr("width", d => d.xmax - d.xmin)
         .attr("height", d => d.ymax - d.ymin)
+        // .style("fill", d => d.colorDict[d.getStatus()])
+        .style("fill", "none")
         .style("stroke", d => d.colorDict[d.getStatus()])
         .style('opacity', d => d.percentage)
     );
@@ -341,7 +349,7 @@ function showTransition(AoIs, TMatrix) {
     let theta = 30;
     let arrowLen = 20;
     let margin = 10;
-    let arrowWidth = 10;
+    let arrowWidth = 20;
 
     let AoIX = [];
     let AoIY = [];
@@ -369,14 +377,15 @@ function showTransition(AoIs, TMatrix) {
         })
         .join("path")
         .attr("d", (d, i) => arrowGenerator(
-            AoIX[d.fixationId], AoIY[d.fixationId], AoIX[d.fixationId]+5, AoIY[d.fixationId]+5, arrowWidth, theta, arrowLen
+            AoIX[d.fixationId], AoIY[d.fixationId], AoIX[d.fixationId]+5, AoIY[d.fixationId]+5, arrowWidth*d.count/nTransition, theta, arrowLen
         ))
         .attr("stroke", "#000")
+        // .attr("fill", "url(#arrowGradient)")
         // .attr("stroke-width", d => arrowWidth*d.count/nTransition)
         .attr("opacity", d => d.count/nTransition)
         .transition(t)
         .attr("d", (d, i) => arrowGenerator(
-            AoIX[d.fixationId], AoIY[d.fixationId], AoIX[i], AoIY[i], arrowWidth, theta, arrowLen
+            AoIX[d.fixationId], AoIY[d.fixationId], AoIX[i], AoIY[i], arrowWidth*d.count/nTransition, theta, arrowLen
         ))
 
 
@@ -426,6 +435,7 @@ function arrowGenerator(fromX, fromY, toX, toY, width, theta,headlen) {
     headlen = typeof(headlen) != 'undefined' ? headlen : 10;
 
     let angle = Math.atan2(toY - fromY, toX - fromX);
+    let k = Math.tan(angle);
     let perpendicularAngle = angle - Math.PI / 2;
 
     let p0x = fromX + width / 2 * Math.cos(perpendicularAngle);
@@ -434,8 +444,8 @@ function arrowGenerator(fromX, fromY, toX, toY, width, theta,headlen) {
     let p1x = (toX - headlen * Math.cos(angle)) + width / 2 * Math.cos(perpendicularAngle);
     let p1y = (toY - headlen * Math.sin(angle)) + width / 2 * Math.sin(perpendicularAngle);
 
-    let p2x = p1x + width / 2 * Math.cos(perpendicularAngle);
-    let p2y = p1y + (width / 2 * Math.sin(perpendicularAngle));
+    let p2x = p1x + width * Math.cos(perpendicularAngle);
+    let p2y = p1y + (width * Math.sin(perpendicularAngle));
 
     let p6x = fromX - width / 2 * Math.cos(perpendicularAngle);
     let p6y = fromY - (width / 2 * Math.sin(perpendicularAngle));
@@ -443,28 +453,26 @@ function arrowGenerator(fromX, fromY, toX, toY, width, theta,headlen) {
     let p5x = (toX - headlen * Math.cos(angle)) - width / 2 * Math.cos(perpendicularAngle);
     let p5y = (toY - headlen * Math.sin(angle)) - width / 2 * Math.sin(perpendicularAngle);
 
-    let p4x = p5x - width / 2 * Math.cos(perpendicularAngle);
-    let p4y = p5y - width / 2 * Math.sin(perpendicularAngle);
+    let p4x = p5x - width * Math.cos(perpendicularAngle);
+    let p4y = p5y - width * Math.sin(perpendicularAngle);
 
     let curveAngle = angle - theta * Math.PI / 180;
-    let curveLength = Math.round(Math.sqrt(Math.pow(fromY - toY, 2) + Math.pow(fromX - toX, 2)) * 0);
+    let curveLength = Math.round(Math.sqrt(Math.pow(fromY - toY, 2) + Math.pow(fromX - toX, 2)) * 0.1);
 
     let fromDX = curveLength * Math.cos(curveAngle);
     let fromDY = curveLength * Math.sin(curveAngle); // for Bézier Curves
 
     let toDX, toDY;
-    if (Math.tan(angle) === NaN){
+    if (k === Infinity || k === -Infinity){
         toDX = fromDX;
         toDY = -fromDY; // for Bézier Curves
-    } else if (Math.tan(angle) == 0) {
+    } else if (k == 0) {
         toDX = -fromDX;
         toDY = fromDY; // for Bézier Curves 
     } else {
-        toDX = -fromDX / Math.tan(angle);
-        toDY = -fromDY * Math.tan(angle);
+        toDX = -(- fromDX*k*k + 2*fromDY*k + fromDX)/(k*k + 1);
+        toDY = -(fromDY*k*k + 2*fromDX*k - fromDY)/(k*k + 1);
     }
-
-
 
     pathString += `M ${p0x} ${p0y} `;
     pathString += `C ${p0x + fromDX} ${p0y + fromDY}, ${(p1x + toDX)} ${(p1y + toDY)}, ${p1x} ${p1y} `;
@@ -475,7 +483,7 @@ function arrowGenerator(fromX, fromY, toX, toY, width, theta,headlen) {
     pathString += `C ${p5x + toDX} ${p5y + toDY}, ${(p6x + fromDX)} ${(p6y + fromDY)}, ${p6x} ${p6y} `;
     pathString += `Z`; // Z for close path
 
-    console.log(`toDX : ${toDX}, toDY : ${fromDY}`)
+    console.log(`angle: ${angle * 180 / Math.PI},  fromDX : ${fromDX}, fromDY : ${fromDY}, toDX : ${toDX}, toDY : ${toDY}`)
     console.log(`Path generated : ${pathString}`);
 
     return pathString;
