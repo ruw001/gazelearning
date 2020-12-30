@@ -30,6 +30,7 @@
     "jquery": "^3.5.1",
     "jsrsasign": "^10.0.3",
     "jsrsasign-util": "^1.0.0",
+    "machinelearn": "^2.1.5",
     "math.js": "^1.1.46",
     "ml-kmeans": "^5.0.0",
     "ml-matrix": "^6.5.3",

@@ -84,6 +84,7 @@ class ClusterThread(threading.Thread):
                         print('classification result:', res[0])
                     else:
                         print('classification result:', res, ', asking for clarification')
+                        # TODO: update classifier when receiving the answer
                     continue
                 self.database.append(sample)
                 self.newly_appended.append(sample)
