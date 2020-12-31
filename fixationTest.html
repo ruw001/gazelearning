@@ -132,12 +132,12 @@
             .attr("offset", "95%")
             .attr("stop-color", "blue");
 
-// <defs>
-// <linearGradient id="myGradient" gradientTransform="rotate(90)">
-// <stop offset="5%"  stop-color="gold" />
-// <stop offset="95%" stop-color="red" />
-// </linearGradient>
-// </defs>
+            // <defs>
+            // <linearGradient id="myGradient" gradientTransform="rotate(90)">
+            // <stop offset="5%"  stop-color="gold" />
+            // <stop offset="95%" stop-color="red" />
+            // </linearGradient>
+            // </defs>
         }
 
         function builtin(){
@@ -324,21 +324,16 @@
             .then(result => JSON.parse(result.result))
             .catch(err => console.error(err));
 
-            // let classes = [0, 0, 0, 2, 1, 1, 0, 0, 0];
-            // let classes = [1, 1, 2, 0, 0, 0, 1, 1, 2, 2, 0, 0, 0];
             console.log(classes);
             let [AoIs, TMatrix] = AoIBuilder(fixations, saccades, classes);
             
             let status = ['safe', 'warning', 'danger', 'danger'];
-            // AoIs.forEach((AoI, id) => {
-            //     AoI.draw(ctx, status[id]);
-            //     AoI.addLine(ctx, status[id], 'Status', status[id]);
-            //     AoI.addLine(ctx, status[id], 'Dwell Time', AoI.getDwellTime());
-            // });xx
             console.log(AoIs);
             console.log(TMatrix);
-            showAoI(AoIs);
-            showTransition(AoIs, TMatrix);
+
+            let animationTime = 1000; //ms
+            showAoI(AoIs, animationTime);
+            showTransition(AoIs, TMatrix, animationTime);
         }
 
         function sleep (time) {

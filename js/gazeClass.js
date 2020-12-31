@@ -260,92 +260,98 @@ function AoIBuilder (fixations, saccades, classes) {
     return [AoIs, TMatrix];
 }
 
-// function showTransition(ctx, AoIs, TMatrix, width=20) {
-//     let AoIX = [];
-//     let AoIY = [];
-
-//     let nTransition = tf.sum(tf.tensor2d(TMatrix, [AoIs.length, AoIs.length]).reshape([-1])).arraySync();
-
-//     AoIs.forEach((AoI)=>{
-//         AoIX[AoI.id] = ( (AoI.xmin + AoI.xmax) / 2 );
-//         AoIY[AoI.id] = ( (AoI.ymin + AoI.ymax) / 2 );
-//     });
-
-//     AoIX.forEach((fromX, id) => {
-//         let fromY = AoIY[id];
-//         TMatrix[id].forEach((transitionCount, classId)=>{
-//             if (transitionCount) {
-//                 let toX = AoIX[classId];
-//                 let toY = AoIY[classId];
-//                 let percent = transitionCount/nTransition;
-//                 console.log(`#${id}=>#${classId}:${percent}, width=${width*percent}, transparency=${percent}`);
-//                 drawArrow(ctx, fromX, fromY, toX, toY, 30, 10,width*percent,color=`rgba(0,0,255,${percent})`);
-//             }
-//         });
-//     });
-// }
-
-function showAoI(AoIs) {
+function showAoI(AoIs, animationTime) {
     // Powered with d3.js https://d3js.org/
     let t = d3.transition()
-            .duration(500);
+            .duration(animationTime);
 
     let strokeWidth = 10;
 
-    d3.select("#plotting_svg")
-    .selectAll('rect.AoI')
-    .data(AoIs)
-    .join(
-        enter => enter.append("rect")
-                        .attr("x", d => d.xmin)
-                        .attr("y", d => d.ymin)
-                        .attr("width", 0)
-                        .attr("height", 0)
-                        .style("stroke-width", strokeWidth+"px")
-                        .classed("AoI", true),
-        update => update,
-        exit => exit.call(
-            rect => rect.transition(t)
-                    .remove()
-                    .attr("width", 0)
-                    .attr("height", 0)
-        )
-    ).call(rect => rect.transition(t)
-        .attr("x", d => d.xmin)
-        .attr("y", d => d.ymin)
-        .attr("width", d => d.xmax - d.xmin)
-        .attr("height", d => d.ymax - d.ymin)
-        // .style("fill", d => d.colorDict[d.getStatus()])
-        .style("fill", "none")
-        .style("stroke", d => d.colorDict[d.getStatus()])
-        .style('opacity', d => d.percentage)
-    );
+    let gSelection = d3.select("#plotting_svg")
+                        .selectAll("g.AoI")
+                        .data(AoIs)
+                        .join(
+                            enter => enter.append("g").classed("AoI", true),
+                            update => update,
+                            exit => exit.call(
+                                g => {
+                                    g.selectAll("rect")
+                                    .transition(t)
+                                    .remove()
+                                    .attr("width", 0)
+                                    .attr("height", 0);
 
-    d3.select("#plotting_svg")
-    .selectAll('text')
-    .data(AoIs)
-    .join(
-        enter => enter.append("text")
+                                    g.selectAll("text")
+                                    .transition(t)
+                                    .remove()
+                                    .text(" ");
+
+                                    g.transition(t).remove();
+                        }));
+    
+    gSelection.selectAll("rect.AoI")
+            .data(d => [d])
+            .join(
+                enter => enter.append("rect")
+                            .attr("x", d => d.xmin)
+                            .attr("y", d => d.ymin)
+                            .attr("width", 0)
+                            .attr("height", 0)
+                            .style("stroke-width", strokeWidth+"px")
+                            .classed("AoI", true),
+                update => update,
+                exit => exit.remove() // should never be called? remove of <g> should have handled this.
+            ).call(rect => rect.transition(t)
+                .attr("x", d => d.xmin) // update rects in selection "update"
+                .attr("y", d => d.ymin) // update rects in selection "update"
+                .attr("width", d => d.xmax - d.xmin)
+                .attr("height", d => d.ymax - d.ymin)
+                // .style("fill", d => d.colorDict[d.getStatus()])
+                .style("fill", "none")
+                .style("stroke", d => d.colorDict[d.getStatus()])
+                .style('opacity', d => d.percentage)
+            );
+    
+    gSelection.selectAll("text")
+            .data(d => [d])
+            .join(
+                enter => enter.append("text")
                         .attr("x", d => d.xmin)
                         .attr("y", d => d.ymin)
                         .attr("dx", -strokeWidth / 2)
-                        .attr("dy", strokeWidth / 2)
-                        .text(""),
-        update => update.text(""),
-        exit => exit.call(
-            rect => rect.transition(t)
-                    .remove()
-                    .text(" ")
-    ))
-    .transition(t)
-    .attr("x", d => d.xmin) //for Update
-    .attr("y", d => d.ymin)
-    .text(d => "Dwell Time:"+d.getDwellTime() );
+                        .attr("dy", -strokeWidth)
+                        .text(d => "Dwell Time:"+d.getDwellTime()),
+                update => update.text(d => "Dwell Time:"+d.getDwellTime()),
+                exit => exit.remove() // should never be called? remove of <g> should have handled this.
+            )
+            .call(s => s.each( function (d) {console.log(this.getBBox()); return d.bbox = this.getBBox();} ))
+            .transition(t)
+            .attr("x", d => d.xmin) // update rects in selection "update"
+            .attr("y", d => d.ymin);
+
+    gSelection.selectAll("rect.background")
+            .data(d => [d])
+            .join(
+                enter => enter.insert("rect","text")
+                            .attr("x", d => d.xmin - strokeWidth / 2)
+                            .attr("y", d => d.ymin - d.bbox.height - strokeWidth / 2)
+                            .attr("width", 0)
+                            .attr("height", 0)
+                            .classed("background", true),
+                update => update,
+                exit => exit.remove()
+            ).transition(t)
+            .attr("x", d => d.xmin -strokeWidth / 2) // update rects in selection "update"
+            .attr("y", d => d.ymin - d.bbox.height - strokeWidth / 2) // update rects in selection "update"
+            .attr("width", d => d.bbox.width + strokeWidth) // the background extends a little bit
+            .attr("height", d => d.bbox.height)
+            .style("fill", d => d.colorDict[d.getStatus()])
+            .style("opacity", d => d.percentage);
 }
 
-function showTransition(AoIs, TMatrix) {
+function showTransition(AoIs, TMatrix, animationTime) {
     let t = d3.transition()
-            .duration(500);
+            .duration(animationTime);
     let theta = 30;
     let arrowLen = 20;
     let margin = 10;
@@ -363,9 +369,10 @@ function showTransition(AoIs, TMatrix) {
     });
 
     let gSelection = d3.select("#plotting_svg")
-                    .selectAll("g")
+                    .selectAll("g.transition")
                     .data(TMatrix)
-                    .join("g");
+                    .join("g")
+                    .classed("transition", true);
 
     gSelection.selectAll("path")
         .data( (d, i) => {
@@ -483,8 +490,8 @@ function arrowGenerator(fromX, fromY, toX, toY, width, theta,headlen) {
     pathString += `C ${p5x + toDX} ${p5y + toDY}, ${(p6x + fromDX)} ${(p6y + fromDY)}, ${p6x} ${p6y} `;
     pathString += `Z`; // Z for close path
 
-    console.log(`angle: ${angle * 180 / Math.PI},  fromDX : ${fromDX}, fromDY : ${fromDY}, toDX : ${toDX}, toDY : ${toDY}`)
-    console.log(`Path generated : ${pathString}`);
+    // console.log(`angle: ${angle * 180 / Math.PI},  fromDX : ${fromDX}, fromDY : ${fromDY}, toDX : ${toDX}, toDY : ${toDY}`)
+    // console.log(`Path genera ted : ${pathString}`);
 
     return pathString;
 }
