@@ -87,14 +87,17 @@
            document.addEventListener("submit", (e) => {
                e.preventDefault(); // We will handle submit
                let formData = new FormData(e.target);
-
                fetch('/users', {
                     method: 'POST',
                     body:formData
                 }).then(response => {
                     if (response.ok) {
                         console.log("User information posted.");
-                        window.open('confusion_demo.html', '_self');
+                        if (document.getElementById('identity-0').checked) {
+                            window.open('studentPage.html', '_self');
+                        } else {
+                            window.open('teacherPage.html', '_self');
+                        }
                     }
                 }).catch(err => {
                     console.error(err);
