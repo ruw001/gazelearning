@@ -4,7 +4,7 @@
 var calibrated = false;
 var wg_started = false;
 var gc_started = false;
-var heatmapInstance = null;
+// var heatmapInstance = null;
 var hm_left = 0;
 var hm_top = 0;
 let maxH = 0;
@@ -25,18 +25,23 @@ window.onload = async function () {
     GazeCloudAPI.UseClickRecalibration = true;
     GazeCloudAPI.OnResult = PlotGaze;
 
-    // create heatmap with configuration
-    // create configuration object
-    var config = {
-        container: document.getElementById('container'),
-        radius: 50,
-        maxOpacity: .5,
-        minOpacity: 0,
-        blur: .75
-    };
-    heatmapInstance = h337.create(config);
-    heatmapInstance.setData({ max: 1, min: 0, data: [] }); // For proper display
-    console.log('Heatmap initialized and update MIN finished');
+    // // create heatmap with configuration
+    // // create configuration object
+    // var config = {
+    //     container: document.getElementById('container'),
+    //     radius: 50,
+    //     maxOpacity: .5,
+    //     minOpacity: 0,
+    //     blur: .75
+    // };
+    // heatmapInstance = h337.create(config);
+    // heatmapInstance.setData({ max: 1, min: 0, data: [] }); // For proper display
+    // console.log('Heatmap initialized and update MIN finished');
+    
+    // 2021.1.4 instead of canvas, the visualization is moved to SVG.
+    let svgNode = document.createElement("svg");
+    svgNode.id = 'plotting_svg';
+    document.getElementById('container').appendChild(svgNode);
 
     let containerRect = document.getElementById("container").getBoundingClientRect();
     maxH = containerRect.height;
@@ -95,11 +100,11 @@ window.onload = async function () {
 
 }
 
-async function heatmapDisplay(event) {
-    let heatmapCanvas = document.querySelector(".heatmap-canvas");
-    event.target.value = heatmapCanvas.hidden ? "Hide Heatmap" : "Show Heatmap";
-    heatmapCanvas.hidden = !heatmapCanvas.hidden;
-}
+// async function heatmapDisplay(event) {
+//     let heatmapCanvas = document.querySelector(".heatmap-canvas");
+//     event.target.value = heatmapCanvas.hidden ? "Hide Heatmap" : "Show Heatmap";
+//     heatmapCanvas.hidden = !heatmapCanvas.hidden;
+// }
 
 async function changeGC() {
     // change to enabled
@@ -191,43 +196,6 @@ function findAbsolutePosition(htmlElement) {
     };
 }
 
-function PlotGaze(GazeData) {
-    /*
-        GazeData.state // 0: valid gaze data; -1 : face tracking lost, 1 : gaze uncalibrated
-        GazeData.docX // gaze x in document coordinates
-        GazeData.docY // gaze y in document cordinates
-        GazeData.time // timestamp
-    */
-
-    var docx = GazeData.docX;
-    var docy = GazeData.docY;
-
-    if (calibrated) {
-        var dataPoint = {
-            x: docx - hm_left, // x coordinate of the datapoint, a number
-            y: docy - hm_top, // y coordinate of the datapoint, a number
-            value: 10 // the value at datapoint(x, y)
-        };
-        heatmapInstance.addData(dataPoint);
-    }
-
-    var gaze = document.getElementById("gaze");
-    docx -= gaze.clientWidth / 2;
-    docy -= gaze.clientHeight / 2;
-
-    gaze.style.left = docx + "px";
-    gaze.style.top = docy + "px";
-
-
-    if (GazeData.state != 0) {
-        if (gaze.style.display == 'block')
-            gaze.style.display = 'none';
-    }
-    else {
-        if (gaze.style.display == 'none')
-            gaze.style.display = 'block';
-    }
-}
 window.onbeforeunload = function () {
     webgazer.end();
     // closeWebGazer();
@@ -240,97 +208,6 @@ window.applyKalmanFilter = true;
 window.saveDataAcrossSessions = true;
 
 // @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
-
-// From heatmapTest
-function getRandomIntInclusive(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min + 1)) + min; //含最大值，含最小值 
-}
-
-function startRandom(num, w, h, heatmap) {
-    console.log(`RANDON ${num} points`);
-
-    let dataSet = [];
-
-    for (let i = 0; i < num; i++) {
-        let posX = getRandomIntInclusive(0, w);
-        let posY = getRandomIntInclusive(0, h);
-        dataSet.push({
-            x: posX, // x coordinate of the datapoint, a number
-            y: posY, // y coordinate of the datapoint, a number
-            value: 1 // the value at datapoint(x, y)
-        });
-    }
-
-    heatmap.addData(dataSet);
-}
-
-function startFix(num, w, h, heatmap) {
-    console.log(`Fix ${num} points`)
-
-    let dataSet = [];
-
-    for (let i = 0; i < num; i++) {
-        let posX = Math.floor(w / 2);
-        let posY = Math.floor(h / 2);
-        dataSet.push({
-            x: posX, // x coordinate of the datapoint, a number
-            y: posY, // y coordinate of the datapoint, a number
-            value: 1 // the value at datapoint(x, y)
-        });
-    }
-
-    heatmap.addData(dataSet);
-}
-
-document.getElementById("random").addEventListener(
-    "click",
-    (event) => {
-        let points = event.target.nextElementSibling.value;
-        startRandom(points, maxW, maxH, heatmapInstance)
-    }
-);
-
-document.getElementById("fix").addEventListener(
-    "click",
-    (event) => {
-        let points = event.target.nextElementSibling.value;
-        startFix(points, maxW, maxH, heatmapInstance)
-    }
-);
-
-document.getElementById("clean").addEventListener(
-    "click",
-    () => {
-        console.log("Cleaning...");
-        console.log(`We have ${heatmapInstance.getData().data.length} points now. MAX: ${heatmapInstance.getData().max} MIN: ${heatmapInstance.getData().min}`);
-        let myCan = document.querySelector(".heatmap-canvas");
-        myCan.getContext('2d').clearRect(0, 0, myCan.width, myCan.height);
-        new Promise((resolve, reject) => {
-            let flag = heatmapInstance.setData({ max: 1, min: 0, data: [] });
-            if (flag) resolve(true)
-        }).then(() => { console.log('Heatmap update finished') })
-    }
-);
-
-document.getElementById("scale").addEventListener(
-    'click',
-    () => {
-        console.log("Rescaling...");
-        heatmapInstance.setDataMin(0);
-    }
-);
-
-document.getElementById("display").addEventListener(
-    'click',
-    () => {
-        let dataset = heatmapInstance.getData().data;
-        dataset.forEach((dataPoint, index) => {
-            console.log(`#${index} : ${dataPoint.value} @ (${dataPoint.x},${dataPoint.y}) `);
-        })
-    }
-);
 
 // Sync heatmap
 function getCookie(name) {
@@ -354,7 +231,7 @@ document.getElementById("sync").addEventListener(
             // error in updateGazePoints() is handled here
             updateGazePoints(userInfo).catch(err => {
                 clearInterval(updateInterval);
-                console.log(err)
+                console.log(err);
             });
         }, 1000);
     }
@@ -379,44 +256,167 @@ async function updateGazePoints(userInfo) {
     let studentNumber = userInfo['number'];
     // console.log(`identity ${identity}, studentNumber ${studentNumber}`) // debug line
 
+    // This script could only be accessed by teacher, so no more identity check
+    console.log('Updating teacher...')
 
-    switch (+identity) {
-        case 1: //student, should post
-            console.log('Updating student...')
+    signaling(
+        'sync',
+        {
+            stuNum: studentNumber,
+            pts: []
+        },
+        identity
+    ).then(res => res.json())
+    .then(result => JSON.parse(result.result))
+    .then(result => {
+        // let all_points = res.all_points;
+        // let points_arr = [];
+        // for (var k in all_points) {
+        //     points_arr = points_arr.concat(all_points[k]);
+        // }
+        // console.log(points_arr);
 
-            signaling(
-                'sync', 
-                {
-                    stuNum: studentNumber,
-                    pts: heatmapInstance.getData().data
-                }, 
-                identity
-            );
-            break;
-        case 2: // teacher, should get
-            console.log('Updating teacher...')
-                    
-            signaling(
-                'sync',
-                {
-                    stuNum: studentNumber,
-                    pts: [] 
-                },
-                identity
-            ).then(res => {
-                let all_points = res.all_points;
-                let points_arr = [];
-                for (var k in all_points) {
-                    points_arr = points_arr.concat(all_points[k]);
-                }
-                console.log(points_arr);
+        console.log(result.classes);
+        let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.classes);
 
-                heatmapInstance.setData({ max: 1, min: 0, data: points_arr });
-            });
-            break;
-        default:
+        console.log(AoIs);
+        console.log(TMatrix);
 
-            return ({});
-    }
-// error will be handled by parent function, because its async, error are returned in Promise
+        let animationTime = 1000; //ms
+        showAoI(AoIs, animationTime);
+        showTransition(AoIs, TMatrix, animationTime);
+    });
+    // error will be handled by parent function, because its async, error are returned in Promise
 }
+
+// LEGACY CODES
+
+function PlotGaze(GazeData) {
+    /*
+        GazeData.state // 0: valid gaze data; -1 : face tracking lost, 1 : gaze uncalibrated
+        GazeData.docX // gaze x in document coordinates
+        GazeData.docY // gaze y in document coordinates
+        GazeData.time // timestamp
+    */
+
+    var docx = GazeData.docX;
+    var docy = GazeData.docY;
+
+    if (calibrated) {
+        var dataPoint = {
+            x: docx - hm_left, // x coordinate of the datapoint, a number
+            y: docy - hm_top, // y coordinate of the datapoint, a number
+            value: 10 // the value at datapoint(x, y)
+        };
+        heatmapInstance.addData(dataPoint);
+    }
+
+    var gaze = document.getElementById("gaze");
+    docx -= gaze.clientWidth / 2;
+    docy -= gaze.clientHeight / 2;
+
+    gaze.style.left = docx + "px";
+    gaze.style.top = docy + "px";
+
+
+    if (GazeData.state !== 0) {
+        if (gaze.style.display === 'block')
+            gaze.style.display = 'none';
+    }
+    else {
+        if (gaze.style.display === 'none')
+            gaze.style.display = 'block';
+    }
+}
+
+// From heatmapTest
+
+// function getRandomIntInclusive(min, max) {
+//     min = Math.ceil(min);
+//     max = Math.floor(max);
+//     return Math.floor(Math.random() * (max - min + 1)) + min; //含最大值，含最小值 
+// }
+
+// function startRandom(num, w, h, heatmap) {
+//     console.log(`RANDON ${num} points`);
+
+//     let dataSet = [];
+
+//     for (let i = 0; i < num; i++) {
+//         let posX = getRandomIntInclusive(0, w);
+//         let posY = getRandomIntInclusive(0, h);
+//         dataSet.push({
+//             x: posX, // x coordinate of the datapoint, a number
+//             y: posY, // y coordinate of the datapoint, a number
+//             value: 1 // the value at datapoint(x, y)
+//         });
+//     }
+
+//     heatmap.addData(dataSet);
+// }
+
+// function startFix(num, w, h, heatmap) {
+//     console.log(`Fix ${num} points`)
+
+//     let dataSet = [];
+
+//     for (let i = 0; i < num; i++) {
+//         let posX = Math.floor(w / 2);
+//         let posY = Math.floor(h / 2);
+//         dataSet.push({
+//             x: posX, // x coordinate of the datapoint, a number
+//             y: posY, // y coordinate of the datapoint, a number
+//             value: 1 // the value at datapoint(x, y)
+//         });
+//     }
+
+//     heatmap.addData(dataSet);
+// }
+
+// document.getElementById("random").addEventListener(
+//     "click",
+//     (event) => {
+//         let points = event.target.nextElementSibling.value;
+//         startRandom(points, maxW, maxH, heatmapInstance)
+//     }
+// );
+
+// document.getElementById("fix").addEventListener(
+//     "click",
+//     (event) => {
+//         let points = event.target.nextElementSibling.value;
+//         startFix(points, maxW, maxH, heatmapInstance)
+//     }
+// );
+
+// document.getElementById("clean").addEventListener(
+//     "click",
+//     () => {
+//         console.log("Cleaning...");
+//         console.log(`We have ${heatmapInstance.getData().data.length} points now. MAX: ${heatmapInstance.getData().max} MIN: ${heatmapInstance.getData().min}`);
+//         let myCan = document.querySelector(".heatmap-canvas");
+//         myCan.getContext('2d').clearRect(0, 0, myCan.width, myCan.height);
+//         new Promise((resolve, reject) => {
+//             let flag = heatmapInstance.setData({ max: 1, min: 0, data: [] });
+//             if (flag) resolve(true)
+//         }).then(() => { console.log('Heatmap update finished') })
+//     }
+// );
+
+// document.getElementById("scale").addEventListener(
+//     'click',
+//     () => {
+//         console.log("Rescaling...");
+//         heatmapInstance.setDataMin(0);
+//     }
+// );
+
+// document.getElementById("display").addEventListener(
+//     'click',
+//     () => {
+//         let dataset = heatmapInstance.getData().data;
+//         dataset.forEach((dataPoint, index) => {
+//             console.log(`#${index} : ${dataPoint.value} @ (${dataPoint.x},${dataPoint.y}) `);
+//         })
+//     }
+// );

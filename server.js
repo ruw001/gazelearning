@@ -108,31 +108,61 @@ server.listen(PORT, function () {
 
 
 // signaling stuff
-var all_points = {};
-var last_seen = {}
+let all_fixations = new Map();
+let all_saccades = new Map();
+let last_seen = {};
 // const { OneClassSVM } = svmpkg;
 // const svm = new OneClassSVM();
-var dataset = []
+let dataset = []
 
 app.post('/gazeData/sync', express.json({ type: '*/*' }), async (req, res) => {
     // let { , role, pts } = req.body;
-    let stuNum = req.body['stuNum'];
     let role = +req.body['role'];
-    let pts = req.body['pts'];
+    console.log(`Revived POST from ${role}`);
+
     try {
+        // teacher(2) or student(1)
         if (role == 2) {
-            // console.log(`Sending ${all_points[3][0]['x']}`);
-            res.send({
-                all_points
+            // we have teacher request syncing
+
+            let fixationX = [];
+            let fixationY = [];
+
+            all_fixations.forEach(fixations => {
+                fixationX.push(
+                    fixations.map(fixation => [fixation.x])
+                );
+                fixationX.push(
+                    fixations.map(fixation => [fixation.x])
+                );
             });
+
+            fixationX = fixationX.flat();
+            fixationY = fixationY.flat();
+
+            res.format({'application/json': function(){
+                    res.send({
+                        result: JSON.stringify(spectralCluster(fixationX, fixationY, 5))
+                    });
+                }
+            });
+
+            res.send();
         } else {
-            all_points[stuNum] = pts;
+            // we have students posting gaze information
+            let stuNum = req.body['stuNum'];
+
+            all_fixations.set(stuNum, req.body['fixations']);
+            all_saccades.set(stuNum, req.body['saccades']);
+
+            console.log(`Receive ${all_fixations[stuNum].length} fixations at ${new Date()}`);
+
             res.send({
-                result: 'OK'
+                result: `Fixations and saccades are logged @ ${Date.now()}`,
             });
+
             last_seen[stuNum] = Date.now();
         }
-        
     } catch (e) {
         console.error(e.message);
         res.send({ error: e.message });
@@ -158,7 +188,8 @@ setInterval(() => {
     Object.entries(last_seen).forEach(([name, ts]) => {
         if ((now - ts) > 5000) {
             // console.log(`${name} lost connection. remove!`);
-            all_points[name] = [];
+            all_fixations.delete(name);
+            all_saccades.delete(name);
         }
     });
 }, 5000);

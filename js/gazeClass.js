@@ -231,7 +231,9 @@ function AoIBuilder (fixations, saccades, classes) {
     let nClass = Math.max(...classes) + 1;
     let AoIs = [];
 
-    let TMatrix = tf.zeros([nClass, nClass]).arraySync()
+    let TMatrix = d3.range(0, nClass).fill(d3.range(0, nClass).fill(0));
+    // equals to zeros(nClass, nClass)
+    // which creates a nClass x nClass matrix filled with zeros
 
     for (let classId of Array(nClass).keys()) {
 
