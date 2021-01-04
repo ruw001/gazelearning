@@ -94,7 +94,12 @@
                 }).then(response => {
                     if (response.ok) {
                         console.log("User information posted.");
-                        window.open('confusion_demo.html', '_self');
+                        console.log(formData)
+                        if (formData.identity == 1) {
+                            // window.open('studentPage.html', '_self');
+                        } else {
+                            // window.open('teacherPage.html', '_self');
+                        }
                     }
                 }).catch(err => {
                     console.error(err);
