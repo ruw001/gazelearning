@@ -4,3 +4,5 @@ package-lock.json
 # confusion_test/
 confusion_test/data*/
 .vscode/
+other stuff/
+test.html
