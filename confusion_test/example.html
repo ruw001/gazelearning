@@ -2,33 +2,59 @@
 <html>
 
 <head>
-    <title>Display IP Address</title>
+    <title>Confusion Detection and Report</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://api.gazerecorder.com/GazeCloudAPI.js"></script>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
     <script src="cd_client.js"></script>
     <style type="text/css">
-        
-        #container {
+        body {
+            overflow: hidden;
+        }
+
+        img {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: 5%;
+            width: 80%;
+        }
+
+        #plotting_svg {
+            position: absolute;
+            z-index: 100;
+        }
+        /* #container {
             margin-left: auto;
             margin-right: auto;
             width: 100%;
             height: 100%;
-        }
+        } */
     </style>
 </head>
 
-<body>
+<body onkeypress="report(event)">
     <button id="neutral_btn" type="button" onclick="reportNeutral();">Report Neutral</button>
     <button id="confused_btn" type="button" onclick="reportConfusion();">Report Confusion</button>
+    <div id="gazecloudopts">
+        <button id="gc_start" type="button" onclick="GazeCloudAPI.StartEyeTracking();">Start tracking</button>
+        <button id="gc_stop" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
+    </div>
     <div class="meshvideo">
         <video id="input_video"></video>
         <canvas id="output_canvas" width="320px" height="180px"></canvas>
     </div>
-    <div id="container">
-        <!-- <img src='regres/sion.jpg'> -->
-        <iframe id="video" width="80%" height="100%" src="https://www.youtube.com/embed/dRIhrn8cc9w" frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
-    </div>
     <span id='status_bar'> </span>
+    <div id="gaze"
+        style='position: absolute;display:none;width: 100px;height: 100px;border-radius: 50%;border: solid 2px  rgba(255, 255,255, .2);	box-shadow: 0 0 100px 3px rgba(125, 125,125, .5);	pointer-events: none;	z-index: 999999'>
+    </div>
+    <div id="container" onclick="showCoords(event)">
+        <!-- <canvas id="plotting_canvas"></canvas> -->
+        <svg id="plotting_svg"></svg>
+        <img id='regression' src='../regression.jpg'>
+    </div>
+    
 
 </body>
 
