@@ -118,7 +118,8 @@ let dataset = []
 app.post('/gazeData/sync', express.json({ type: '*/*' }), async (req, res) => {
     // let { , role, pts } = req.body;
     let role = +req.body['role'];
-    console.log(`Revived POST from ${role}`);
+    console.log('==========================');
+    console.log(`Received POST from ${role === 1 ? 'student' : 'teacher'}`);
 
     try {
         // teacher(2) or student(1)
@@ -128,21 +129,34 @@ app.post('/gazeData/sync', express.json({ type: '*/*' }), async (req, res) => {
             let fixationX = [];
             let fixationY = [];
 
+            let fixationFlat = [];
+            let saccadeFlat = [];
+
             all_fixations.forEach(fixations => {
-                fixationX.push(
-                    fixations.map(fixation => [fixation.x])
-                );
-                fixationX.push(
-                    fixations.map(fixation => [fixation.x])
+                fixationFlat.push(
+                    fixations
                 );
             });
 
-            fixationX = fixationX.flat();
-            fixationY = fixationY.flat();
+            all_saccades.forEach(saccades => {
+                saccadeFlat.push(
+                    saccades
+                );
+            });
+
+            fixationFlat = fixationFlat.flat();
+            saccadeFlat = saccadeFlat.flat();
+
+            fixationX = fixationFlat.map(fixation => [fixation.x]);
+            fixationY = fixationFlat.map(fixation => [fixation.y]);
+
+            console.log(`Fixations to cluster : ${fixationX.length}`);
 
             res.format({'application/json': function(){
                     res.send({
-                        result: JSON.stringify(spectralCluster(fixationX, fixationY, 5))
+                        fixations: fixationFlat,
+                        saccades: saccadeFlat,
+                        result: spectralCluster(fixationX, fixationY, 5),
                     });
                 }
             });
@@ -151,11 +165,12 @@ app.post('/gazeData/sync', express.json({ type: '*/*' }), async (req, res) => {
         } else {
             // we have students posting gaze information
             let stuNum = req.body['stuNum'];
+            console.log(`Student number : ${stuNum}`);
 
             all_fixations.set(stuNum, req.body['fixations']);
             all_saccades.set(stuNum, req.body['saccades']);
 
-            console.log(`Receive ${all_fixations[stuNum].length} fixations at ${new Date()}`);
+            console.log(`Receive ${all_fixations.get(stuNum).length} fixations at ${new Date()}`);
 
             res.send({
                 result: `Fixations and saccades are logged @ ${Date.now()}`,
@@ -229,6 +244,8 @@ const kmeans = require('ml-kmeans');
 const { Matrix, EigenvalueDecomposition } = require('ml-matrix');
 
 function spectralCluster(X, Y, repeat) {
+    console.log(`inside spectral cluster, X : ${X.length}, Y : ${Y.length}, repeat : ${repeat}`)
+
     let matX = X instanceof Matrix ? X : new Matrix(X);
     let matY = Y instanceof Matrix ? Y : new Matrix(Y);
 
@@ -251,9 +268,9 @@ function spectralCluster(X, Y, repeat) {
     var lambda = eig.realEigenvalues.sort(); // js array
     var deltaLambda = lambda.slice(0, lambda.length - 1)
                             .map((elem, i) => lambda[i+1] - elem);
-    // var k = deltaLambda.slice(0, Math.ceil(lambda.length / 2))
-    //         .reduce((maxIdx, item, index)=>deltaLambda[maxIdx] < item ? index : maxIdx, 0) + 1;
-    var k = Math.random() > 0.5 ? 4 : 3;
+    var k = deltaLambda.slice(0, Math.ceil(lambda.length / 2))
+            .reduce((maxIdx, item, index)=>deltaLambda[maxIdx] < item ? index : maxIdx, 0) + 1;
+    // var k = Math.random() > 0.5 ? 4 : 3;
     console.log(`k = ${k}`);
 
     var columns = [];

@@ -10,7 +10,7 @@
 
     <script src="https://api.gazerecorder.com/GazeCloudAPI.js"></script>
     <script src="js/webgazer.js"></script>
-    <!-- <script src="js/heatmap.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"> </script>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <script src="./js/gazeClass.js"></script>
 
@@ -45,6 +45,13 @@
             left: 50%;
             margin: 0;
         }
+        #plotting_svg {
+            position: absolute;
+            z-index: 100;
+        }
+        .invisible {
+            visibility: hidden;
+        }
     </style>
 
 </head>
@@ -55,7 +62,7 @@
     <label id="et1_label">WebGazer.js</label>
     <input id="et2" type="checkbox" onchange="changeGC()"/>
     <label id="et2_label">GazeCloudAPI</label>
-    <input id="et3" type="button" onclick="heatmapDisplay(event);" value="Hide Heatmap"/>
+    <input id="et3" type="button" onclick="svgDisplay(event);" value="Hide SVG"/>
     <div id="gazecloudopts" style='display:none'>
         <button id="gc_start" type="button" onclick="GazeCloudAPI.StartEyeTracking();">Start tracking</button>
         <button id="gc_stop" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
@@ -65,8 +72,6 @@
         <button id="wg_start" type="button" onclick="beginWG()">Start tracking</button>
         <button id="wg_stop" type="button" onclick="endWG();">Stop tracking</button>
     </form>
-
-    <br>
 
     <!-- Heatmap is cancelled. -->
     <!-- <button id="random" type="button">Start Random</button>

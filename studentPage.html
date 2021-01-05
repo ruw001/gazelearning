@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
     <script src="https://api.gazerecorder.com/GazeCloudAPI.js"></script>
-    <script src="js/webgazer.js"></script>
+<!--    <script src="js/webgazer.js"></script>-->
     <!-- <script src="js/heatmap.js"></script> -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"> </script>
     <script src="./js/gazeClass.js"></script>
@@ -56,7 +56,7 @@
     <label id="et1_label">WebGazer.js</label>
     <input id="et2" type="checkbox" onchange="changeGC()"/>
     <label id="et2_label">GazeCloudAPI</label>
-    <input id="et3" type="button" onclick="heatmapDisplay(event);" value="Hide Heatmap"/>
+<!--    <input id="et3" type="button" onclick="heatmapDisplay(event);" value="Hide Heatmap"/>-->
     <div id="gazecloudopts" style='display:none'>
         <button id="gc_start" type="button" onclick="GazeCloudAPI.StartEyeTracking();">Start tracking</button>
         <button id="gc_stop" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
@@ -67,8 +67,6 @@
         <button id="wg_stop" type="button" onclick="endWG();">Stop tracking</button>
     </form>
 
-    <br>
-
     <!-- Heatmap is cancelled. -->
     <!-- <button id="random" type="button">Start Random</button>
     <input id="random-num" type="number" value=10></button>
@@ -77,8 +75,8 @@
 
     <button id="clean" type="button">Clean heatmap</button>
     <button id="display" type="button">Display dataset</button>
-    <button id="scale" type="button">Rescale heatmap</button>
-    <button id="sync" type="button">Sync heatmap</button> -->
+    <button id="scale" type="button">Rescale heatmap</button> -->
+    <button id="sync" type="button">Synchronization</button>
 
     <div id="gaze"
         style='position: absolute;display:none;width: 100px;height: 100px;border-radius: 50%;border: solid 2px  rgba(255, 255,255, .2);	box-shadow: 0 0 100px 3px rgba(125, 125,125, .5);	pointer-events: none;	z-index: 999999'>
