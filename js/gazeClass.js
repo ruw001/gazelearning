@@ -14,7 +14,7 @@ class Fixation{
         
         this.start = start;
         this.end = end;
-        this.duration = end.sub(start);
+        this.duration = end.sub(start).dataSync()[0];
     }
 
     draw(ctx, r=10, color='#0B5345') {
@@ -169,8 +169,8 @@ class AoI{
     
     getDwellTime() {
         return this.fixations.reduce((sum, fixation) => {
-            return fixation.duration.add(sum)
-        }, 0).arraySync();
+            return fixation.duration + sum
+        }, 0);
     }
     
     getStatus() {

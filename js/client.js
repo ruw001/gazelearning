@@ -37,15 +37,6 @@ window.onload = async function () {
     // heatmapInstance = h337.create(config);
     // heatmapInstance.setData({ max: 1, min: 0, data: [] }); // For proper display
     // console.log('Heatmap initialized and update MIN finished');
-    
-    // 2021.1.4 instead of canvas, the visualization is moved to SVG.
-    let svgNode = document.createElement("svg");
-    svgNode.id = 'plotting_svg';
-    document.getElementById('container').appendChild(svgNode);
-
-    let containerRect = document.getElementById("container").getBoundingClientRect();
-    maxH = containerRect.height;
-    maxW = containerRect.width;
 
     // WebGazer
     webgazer.params.showVideoPreview = true;
@@ -100,11 +91,12 @@ window.onload = async function () {
 
 }
 
-// async function heatmapDisplay(event) {
-//     let heatmapCanvas = document.querySelector(".heatmap-canvas");
-//     event.target.value = heatmapCanvas.hidden ? "Hide Heatmap" : "Show Heatmap";
-//     heatmapCanvas.hidden = !heatmapCanvas.hidden;
-// }
+function svgDisplay(event) {
+    let svg = document.querySelector("#plotting_svg");
+
+    event.target.value = svg.className === "invisible" ? "Show SVG" : "Hide SVG";
+    svg.classList.toggle("invisible");
+}
 
 async function changeGC() {
     // change to enabled
@@ -217,9 +209,42 @@ function getCookie(name) {
     return matches ? decodeURIComponent(matches[1]) : undefined;
 }
 
+let updateInterval = 5000;
 document.getElementById("sync").addEventListener(
     'click',
     async () => {
+
+        // 2021.1.4 instead of canvas, the visualization is moved to SVG.
+        let containerRect = document.getElementById("container").getBoundingClientRect();
+        maxH = containerRect.height;
+        maxW = containerRect.width;
+
+        d3.select("#container").insert("svg", "iframe").attr("id", "plotting_svg");
+
+        let svg = d3.select("#plotting_svg")
+            // .style('left', xOffset)
+            // .style('top', yOffset)
+            .attr("width", maxW)
+            .attr("height", maxH)
+            .attr("font-family", "sans-serif");
+
+        svg.append("defs");
+        let gradient = d3.select("#plotting_svg")
+            .select("defs")
+            .append("linearGradient")
+            .attr("id", "arrowGradient");
+
+        gradient.append("stop")
+            .attr("offset", "5%")
+            .attr("stop-color", "white");
+
+        gradient.append("stop")
+            .attr("offset", "95%")
+            .attr("stop-color", "blue");
+
+
+        console.log('SVG set.');
+
         console.log('Syncing...');
         let userInfo = getCookie('userInfo');
 
@@ -233,7 +258,7 @@ document.getElementById("sync").addEventListener(
                 clearInterval(updateInterval);
                 console.log(err);
             });
-        }, 1000);
+        }, updateInterval);
     }
 );
 
@@ -266,8 +291,8 @@ async function updateGazePoints(userInfo) {
             pts: []
         },
         identity
-    ).then(res => res.json())
-    .then(result => JSON.parse(result.result))
+    ).then(res => {console.log(res); return res;})
+    // .then(result => JSON.parse(result.result))
     .then(result => {
         // let all_points = res.all_points;
         // let points_arr = [];
@@ -276,8 +301,8 @@ async function updateGazePoints(userInfo) {
         // }
         // console.log(points_arr);
 
-        console.log(result.classes);
-        let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.classes);
+        console.log(result.result);
+        let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
 
         console.log(AoIs);
         console.log(TMatrix);
