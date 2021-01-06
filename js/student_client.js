@@ -13,7 +13,7 @@ let maxW = 0;
 // Built-in gaze data examples
 // Student(client side) randomly selects one to post every set interval (5s now?)
 
-alet GazeX = [
+let GazeX = [
     [234, 247, 253, 244, 235, 240, 248, 256, 261, 272, 273, 263, 243, 254, 425, 569, 740, 867, 853, 870, 864, 844, 848, 839, 842, 848, 854, 850, 844, 836, 823, 822, 828, 831, 675, 554, 394, 253, 232, 243, 254, 258, 267, 257, 248, 235, 216, 218, 227, 235, 199, 214, 223, 229],
     [924, 749, 579, 345, 290, 267, 283, 294, 295, 260, 255, 257, 271, 277, 283, 293, 283, 273, 425, 563, 732, 895, 867, 866, 872, 874, 870, 856, 856, 853, 852, 852, 853, 837, 825, 829, 833, 837, 841, 678, 509, 275, 241, 232, 208, 215, 229, 253, 263, 246, 225, 217, 210, 209, 215],
     [564.534396355353,532.7338496583143,543.806104783599,548.0547608200457,528.2276993166287,481.87872437357635,433.59854214123004,413.6427334851936,354.805284738041,335.4932118451025,317.2111161731207,326.99589977220955,339.35562642369024,339.09813211845096,334.076993166287,336.6519362186788,345.5354897494305,343.34678815489747,344.89175398633256,385.4471070615034,398.70806378132113,401.92674259681087,371.02742596810936,360.85640091116176,369.9974487471526,362.015125284738,342.57430523918,326.7384054669704,265.4547608200455,261.59234624145785,265.96974943052396,281.80564920273343,283.09312072892936,284.766833712984,278.32947608200453,263.1373120728929,258.3736674259681,269.703416856492,276.2695216400911,277.2994988610478,280.6469248291572,272.02086560364467,281.2906605922551,311.54624145785874,263.7810478359909,243.18150341685646,216.27334851936217,206.87480637813212,168.2506605922551,164.64574031890663,182.6703416856492,267.25722095671983,467.9740318906606,489.98979498861047,597.6224145785877,591.9575398633257,594.6612300683371,639.9802277904328,687.3591799544419,770.0148519362187,810.1839635535307,876.1025056947608,947.1709339407746,946.9134396355353,931.4637813211846,941.634806378132,914.4691571753985,887.3035079726651,908.6755353075171,901.46569476082,883.3123462414578,891.2946697038724,924.2539407744873,879.8361731207289,853.0567653758542,825.1186332574032,876.1025056947608,870.4376309794989,859.4941230068338,860.65284738041,888.7197266514806,916.6578587699316,928.6313439635535,932.2362642369021,943.3085193621869,974.3365831435078,960.4318906605922,948.0721640091115,936.6136674259681,943.566013667426,893.3546241457859,811.3426879271071,599.4248747152619,446.4732574031891,304.98013667425965,284.6380865603645,260.3048747152619,263.7810478359909,257.0861958997722,255.7987243735763,239.4478359908884,181.64036446469248,186.2752619589977,217.94706150341688,244.98396355353077,248.975125284738,262.3648291571754,246.01394077448748,234.94168564920273,237.51662870159453,232.6242369020501,252.83753986332573,242.9240091116173,241.63653758542137,252.451298405467,541.3599088838268,355.8352619589977,302.7914350797266,256.6999544419134,270.21840546697035,244.34022779043283,319.013576309795,362.65886104783596,376.56355353075173,361.62888382687925,319.9148063781321,287.599271070615,216.65958997722095,226.83061503416855],
@@ -57,6 +57,30 @@ timestamp[3][0] = 0; // tensorflow.js could not afford numbers as large as times
 GazeX.forEach((array, i) => {GazeX[i] = array.map( x => x/1464*window.innerWidth)} );
 GazeY.forEach((array, i) => {GazeY[i] = array.map( y => y/794*window.innerHeight)} );
 
+// ==============================================================
+// confusion detection variables
+var frameInterval,
+    videoElement,
+    canvasElement,
+    canvasCtx,
+    gazeX = 0,
+    gazeY = 0;
+
+var total = 1000
+var totalNeutral = total;
+var totalConfusion = total;
+var collecting = 0;
+
+var fastMode = true;
+
+var grid_w = 6,
+    grid_h = 4;
+var patch_w = 0,
+    patch_h = 0;
+var gaze_win = [];
+var confusion_win = []
+// ==============================================================
+
 window.onload = async function () {
 
     //////set callbacks for GazeCloudAPI/////////
@@ -73,59 +97,17 @@ window.onload = async function () {
     GazeCloudAPI.OnResult = PlotGaze;
 
     // 2021.1.4 instead of canvas, the visualization is moved to SVG.
-    let svgNode = document.createElement("svg");
-    svgNode.id = 'plotting_svg';
-    document.getElementById('container').appendChild(svgNode);
+    // let svgNode = document.createElement("svg");
+    // svgNode.id = 'plotting_svg';
+    // document.getElementById('container').appendChild(svgNode);
 
     let containerRect = document.getElementById("container").getBoundingClientRect();
     maxH = containerRect.height;
     maxW = containerRect.width;
 
-    // WebGazer
-    webgazer.params.showVideoPreview = true;
-    //start the webgazer tracker
-    await webgazer.setRegression('ridge') /* currently must set regression and tracker */
-        //.setTracker('clmtrackr')
-        .setGazeListener(function (data, clock) {
-            //   console.log(data); /* data is an object containing an x and y key which are the x and y prediction coordinates (no bounds limiting) */
-            //   console.log(clock); /* elapsed time in milliseconds since webgazer.begin() was called */
-            if (data == null) {
-                return;
-            }
-            var xprediction = data.x; //these x coordinates are relative to the viewport
-            var yprediction = data.y; //these y coordinates are relative to the viewport
-            var dataPoint = {
-                x: xprediction - hm_left, // x coordinate of the datapoint, a number
-                y: yprediction - hm_top, // y coordinate of the datapoint, a number
-                value: 10 // the value at datapoint(x, y)
-            };
-
-            var gaze = document.getElementById("gaze");
-            xprediction -= gaze.clientWidth / 2;
-            yprediction -= gaze.clientHeight / 2;
-
-            gaze.style.left = xprediction + "px";
-            gaze.style.top = yprediction + "px";
-
-            try {
-                heatmapInstance.addData(dataPoint);
-            } catch (err) {
-                console.log('Error caught!', err);
-            }
-
-            // console.log(xprediction, yprediction);
-            // console.log(elapsedTime);
-        });
-    // webgazer.showPredictionPoints(true); /* shows a square every 100 milliseconds where current prediction is */
-    function hideVideoElements() {
-        webgazer.showPredictionPoints(false);
-        webgazer.showVideo(false);
-        webgazer.showFaceOverlay(false);
-        webgazer.showFaceFeedbackBox(false);
-        //webgazer.showGazeDot(false);
-    }
-
-    hideVideoElements();
+    var svg = d3.select("#plotting_svg")
+        .attr("width", maxW)
+        .attr("height", maxH);
 
     // ZoomMtg.setZoomJSLib('node_modules/@zoomus/websdk/dist/lib', '/av');
     // ZoomMtg.preLoadWasm();
@@ -133,12 +115,57 @@ window.onload = async function () {
 
     // const zoomMeeting = document.getElementById("zmmtg-root");
 
+    // ==============================================================
+    // confusion detection initializations
+    videoElement = document.getElementById('input_video');
+    canvasElement = document.getElementById('output_canvas');
+    canvasCtx = canvasElement.getContext('2d');
+
+    if (fastMode) {
+        totalConfusion = 0;
+        totalNeutral = 0;
+    }
+
+    const camera = new Camera(videoElement, {
+        onFrame: async () => {
+            if (collecting !== 0) {
+                await dataCollecting();
+            } else if (totalConfusion === 0 && totalNeutral === 0) {
+
+            }
+        },
+        width: 320,
+        height: 180
+    });
+    camera.start();
+
+    var inferInterval = setInterval(() => {
+        stateInference().catch(err => {
+            clearInterval(inferInterval);
+            console.log(err)
+        });
+    }, 1000);
+
+    var queryInterval = setInterval(() => {
+        query().catch(err => {
+            clearInterval(queryInterval);
+            console.log(err)
+        });
+    }, 5000);
+    // ==============================================================
+
 }
 
 async function heatmapDisplay(event) {
     let heatmapCanvas = document.querySelector(".heatmap-canvas");
     event.target.value = heatmapCanvas.hidden ? "Hide Heatmap" : "Show Heatmap";
     heatmapCanvas.hidden = !heatmapCanvas.hidden;
+}
+
+async function vizDisplay(event) {
+    let vizCanvas = document.querySelector("#plotting_svg");
+    event.target.value = vizCanvas.hidden ? "Hide Viz" : "Show Viz";
+    vizCanvas.hidden = !vizCanvas.hidden;
 }
 
 async function changeGC() {
@@ -244,15 +271,18 @@ function PlotGaze(GazeData) {
     var docy = GazeData.docY;
 
     if (calibrated) {
-        var dataPoint = {
-            x: docx - hm_left, // x coordinate of the datapoint, a number
-            y: docy - hm_top, // y coordinate of the datapoint, a number
-            value: 10 // the value at datapoint(x, y)
-        };
-        heatmapInstance.addData(dataPoint);
+        // var dataPoint = {
+        //     x: docx - hm_left, // x coordinate of the datapoint, a number
+        //     y: docy - hm_top, // y coordinate of the datapoint, a number
+        //     value: 10 // the value at datapoint(x, y)
+        // };
+        // heatmapInstance.addData(dataPoint);
     }
 
+    gazeX = docx;//GazeData.GazeX;
+    gazeY = docy;//GazeData.GazeY;
     var gaze = document.getElementById("gaze");
+
     docx -= gaze.clientWidth / 2;
     docy -= gaze.clientHeight / 2;
 
@@ -358,3 +388,216 @@ async function updateGazePoints(userInfo) {
     );
 // error will be handled by parent function, because its async, error are returned in Promise
 }
+
+// ==============================================================
+// confusion detection functions
+async function query() {
+    var i;
+    document.getElementById('plotting_svg').innerHTML = '';
+    console.log(gaze_win);
+    console.log(confusion_win);
+    all_same = true;
+    for (i = 0; i < gaze_win.length - 1; ++i) {
+        if (gaze_win[i].x !== gaze_win[i + 1].x || gaze_win[i].y !== gaze_win[i + 1].y) {
+            all_same = false;
+            console.log('here!!!false');
+            break;
+        }
+    }
+
+    all_confuse = true;
+    for (i = 0; i < confusion_win.length; ++i) {
+        if (confusion_win[i] !== 'Confused') {
+            all_confuse = false;
+            break;
+        }
+    }
+    console.log(all_same, all_confuse);
+    if (all_same && all_confuse && gaze_win.length > 0) {
+        let x = gaze_win[0].x;
+        let y = gaze_win[0].y;
+        showPromptBox(x, y);
+        console.log('draw box!!!');
+    }
+    gaze_win = [];
+    confusion_win = [];
+
+}
+
+async function report(event) {
+    document.getElementById('plotting_svg').innerHTML = '';
+    if (event.key === 'N') {
+        // TODO: send data to server
+    } else if (event.key === 'Y') {
+        // TODO: send data to server
+        signaling(
+            'confusion',
+            {
+                state: 'confused',
+                fixation: [0,0],
+            },
+            identity
+        );
+    }
+
+}
+
+async function showPromptBox(x, y) {
+    // create svg element:
+
+    let containerHeight = document.getElementById('container').offsetHeight;
+    let containerWidth = document.getElementById('container').offsetWidth;
+
+    var svg = d3.select("#plotting_svg")
+        .attr("width", containerWidth)
+        .attr("height", containerHeight)
+
+    x = x * patch_w;
+    y = y * patch_h;
+    console.log(x, y)
+
+    // x = 100;
+    // y = 100;
+
+    // Add the path using this helper function
+    svg.append('rect')
+        .attr('x', x)
+        .attr('y', y)
+        .attr('width', patch_w)
+        .attr('height', patch_h)
+        .attr('stroke', 'black')
+        .attr('opacity', 0.5)
+        .attr('fill', '#7584AD');
+    svg.append('text')
+        .attr('x', x + 5)
+        .attr('y', y + 20)
+        .attr('stroke', 'black')
+        .style("font-size", 12)
+        .text("Are you confused? (Y/N)")
+}
+
+async function showCoords(event) {
+    var cX = event.clientX;
+    var cY = event.clientY;
+    gazeX = cX;//GazeData.GazeX;
+    gazeY = cY;//GazeData.GazeY;
+    var gaze = document.getElementById("gaze");
+    gaze.style.display = 'block'
+    cX -= gaze.clientWidth / 2;
+    cY -= gaze.clientHeight / 2;
+    gaze.style.left = cX + "px";
+    gaze.style.top = cY + "px";
+    console.log('clicked!!!');
+}
+
+async function stateInference() {
+    if (collecting === 0 && totalConfusion === 0 && totalNeutral === 0) {
+        let result = await reportState(1, 0);
+        document.getElementById('status_bar').innerHTML = 'Prediction result: ' + result;
+
+        let containerHeight = document.getElementById('container').offsetHeight;
+        let containerWidth = document.getElementById('container').offsetWidth;
+        patch_h = containerHeight / grid_h;
+        patch_w = containerWidth / grid_w;
+
+        let x_ = Math.floor((gazeX - document.getElementById('container').offsetLeft) / patch_w);
+        let y_ = Math.floor((gazeY - document.getElementById('container').offsetTop) / patch_h);
+        // console.log(gazeX, gazeY, x_, y_);
+        gaze_win.push({ x: x_, y: y_ });
+        confusion_win.push(result)
+    }
+
+}
+
+async function dataCollecting() {
+    let label = collecting === 1 ? 1 : 0;
+    let result = await reportState(0, label)
+    if (collecting === 1) { // collecting confusion
+        totalConfusion -= 1;
+        document.getElementById('status_bar').innerHTML = totalConfusion.toString() + ' confusion frames left...';
+        if (totalConfusion === 0) {
+            collecting = 0;
+            document.getElementById('confused_btn').disabled = false;
+            document.getElementById('neutral_btn').disabled = false;
+        }
+    } else { // collecting neutral
+        totalNeutral -= 1;
+        document.getElementById('status_bar').innerHTML = totalNeutral.toString() + ' neutral frames left...';
+        if (totalNeutral === 0) {
+            collecting = 0;
+            document.getElementById('confused_btn').disabled = false;
+            document.getElementById('neutral_btn').disabled = false;
+        }
+    }
+}
+
+
+async function reportState(stage, label) {
+    // after data collection stage
+    canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+    let base64ImageData = canvasElement.toDataURL();
+    let data = { img: base64ImageData, stage: stage, label: label, username: 'ruru' };
+    var result = null;
+    try {
+        await fetch('http://172.20.3.61:8000', { // 172.20.16.10
+            method: 'POST',
+            body: JSON.stringify(data),
+        }).then(
+            response => response.json()
+        ).then(data => {
+            console.log(data)
+            result = data.body.result;
+        })
+    } catch (err) {
+        console.log('ERROR:', err);
+    }
+
+    return result;
+}
+
+async function reportNeutral() {
+    if (collecting !== 0) {
+        console.log('collecting data, quit');
+    } else {
+        if (totalNeutral === total) {
+            collecting = 2; // Neutral: 2
+            document.getElementById('confused_btn').disabled = true;
+            document.getElementById('neutral_btn').disabled = true;
+            // console.log('already finished data collection, quit');
+        } else if (totalNeutral === 0 && totalConfusion === 0) {
+            let result = await reportState(2, 0); // stage: 2 (single report), neutral label: 0
+            console.log(result)
+            if (result === 'success') {
+                console.log('data collected!');
+            } else {
+                console.log('data missed!', result);
+            }
+        } else {
+            console.log('do nothing...');
+        }
+    }
+
+}
+
+async function reportConfusion() {
+    if (collecting !== 0) {
+        console.log('collecting data, quit');
+    } else {
+        if (totalConfusion === total) {
+            collecting = 1; // Confusion: 1
+            document.getElementById('confused_btn').disabled = true;
+            document.getElementById('neutral_btn').disabled = true;
+            // console.log('already finished data collection, quit');
+        } else if (totalNeutral === 0 && totalConfusion === 0) {
+            let result = await reportState(2, 1); // stage: 2 (single report), confusion label: 1
+            if (result === 'success') {
+                console.log('data collected!');
+            } else {
+                console.log('data missed!', result);
+            }
+        } else {
+            console.log('do nothing...');
+        }
+    }
+}
+// ==============================================================
