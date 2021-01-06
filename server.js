@@ -113,7 +113,9 @@ let all_saccades = new Map();
 let last_seen = {};
 // const { OneClassSVM } = svmpkg;
 // const svm = new OneClassSVM();
-let dataset = []
+let dataset = [];
+
+let confusion_queue = [];
 
 app.post('/gazeData/sync', express.json({ type: '*/*' }), async (req, res) => {
     // let { , role, pts } = req.body;
@@ -196,6 +198,19 @@ app.post('/gazeData/svm', express.json({ type: '*/*' }), async (req, res) => {
     //         loadedSVM.fit(dataset, new Array(dataset.length).fill(0));
     // });
 
+});
+
+app.post('/gazeData/confusion', express.json({ type: '*/*' }), async (req, res) => {
+    let { state, fixation } = req.body;
+    confusion_queue.push(state);
+
+    // svm.loadASM().then((loadedSVM) => {
+    //     var clf_res = loadedSVM.predict([grid]);
+    //     res.send({ result: clf_res });
+    //     if (dataset.length < 50)
+    //         loadedSVM.fit(dataset, new Array(dataset.length).fill(0));
+    // });
+    
 });
 
 setInterval(() => {

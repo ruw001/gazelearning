@@ -11,7 +11,9 @@
     <script src="https://api.gazerecorder.com/GazeCloudAPI.js"></script>
 <!--    <script src="js/webgazer.js"></script>-->
     <!-- <script src="js/heatmap.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"> </script>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
     <script src="./js/gazeClass.js"></script>
     <script src="./js/Engbert_Kliegl.js"></script>
 
@@ -46,17 +48,21 @@
             left: 50%;
             margin: 0;
         }
+        #plotting_svg {
+            position: absolute;
+            z-index: 100;
+        }
     </style>
 
 </head>
 
-<body>
+<body onkeypress="report(event)">
     <!-- My layouts -->
-    <input id="et1" type="checkbox" onchange="changeWG()"/>
-    <label id="et1_label">WebGazer.js</label>
+    <!-- <input id="et1" type="checkbox" onchange="changeWG()"/>
+    <label id="et1_label">WebGazer.js</label> -->
     <input id="et2" type="checkbox" onchange="changeGC()"/>
     <label id="et2_label">GazeCloudAPI</label>
-<!--    <input id="et3" type="button" onclick="heatmapDisplay(event);" value="Hide Heatmap"/>-->
+   <input id="et3" type="button" onclick="vizDisplay(event);" value="Hide Viz"/>
     <div id="gazecloudopts" style='display:none'>
         <button id="gc_start" type="button" onclick="GazeCloudAPI.StartEyeTracking();">Start tracking</button>
         <button id="gc_stop" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
@@ -78,10 +84,23 @@
     <button id="scale" type="button">Rescale heatmap</button> -->
     <button id="sync" type="button">Synchronization</button>
 
+    <button id="neutral_btn" type="button" onclick="reportNeutral();">Report Neutral</button>
+    <button id="confused_btn" type="button" onclick="reportConfusion();">Report Confusion</button>
+    <!-- <div id="gazecloudopts">
+            <button id="gc_start" type="button" onclick="GazeCloudAPI.StartEyeTracking();">Start tracking</button>
+            <button id="gc_stop" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
+        </div> -->
+    <div class="meshvideo">
+        <video id="input_video" style='display:none;'></video>
+        <canvas id="output_canvas" width="320px" height="180px" style='display:none;'></canvas>
+    </div>
+    <span id='status_bar'> </span>
+    
     <div id="gaze"
         style='position: absolute;display:none;width: 100px;height: 100px;border-radius: 50%;border: solid 2px  rgba(255, 255,255, .2);	box-shadow: 0 0 100px 3px rgba(125, 125,125, .5);	pointer-events: none;	z-index: 999999'>
     </div>
-    <div id="container">
+    <div id="container" onclick="showCoords(event)">
+        <svg id="plotting_svg"></svg>
         <!-- <img src='regression.jpg'> -->
     </div>
     
