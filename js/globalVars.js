@@ -33,9 +33,12 @@ let gaze_win = [];
 let confusion_win = [];
 
 let secondCounter = 0;
+const inferInterval = 1000; // in micro-second
 const updateInterval = 5; // in second
 
 let userInfo;
+
+let detector = new EKDetector();
 
 // ==============================================================
 // constant definition (for better code comprehension)

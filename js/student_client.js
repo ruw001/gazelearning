@@ -75,13 +75,13 @@ function systemStart(fastMode) {
     });
     camera.start();
 
-    let inferInterval = setInterval(() => {
+    let infer = setInterval(() => {
         updateGazePoints()
         .catch(err => {
-            clearInterval(inferInterval);
+            clearInterval(infer);
             console.log(err)
         });
-    }, 1000);
+    }, inferInterval);
 }
 
 async function updateGazePoints() {
@@ -106,7 +106,7 @@ async function update() {
     query()
     .then(() => {
         // Math.random() returns a random number inclusive of 0, but not 1
-        let randomGazeIndex = Math.floor(Math.random() * GazeX.length );
+        let randomGazeIndex = Math.floor(Math.random() * (GazeX.length) );
 
         let samples = {
             x: GazeX[randomGazeIndex],
@@ -115,7 +115,7 @@ async function update() {
         }
 
         let lambda = 3;
-        let [fixations, saccades] = detectFixations(samples, lambda);
+        let [fixations, saccades] = detector.detect(samples);
 
         signaling(
             'sync',
@@ -228,11 +228,11 @@ async function showPromptBox(x, y) {
 }
 
 async function showCoords(event) {
-    var cX = event.clientX;
-    var cY = event.clientY;
+    let cX = event.clientX;
+    let cY = event.clientY;
     gazeX = cX;//GazeData.GazeX;
     gazeY = cY;//GazeData.GazeY;
-    var gaze = document.getElementById("gaze");
+    let gaze = document.getElementById("gaze");
     gaze.style.display = 'block'
     cX -= gaze.clientWidth / 2;
     cY -= gaze.clientHeight / 2;
