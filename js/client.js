@@ -80,7 +80,7 @@ window.onload = async function () {
         webgazer.showFaceOverlay(false);
         webgazer.showFaceFeedbackBox(false);
         //webgazer.showGazeDot(false);
-    };
+    }
     hideVideoElements();
 
     // ZoomMtg.setZoomJSLib('node_modules/@zoomus/websdk/dist/lib', '/av');
@@ -292,15 +292,7 @@ async function updateGazePoints(userInfo) {
         },
         identity
     ).then(res => {console.log(res); return res;})
-    // .then(result => JSON.parse(result.result))
     .then(result => {
-        // let all_points = res.all_points;
-        // let points_arr = [];
-        // for (var k in all_points) {
-        //     points_arr = points_arr.concat(all_points[k]);
-        // }
-        // console.log(points_arr);
-
         console.log(result.result);
         let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
 
@@ -314,8 +306,8 @@ async function updateGazePoints(userInfo) {
     // error will be handled by parent function, because its async, error are returned in Promise
 }
 
+// ==============================================================
 // LEGACY CODES
-
 function PlotGaze(GazeData) {
     /*
         GazeData.state // 0: valid gaze data; -1 : face tracking lost, 1 : gaze uncalibrated
