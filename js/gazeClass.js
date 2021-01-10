@@ -40,6 +40,14 @@ class Fixation{
         this.confusionCount = 0;
     }
 
+    contain(timestamp) {
+        return timestamp >= this.start && timestamp <= this.end;
+    }
+
+    incConfusionCount() {
+        this.confusionCount++;
+    }
+
     draw(ctx, r=10, color='#0B5345') {
         ctx.fillStyle = color; 
         ctx.beginPath();
@@ -57,6 +65,26 @@ class Fixation{
     drawRectArea(ctx, color='#0B5345') {
         ctx.strokeStyle = color;
         ctx.strokeRect(this.xmin, this.ymin, this.xmax - this.xmin, this.ymax - this.ymin);
+    }
+
+    showPromptBox(minWidth, minHeight) {
+        let svg = d3.select("#plotting_svg");
+        svg.text(""); // clear svg
+        svg.append('rect')
+            .attr('x', this.xmin)
+            .attr('y', this.ymin)
+            .attr('width', Math.max(minWidth, this.xmax - this.xmin))
+            .attr('height', Math.max(minHeight, this.xmax - this.xmin))
+            .attr('opacity', 0.7)
+            .attr('fill', '#7584AD');
+        svg.append('text')
+            .attr('x', this.xmin)
+            .attr('y', this.ymin)
+            .attr('dx', 5)
+            .attr('dy', 20)
+            .attr('stroke', 'black')
+            .style("font-size", 14)
+            .text("Confused AROUND this area? (Y/N)")
     }
 }
 
@@ -150,7 +178,10 @@ class AoI{
             'danger':"#ef476f",
         };
 
-        this.status;
+        this.status = fixations.reduce(
+            (confusionCountSum, fixation) => confusionCountSum + fixation.confusionCount,
+            0
+        );
 
         this.percentage = fixations.length / nFixations;
 
@@ -207,19 +238,27 @@ class AoI{
     
     getStatus() {
 
-        if (this.status !== undefined) return this.status;
+        // if (this.status !== undefined) return this.status;
+        //
+        // let randNum = Math.random();
 
-        let randNum = Math.random();
+        // if (randNum < 0.33) {
+        //     this.status = "safe";
+        // } else if (randNum < 0.66) {
+        //     this.status = "warning";
+        // } else {
+        //     this.status = "danger";
+        // }
+        // return this.status
 
-        if (randNum < 0.33) {
-            this.status = "safe";
-        } else if (randNum < 0.66) {
-            this.status = "warning";
-        } else {
-            this.status = "danger";
+        switch (this.status) {
+            case 0:
+                return "safe";
+            case 1:
+                return "warning";
+            default:
+                return "danger";
         }
-
-        return this.status
     }
 
     draw(ctx, status) {
@@ -354,8 +393,8 @@ function showAoI(AoIs, animationTime) {
                         .attr("y", d => d.ymin)
                         .attr("dx", -strokeWidth / 2)
                         .attr("dy", -strokeWidth)
-                        .text(d => "Dwell Time:"+d.getDwellTime()),
-                update => update.text(d => "Dwell Time:"+d.getDwellTime()),
+                        .text(d => "#Confusion : "+d.status),
+                update => update.text(d => "#Confusion : "+d.status),
                 exit => exit.remove() // should never be called? remove of <g> should have handled this.
             )
             .call(s => s.each( function (d) {console.log(this.getBBox()); return d.bbox = this.getBBox();} ))

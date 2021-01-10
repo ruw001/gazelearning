@@ -26,7 +26,7 @@ window.onload = async function () {
     maxH = containerRect.height;
     maxW = containerRect.width;
 
-    var svg = d3.select("#plotting_svg")
+    let svg = d3.select("#plotting_svg")
         .attr("width", maxW)
         .attr("height", maxH);
 
@@ -103,19 +103,46 @@ async function update() {
     let studentNumber = userInfo['number'];
 
     console.log('Updating student...');
-    query()
-    .then(() => {
+    // query()
+    // .then(() => {
+        // Random test part
         // Math.random() returns a random number inclusive of 0, but not 1
-        let randomGazeIndex = Math.floor(Math.random() * (GazeX.length) );
-
-        let samples = {
-            x: GazeX[randomGazeIndex],
-            y: GazeY[randomGazeIndex],
-            t: timestamp[randomGazeIndex], // not used right now
+        // only choose last two built-in gaze traces since they have timestamp information
+        let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
+        let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
+        let endTimestamp = beginTimestamp;
+        while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
+            endTimestamp++;
+        }
+        for (let i = 0; i < updateInterval; i++) {
+            confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
         }
 
-        let lambda = 3;
+        let samples = {
+            x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+            y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+            t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+        }
+
         let [fixations, saccades] = detector.detect(samples);
+
+        let any_confused = confusion_win.some((state) => state === 'Confused');
+
+        if (any_confused && fixations.length !== 0) {
+            let ptr = 0;
+            let lastConfusedFixation = 0;
+            confusion_win.forEach((state, i) => {
+                if (state === 'Confused' && fixations[ptr].contain(i*1000 + timestamp[randomGazeIndex][beginTimestamp])){
+                    fixations[ptr].incConfusionCount();
+                    lastConfusedFixation = ptr;
+                    ptr = Math.min(ptr + 1, fixations.length); // Do not exceed
+            }});
+            if (fixations[lastConfusedFixation].confusionCount > 0) {
+                fixations[lastConfusedFixation].showPromptBox(patch_w, patch_h);
+            }
+        }
+
+        confusion_win = [];
 
         signaling(
             'sync',
@@ -126,7 +153,7 @@ async function update() {
             },
             identity
         );
-    });
+    // });
 }
 
 async function signaling(endpoint, data, role) {
@@ -159,9 +186,10 @@ async function query() {
         }
     }
 
-    let all_confuse = confusion_win.every((state) => state === 'Confused');
+    // let all_confuse = confusion_win.every((state) => state === 'Confused');
+    let any_confuse = confusion_win.some((state) => state === 'Confused');
 
-    console.log(`all_same : ${all_same}, all_confuse ${all_confuse}`);
+    console.log(`all_same : ${all_same}, any_confuse : ${any_confuse}`);
     if (all_same && all_confuse && gaze_win.length > 0) {
         let x = gaze_win[0].x;
         let y = gaze_win[0].y;

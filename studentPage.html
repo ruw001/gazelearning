@@ -144,7 +144,7 @@
     </div>
 
     <!--  Main body. Zoom iframe will be embedded via Zoom/embed.js below  -->
-    <div id="container" onclick="showCoords(event)">
+    <div id="container" onclick="showCoords(event)" ondblclick="event.preventDefault();">
         <svg id="plotting_svg"></svg>
         <!-- <img src='regression.jpg'> -->
     </div>
