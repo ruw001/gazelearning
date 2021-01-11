@@ -78,7 +78,7 @@
 
     <!--  SVG Visualization and Synchronization Settings  -->
     <input id="et3" type="button" onclick="svgDisplay(event);" value="Hide SVG"/>
-    <button id="sync" type="button">Synchronization</button>
+    <button id="sync" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
 
     <!--  Confusion Detection Settings  -->
     <button id="neutral_btn" type="button" onclick="reportNeutral();">Report Neutral</button>
@@ -96,7 +96,30 @@
         style='position: absolute;display:none;width: 100px;height: 100px;border-radius: 50%;border: solid 2px  rgba(255, 255,255, .2);	box-shadow: 0 0 100px 3px rgba(125, 125,125, .5);	pointer-events: none;	z-index: 999999'>
     </div>
 
-    <!-- Modal. Choose to Collect Confusion Expressions or not. Refer to bootstrap.-->
+    <!-- Modal. Choose to calibrate GazeCloud or not. Modal is achieved by using bootstrap.-->
+    <div id="calibrateModal" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-body">
+                    <h4 id="calibrateTitle">
+                        [Before start : 1/2] Please calibrate the GazeCloud for gaze collection.
+                    </h4>
+                    <p id="calibrateDescription">
+                        Loading...
+                    </p>
+                </div>
+                <div class="modal-footer" hidden>
+                    <button id="caliCloseBtn" type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal('calibrateModal'); openModal('initModal');"> Skip </button>
+                    <button id="caliBtn" type="button" class="btn btn-primary btn-sm" data-dismiss="modal" onclick="closeModal('calibrateModal'); GazeCloudAPI.StartEyeTracking();"> Calibrate </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal. Choose to Collect Confusion Expressions or not. Modal is achieved by using bootstrap.-->
     <div id="initModal" class="modal fade" role="dialog">
         <div class="modal-dialog">
 
@@ -104,7 +127,7 @@
             <div class="modal-content">
                 <div class="modal-body">
                     <h4 id="modalTitle">
-                        Do you want to collect confusion expressions?
+                        [Before start : 2/2] Do you want to collect confusion expressions?
                     </h4>
                     <p>
                         If click "Collect", your confused expressions will be collected; <br>
@@ -120,7 +143,7 @@
         </div>
     </div>
 
-    <!-- Modal. Choose to Collect Confusion Expressions or not. Refer to bootstrap.-->
+    <!-- Modal. Collect Confusion Expressions. Modal is achieved by using bootstrap.-->
     <div id="dataCollectModal" class="modal fade" role="dialog">
         <div class="modal-dialog">
             <!-- Modal content-->
@@ -135,7 +158,7 @@
                     <canvas id="collect_canvas" width="320px" height="180px" style='display:block;'></canvas>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal(); systemStart(true)">Cancel</button>
+                    <button type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal(); systemStart(true);">Cancel</button>
                     <button id="collectBtn" type="button" class="btn btn-primary btn-sm" data-dismiss="modal" onclick="systemStart(false);">Collect</button>
                 </div>
             </div>

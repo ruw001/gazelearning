@@ -29,7 +29,9 @@ const grid_w = 6,
     grid_h = 4;
 let patch_w = 0,
     patch_h = 0;
-let gaze_win = [];
+let gazeX_win = [];
+let gazeY_win = [];
+let timestamp_win = [];
 let confusion_win = [];
 
 let secondCounter = 0;
@@ -244,7 +246,12 @@ function PlotGaze(GazeData) {
 
     gazeX = docx;//GazeData.GazeX;
     gazeY = docy;//GazeData.GazeY;
-    var gaze = document.getElementById("gaze");
+    if (totalConfused === 0 && totalNeutral === 0) {
+        gazeX_win.push(gazeX);
+        gazeY_win.push(gazeY);
+        timestamp_win.push(GazeData.time);
+    }
+    let gaze = document.getElementById("gaze");
 
     docx -= gaze.clientWidth / 2;
     docy -= gaze.clientHeight / 2;

@@ -1,7 +1,7 @@
 // import { ZoomMtg } from '@zoomus/websdk';
 // var ZoomMtg = require('@zoomus/websdk');
 // ==============================================================
-document.addEventListener("DOMContentLoaded", () => openModal("initModal"));
+document.addEventListener("DOMContentLoaded", () => openModal("calibrateModal"));
 
 window.onload = async function () {
     //////set callbacks for GazeCloudAPI/////////
@@ -11,6 +11,7 @@ window.onload = async function () {
         var pos = findAbsolutePosition(document.getElementById('container'));
         hm_left = pos.left;
         hm_top = pos.top;
+        openModal('initModal');
     }
     GazeCloudAPI.OnCamDenied = function () { console.log('camera access denied') }
     GazeCloudAPI.OnError = function (msg) { console.log('err: ' + msg) }
@@ -48,6 +49,9 @@ window.onload = async function () {
     userInfo = getCookie('userInfo');
     if (!userInfo) throw Error('No user information. Please log in.');
     userInfo = JSON.parse(userInfo);
+
+    document.getElementById("calibrateDescription").remove();
+    document.querySelector("#calibrateModal .modal-footer").hidden = false;
 }
 
 // @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
@@ -106,23 +110,30 @@ async function update() {
     // query()
     // .then(() => {
         // Random test part
-        // Math.random() returns a random number inclusive of 0, but not 1
-        // only choose last two built-in gaze traces since they have timestamp information
-        let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
-        let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
-        let endTimestamp = beginTimestamp;
-        while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
-            endTimestamp++;
-        }
-        for (let i = 0; i < updateInterval; i++) {
-            confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
+        // // Math.random() returns a random number inclusive of 0, but not 1
+        // // only choose last two built-in gaze traces since they have timestamp information
+        // let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
+        // let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
+        // let endTimestamp = beginTimestamp;
+        // while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
+        //     endTimestamp++;
+        // }
+        // for (let i = 0; i < updateInterval; i++) {
+        //     confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
+        // }
+        //
+        // let samples = {
+        //     x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+        //     y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+        //     t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+        // }
+        let samples = {
+            x: gazeX_win,
+            y: gazeY_win,
+            t: timestamp_win,
         }
 
-        let samples = {
-            x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-            y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-            t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-        }
+        console.log(`Length of gaze ${gazeX_win.length}`);
 
         let [fixations, saccades] = detector.detect(samples);
 
@@ -132,7 +143,8 @@ async function update() {
             let ptr = 0;
             let lastConfusedFixation = 0;
             confusion_win.forEach((state, i) => {
-                if (state === 'Confused' && fixations[ptr].contain(i*1000 + timestamp[randomGazeIndex][beginTimestamp])){
+                // if (state === 'Confused' && fixations[ptr].contain(i*1000 + timestamp[randomGazeIndex][beginTimestamp])){
+                if (state === 'Confused' && fixations[ptr].contain(i*1000 + timestamp_win[0])){
                     fixations[ptr].incConfusionCount();
                     lastConfusedFixation = ptr;
                     ptr = Math.min(ptr + 1, fixations.length); // Do not exceed
@@ -142,6 +154,9 @@ async function update() {
             }
         }
 
+        gazeX_win = [];
+        gazeY_win = [];
+        timestamp_win = [];
         confusion_win = [];
 
         signaling(
@@ -282,7 +297,7 @@ async function stateInference() {
         let x_ = Math.floor((gazeX - document.getElementById('container').offsetLeft) / patch_w);
         let y_ = Math.floor((gazeY - document.getElementById('container').offsetTop) / patch_h);
         // console.log(gazeX, gazeY, x_, y_);
-        gaze_win.push({ x: x_, y: y_ });
+        // gaze_win.push({ x: x_, y: y_ });
         confusion_win.push(result);
 
         secondCounter++;
