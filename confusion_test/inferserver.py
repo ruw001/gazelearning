@@ -1,4 +1,4 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import base64
 import numpy as np
@@ -217,6 +217,7 @@ class ConfusionDetectionRequestHandler(BaseHTTPRequestHandler):
         '''Reads post request body'''
         content_len = int(self.headers.get('content-length', 0))
         post_body = self.rfile.read(content_len)
+        # print(post_body)
         data = json.loads(post_body)
         img_bytes = base64.b64decode(data['img'].split(',')[1])
         im_arr = np.frombuffer(img_bytes, dtype=np.uint8)
@@ -254,6 +255,6 @@ class ConfusionDetectionRequestHandler(BaseHTTPRequestHandler):
 
 host = ''
 PORT = 8000
-HTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
+ThreadingHTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
 
 
