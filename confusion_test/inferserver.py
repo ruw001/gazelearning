@@ -16,6 +16,7 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 import time
+import argparse
 
 CNTR = 0
 TOTAL = 1000
@@ -228,6 +229,7 @@ class ConfusionDetectionRequestHandler(BaseHTTPRequestHandler):
             modelPool[username] = StatePredictor(username)
         
         result = 'success'
+        print(username, 'stage', stage)
         try:
             if stage == 0:
                 modelPool[username].addData(img, data['label'])
@@ -253,8 +255,14 @@ class ConfusionDetectionRequestHandler(BaseHTTPRequestHandler):
         })
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-p", "--portid", type=int, default=0,
+                    help="port id")
+args = parser.parse_args()
+
 host = ''
-PORT = 8000
-ThreadingHTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
+PORT = 8000 + args.portid
+print('Serving on port {}...'.format(PORT))
+HTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
 
 
