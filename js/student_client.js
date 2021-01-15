@@ -50,8 +50,7 @@ window.onload = async function () {
     if (!userInfo) throw Error('No user information. Please log in.');
     userInfo = JSON.parse(userInfo);
 
-    document.getElementById("calibrateDescription").remove();
-    document.querySelector("#calibrateModal .modal-footer").hidden = false;
+    selectCamera();
 }
 
 // @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
@@ -75,7 +74,8 @@ function systemStart(fastMode) {
             }
         },
         width: 320,
-        height: 180
+        height: 180,
+        deviceId: cameraId,
     });
     camera.start();
 
@@ -140,15 +140,22 @@ async function update() {
         let any_confused = confusion_win.some((state) => state === 'Confused');
 
         if (any_confused && fixations.length !== 0) {
-            let ptr = 0;
             let lastConfusedFixation = 0;
-            confusion_win.forEach((state, i) => {
-                // if (state === 'Confused' && fixations[ptr].contain(i*1000 + timestamp[randomGazeIndex][beginTimestamp])){
-                if (state === 'Confused' && fixations[ptr].contain(i*1000 + timestamp_win[0])){
-                    fixations[ptr].incConfusionCount();
-                    lastConfusedFixation = ptr;
-                    ptr = Math.min(ptr + 1, fixations.length); // Do not exceed
-            }});
+
+            for (const [i, state] of confusion_win.entries()) {
+                if (state === 'Confused') {
+                    let tConfusion = (i + 1)*inferInterval + timestamp_win[0];
+                    for (let fixation of fixations) {
+                        if (fixation.contain(tConfusion)) {
+                            fixation.incConfusionCount()
+                            lastConfusedFixation = fixations.indexOf(fixation);
+                        } else if (fixation.start >= tConfusion) {
+                            break;
+                        }
+                    }
+                }
+            }
+
             if (fixations[lastConfusedFixation].confusionCount > 0) {
                 fixations[lastConfusedFixation].showPromptBox(patch_w, patch_h);
             }
@@ -346,7 +353,7 @@ async function reportState(stage, label) {
     let data = { img: base64ImageData, stage: stage, label: label, username: 'ruru' };
     let result = null;
     try {
-        await fetch('http://172.20.3.61:8000', { // 172.20.16.10
+        await fetch('http://127.0.0.1:8000', { // 172.20.16.10
             method: 'POST',
             body: JSON.stringify(data),
         }).then(

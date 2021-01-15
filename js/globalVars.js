@@ -39,6 +39,7 @@ const inferInterval = 1000; // in micro-second
 const updateInterval = 5; // in second
 
 let userInfo;
+let cameraId;
 
 let detector = new EKDetector();
 
@@ -288,4 +289,58 @@ function getCookie(name) {
         "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
     ));
     return matches ? decodeURIComponent(matches[1]) : undefined;
+}
+
+// ==============================================================
+// Camera Selction
+// It seems that the user needs to first set the default camera in their browser first…
+// The camera selection only enforces the new Camera()
+// rather than the GazeCloud, which seems to use the default one.
+function selectCamera() {
+    navigator.mediaDevices.enumerateDevices()
+    .then(devices => {
+        devices = devices.filter(device => device.kind === 'videoinput');
+
+        let description = document.getElementById("calibrateDescription");
+        switch (devices.length) {
+            case 0:
+                description.innerText = 'No camera available. Please check your device connection.';
+            case 1:
+                description.remove();
+                document.querySelector("#calibrateModal .modal-footer").hidden = false;
+                break;
+            default:
+                // More than one camera
+                description.innerText = 'Pleases choose the camera you would like to use.';
+
+                let btn = document.createElement('button');
+                btn.innerText = 'Confirm';
+                btn.classList.add('btn');
+                btn.classList.add('btn-primary');
+                btn.classList.add('btn-sm');
+                btn.onclick = function (event) {
+                    cameraId = +Array.from(document.querySelectorAll("input[className='form-check-input']"))
+                        .filter(radio => radio.checked)[0]
+                        .id.slice(-1);
+                    cameraId = devices[cameraId].deviceId;
+                    navigator.mediaDevices.getUserMedia({video: {deviceId:cameraId}});
+                    event.target.remove();
+                    document.querySelector("#calibrateModal .modal-footer").hidden = false;
+                }
+                description.insertAdjacentElement('afterend', btn);
+
+                devices.forEach( (device, i) => {
+                    let radio = document.createElement('div');
+                    radio.classList.add('form-check');
+                    radio.innerHTML =
+                        `<input className="form-check-input" type="radio" name="camera" id="cameraRadio${i}">
+                    <label className="form-check-label" htmlFor="cameraRadio${i}">
+                    ${device.label}</label>`;
+                    description.insertAdjacentElement('afterend', radio);
+                });
+        }
+    })
+    .catch(function (err) {
+        console.log(err.name + ": " + err.message);
+    });
 }
