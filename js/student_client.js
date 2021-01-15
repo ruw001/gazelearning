@@ -23,13 +23,19 @@ window.onload = async function () {
     // svgNode.id = 'plotting_svg';
     // document.getElementById('container').appendChild(svgNode);
 
-    let containerRect = document.getElementById("container").getBoundingClientRect();
-    maxH = containerRect.height;
-    maxW = containerRect.width;
+    // let containerRect = document.getElementById("container").getBoundingClientRect();
+    // maxH = containerRect.height;
+    // maxW = containerRect.width;
+    // let svg = d3.select("#plotting_svg")
+    //     .attr("width", maxW)
+    //     .attr("height", maxH);
 
-    let svg = d3.select("#plotting_svg")
-        .attr("width", maxW)
-        .attr("height", maxH);
+    let svg = d3.select("#plotting_svg");
+    svg.on('click', (e)=>report(e))
+        .style("left", 0)
+        .style("top", 0)
+        .style("width", 0)
+        .style("height", 0);
 
     // ZoomMtg.setZoomJSLib('node_modules/@zoomus/websdk/dist/lib', '/av');
     // ZoomMtg.preLoadWasm();
@@ -109,24 +115,25 @@ async function update() {
     console.log('Updating student...');
     // query()
     // .then(() => {
-        // Random test part
-        // // Math.random() returns a random number inclusive of 0, but not 1
-        // // only choose last two built-in gaze traces since they have timestamp information
-        // let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
-        // let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
-        // let endTimestamp = beginTimestamp;
-        // while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
-        //     endTimestamp++;
-        // }
-        // for (let i = 0; i < updateInterval; i++) {
-        //     confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
-        // }
-        //
-        // let samples = {
-        //     x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-        //     y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-        //     t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-        // }
+    // // Random test part
+    // // Math.random() returns a random number inclusive of 0, but not 1
+    // // only choose last two built-in gaze traces since they have timestamp information
+    // let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
+    // let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
+    // let endTimestamp = beginTimestamp;
+    // while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
+    //     endTimestamp++;
+    // }
+    // timestamp_win = timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp);
+    // for (let i = 0; i < updateInterval; i++) {
+    //     confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
+    // }
+    //
+    // let samples = {
+    //     x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+    //     y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+    //     t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+    // }
         let samples = {
             x: gazeX_win,
             y: gazeY_win,
@@ -156,8 +163,16 @@ async function update() {
                 }
             }
 
+            fixations.forEach((fixation, i) => {
+                console.log(`#${i} : Confusion Count = ${fixation.confusionCount}`);
+            })
+            console.log(`Last fixation : #${lastConfusedFixation}`)
+
             if (fixations[lastConfusedFixation].confusionCount > 0) {
-                fixations[lastConfusedFixation].showPromptBox(patch_w, patch_h);
+                console.log('draw box!')
+                showPromptBox(fixations[lastConfusedFixation], patch_w, patch_h);
+            } else {
+                showPromptBox(fixations[lastConfusedFixation], -1, -1); // -1 means to delete
             }
         }
 
@@ -225,56 +240,65 @@ async function query() {
 
 async function report(event) {
     document.getElementById('plotting_svg').innerHTML = '';
-    if (event.key === 'N') {
-        // TODO: send data to server
-    } else if (event.key === 'Y') {
-        // TODO: send data to server
-        signaling(
-            'confusion',
-            {
-                state: 'confused',
-                fixation: [0,0],
-            },
-            identity
-        );
-    }
 
+    console.log('You\'ve clicked on SVG! @'+new Date().getTime());
+
+    // TODO: send data to server
+    // signaling(
+    //     'confusion',
+    //     {
+    //         state: 'confused',
+    //         fixation: [0,0],
+    //     },
+    //     identity
+    // );
 }
 
-async function showPromptBox(x, y) {
-    // create svg element:
+function showPromptBox(fixation, minWidth, minHeight) {
+    console.log('SHOW PROMPT BOX')
 
-    let containerHeight = document.getElementById('container').offsetHeight;
-    let containerWidth = document.getElementById('container').offsetWidth;
+    let tFast = d3.transition()
+        .duration(500);
+    let tSlow = d3.transition()
+        .duration(1000);
 
-    var svg = d3.select("#plotting_svg")
-        .attr("width", containerWidth)
-        .attr("height", containerHeight)
+    let data = minWidth < 0 ? [] : [1]; // whatever the datum is, it is not important.
+    let svg = d3.selectAll("#plotting_svg");
 
-    x = x * patch_w;
-    y = y * patch_h;
-    console.log(x, y)
+   svg.transition(tSlow)
+    .style("left", fixation.xmin+'px')
+    .style("top", fixation.ymin+'px')
+    .style("width", minWidth < 0 ? 0+'px' : Math.max(minWidth, fixation.xmax - fixation.xmin)+'px')
+    .style("height", minWidth < 0 ? 0+'px' : Math.max(minHeight, fixation.ymax - fixation.ymin)+'px');
 
-    // x = 100;
-    // y = 100;
+    svg.selectAll('rect')
+        .data(data)
+        .join(
+            enter => enter.append('rect')
+                .attr('x', 0)
+                .attr('y', 0)
+                .attr('width', 0)
+                .attr('height', 0)
+                .attr('opacity', 0.7)
+                .attr('fill', '#7584AD'),
+            update => update,
+            exit => exit.remove()
+        ).transition(tFast)
+        .attr('width', Math.max(minWidth, fixation.xmax - fixation.xmin))
+        .attr('height', Math.max(minHeight, fixation.ymax - fixation.ymin));
 
-    // Add the path using this helper function
-    svg.append('rect')
-        .attr('x', x)
-        .attr('y', y)
-        .attr('width', patch_w)
-        .attr('height', patch_h)
-        .attr('stroke', 'black')
-        .attr('opacity', 0.5)
-        .attr('fill', '#7584AD');
-    svg.append('text')
-        .attr('x', x)
-        .attr('y', y)
-        .attr('dx', 5)
-        .attr('dy', 20)
-        .attr('stroke', 'black')
-        .style("font-size", 12)
-        .text("Are you confused about this area? (Y/N)")
+    let text = svg.selectAll('text')
+        .data(data)
+        .join(
+            enter => enter.append('text')
+                .attr('x', 0)
+                .attr('y', 0)
+                .attr('stroke', 'black')
+                .style("font-size", 14)
+                .html("<tspan dx='5' dy='20'>Confused AROUND?</tspan><tspan x='5' dy='20'>Click to report.</tspan>"),
+            update => update,
+            exit => exit.remove()
+        );
 }
 
 async function showCoords(event) {

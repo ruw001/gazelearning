@@ -59,8 +59,8 @@ class EKDetector{
         this.sample2matrix(samples);
 
         if (smooth_coordinates) {
-            samples.x = kernal(samples.x, math.multiply(1/3, math.ones(3)));
-            samples.y = kernal(samples.y, math.multiply(1/3, math.ones(3)));
+            samples.x = kernel(samples.x, math.multiply(1/3, math.ones(3)));
+            samples.y = kernel(samples.y, math.multiply(1/3, math.ones(3)));
         }
 
         samples= this.detectSaccades(samples, lambda, smooth_saccades);
@@ -79,9 +79,9 @@ class EKDetector{
     }
 
     detectSaccades(samples, lambda, smooth_saccades){
-        let dx = kernal(samples.x, math.matrix([-1, 0, 1]), 'result');
-        let dy = kernal(samples.y, math.matrix([-1, 0, 1]), 'result');
-        let dt = kernal(samples.t, math.matrix([-1, 0, 1]), 'result');
+        let dx = kernel(samples.x, math.matrix([-1, 0, 1]), 'result');
+        let dy = kernel(samples.y, math.matrix([-1, 0, 1]), 'result');
+        let dt = kernel(samples.t, math.matrix([-1, 0, 1]), 'result');
 
         let vx = math.dotDivide(dx, dt);
         let vy = math.dotDivide(dy, dt);
@@ -115,7 +115,7 @@ class EKDetector{
             math.add(pow2(math.divide(vx, radiusx)), pow2(math.divide(vy, radiusy))),
             1);
         if (smooth_saccades) {
-            sacc = kernal(sacc, math.multiply(1/3, math.ones(3)));
+            sacc = kernel(sacc, math.multiply(1/3, math.ones(3)));
             sacc = math.larger(sacc, 0.5);
         }
 
@@ -183,7 +183,7 @@ class EKDetector{
             );
         })
 
-        // Genarate Fixations, special cases
+        // Generate Fixations, special cases
         begin = minusOnes;
         end = plusOnes;
         if (end.get([0]) < begin.get([0])){
@@ -194,7 +194,7 @@ class EKDetector{
             end = math.concat(end, [math.subtract(samples.saccade.size()[0], 1)]);
         }
 
-        // Genarate Fixations
+        // Generate Fixations
         begin.forEach((element, i) => {
             let slice = math.index(math.range(element,end.get(i)+1));
             fixations.push(new Fixation(
@@ -221,13 +221,13 @@ class EKDetector{
     }
 }
 
-function kernal(samples, kernal, padMode='original') {
-    let kernalSize = math.squeeze(kernal.size());
+function kernel(samples, kernel, padMode='original') {
+    let kernelSize = math.squeeze(kernel.size());
     let sampleSize = math.squeeze(samples.size());
 
-    let convMatrix = math.zeros(sampleSize-kernalSize+1, sampleSize);
+    let convMatrix = math.zeros(sampleSize-kernelSize+1, sampleSize);
     math.range(0,convMatrix.size()[0]).forEach( row => {
-        convMatrix.subset(math.index(row, math.add(math.range(0,kernalSize), row)), kernal);
+        convMatrix.subset(math.index(row, math.add(math.range(0,kernelSize), row)), kernel);
     });
 
     let result = math.multiply(convMatrix, samples);
@@ -235,21 +235,18 @@ function kernal(samples, kernal, padMode='original') {
         case 'none':
             // Do not pad
             return result;
-            break;
         case 'original':
             // use original value to fill empty
             return math.concat([samples.get([0])],
                 result,
                 [samples.get([sampleSize-1])], 0);
-            break;
         case 'result':
             // use computed result to fill empty
             return math.concat([result.get([0])],
                 result,
-                [result.get([sampleSize-kernalSize])], 0);
-            break;
+                [result.get([sampleSize-kernelSize])], 0);
         default:
-            throw new Error('Wrong padding mode in function kernal()! Either original or result.');
+            throw new Error('Wrong padding mode in function kernel()! Either original or result.');
     }
 }
 

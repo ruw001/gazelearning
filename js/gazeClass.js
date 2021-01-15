@@ -67,25 +67,6 @@ class Fixation{
         ctx.strokeRect(this.xmin, this.ymin, this.xmax - this.xmin, this.ymax - this.ymin);
     }
 
-    showPromptBox(minWidth, minHeight) {
-        let svg = d3.select("#plotting_svg");
-        svg.text(""); // clear svg
-        svg.append('rect')
-            .attr('x', this.xmin)
-            .attr('y', this.ymin)
-            .attr('width', Math.max(minWidth, this.xmax - this.xmin))
-            .attr('height', Math.max(minHeight, this.xmax - this.xmin))
-            .attr('opacity', 0.7)
-            .attr('fill', '#7584AD');
-        svg.append('text')
-            .attr('x', this.xmin)
-            .attr('y', this.ymin)
-            .attr('dx', 5)
-            .attr('dy', 20)
-            .attr('stroke', 'black')
-            .style("font-size", 14)
-            .text("Confused AROUND this area? (Y/N)")
-    }
 }
 
 class Saccade{
