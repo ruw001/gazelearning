@@ -1,4 +1,4 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import base64
 import numpy as np
@@ -16,6 +16,7 @@ from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 import time
+import argparse
 
 CNTR = 0
 TOTAL = 1000
@@ -218,6 +219,7 @@ class ConfusionDetectionRequestHandler(BaseHTTPRequestHandler):
         '''Reads post request body'''
         content_len = int(self.headers.get('content-length', 0))
         post_body = self.rfile.read(content_len)
+        # print(post_body)
         data = json.loads(post_body)
         img_bytes = base64.b64decode(data['img'].split(',')[1])
         im_arr = np.frombuffer(img_bytes, dtype=np.uint8)
@@ -228,6 +230,7 @@ class ConfusionDetectionRequestHandler(BaseHTTPRequestHandler):
             modelPool[username] = StatePredictor(username)
         
         result = 'success'
+        print(username, 'stage', stage)
         try:
             if stage == 0:
                 modelPool[username].addData(img, data['label'])
@@ -253,9 +256,16 @@ class ConfusionDetectionRequestHandler(BaseHTTPRequestHandler):
         })
 
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-p", "--portid", type=int, default=0,
+                    help="port id")
+args = parser.parse_args()
+
 host = ''
-PORT = 8000
-print('Confusion infer server on...')
+
+PORT = 8000 + args.portid
+print('Serving on port {}...'.format(PORT))
+
 HTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
 
 
