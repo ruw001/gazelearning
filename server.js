@@ -108,6 +108,8 @@ server.listen(PORT, function () {
 
 
 // signaling stuff
+const STUDENT = 1;
+const TEACHER = 2;
 let all_fixations = new Map();
 let all_saccades = new Map();
 let last_seen = {};
@@ -125,7 +127,7 @@ app.post('/gazeData/sync', express.json({ type: '*/*' }), async (req, res) => {
 
     try {
         // teacher(2) or student(1)
-        if (role == 2) {
+        if (role === TEACHER) {
             // we have teacher request syncing
 
             let fixationX = [];

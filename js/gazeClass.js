@@ -1,20 +1,51 @@
 class Fixation{
     constructor(x_coords, y_coords, start, end){
-        this.xall = x_coords;
-        this.x = tf.mean(x_coords).squeeze().dataSync()[0];
-        this.xmax = tf.max(x_coords).squeeze().dataSync()[0];
-        this.xmin = tf.min(x_coords).squeeze().dataSync()[0];
-        this.xmad = get_median(x_coords.sub(get_median(x_coords))).dataSync()[0];
+        if (typeof(tf) !== "undefined") {
+            // Toggle when use tensorflow.js to compute fixations and saccades
+            this.xall = x_coords;
+            this.x = tf.mean(x_coords).squeeze().dataSync()[0];
+            this.xmax = tf.max(x_coords).squeeze().dataSync()[0];
+            this.xmin = tf.min(x_coords).squeeze().dataSync()[0];
+            this.xmad = get_median(x_coords.sub(get_median(x_coords))).dataSync()[0];
 
-        this.yall = y_coords;
-        this.y = tf.mean(y_coords).squeeze().dataSync()[0];
-        this.ymax = tf.max(y_coords).squeeze().dataSync()[0];
-        this.ymin = tf.min(y_coords).squeeze().dataSync()[0];
-        this.ymad = get_median(y_coords.sub(get_median(y_coords))).dataSync()[0];
-        
-        this.start = start;
-        this.end = end;
-        this.duration = end.sub(start).dataSync()[0];
+            this.yall = y_coords;
+            this.y = tf.mean(y_coords).squeeze().dataSync()[0];
+            this.ymax = tf.max(y_coords).squeeze().dataSync()[0];
+            this.ymin = tf.min(y_coords).squeeze().dataSync()[0];
+            this.ymad = get_median(y_coords.sub(get_median(y_coords))).dataSync()[0];
+
+            this.start = start;
+            this.end = end;
+            this.duration = end.sub(start).dataSync()[0];
+        } else {
+            // Toggle when use math.js to compute fixations and saccades
+            this.xall = x_coords;
+            this.x = math.mean(x_coords);
+            this.xmad = math.mad(x_coords);
+            this.xmax = math.max(x_coords);
+            this.xmin = math.min(x_coords);
+
+            this.yall = y_coords;
+            this.y = math.mean(y_coords);
+            this.ymad = math.mad(y_coords);
+            this.ymax = math.max(y_coords);
+            this.ymin = math.min(y_coords);
+
+            this.start = start;
+            this.end = end;
+            this.duration = end - start;
+        }
+
+        // Bind confusion detection with fixation
+        this.confusionCount = 0;
+    }
+
+    contain(timestamp) {
+        return timestamp >= this.start && timestamp <= this.end;
+    }
+
+    incConfusionCount() {
+        this.confusionCount++;
     }
 
     draw(ctx, r=10, color='#0B5345') {
@@ -35,14 +66,24 @@ class Fixation{
         ctx.strokeStyle = color;
         ctx.strokeRect(this.xmin, this.ymin, this.xmax - this.xmin, this.ymax - this.ymin);
     }
+
 }
 
 class Saccade{
     constructor(x_coords, y_coords, vx, vy) {
-        this.xall = x_coords.squeeze().arraySync();
-        this.yall = y_coords.squeeze().arraySync();
-        this.vx = vx.squeeze().arraySync();
-        this.vy = vy.squeeze().arraySync();
+        if (typeof(tf) !== "undefined") {
+            // Toggle when use tensorflow.js to compute fixations and saccades
+            this.xall = x_coords.squeeze().arraySync();
+            this.yall = y_coords.squeeze().arraySync();
+            this.vx = vx.squeeze().arraySync();
+            this.vy = vy.squeeze().arraySync();
+        } else {
+            // Toggle when use math.js to compute fixations and saccades
+            this.xall = x_coords;
+            this.yall = y_coords;
+            this.vx = vx;
+            this.vy = vy;
+        }
     }
 
     mark() {
@@ -118,7 +159,10 @@ class AoI{
             'danger':"#ef476f",
         };
 
-        this.status;
+        this.status = fixations.reduce(
+            (confusionCountSum, fixation) => confusionCountSum + fixation.confusionCount,
+            0
+        );
 
         this.percentage = fixations.length / nFixations;
 
@@ -175,19 +219,27 @@ class AoI{
     
     getStatus() {
 
-        if (this.status !== undefined) return this.status;
+        // if (this.status !== undefined) return this.status;
+        //
+        // let randNum = Math.random();
 
-        let randNum = Math.random();
+        // if (randNum < 0.33) {
+        //     this.status = "safe";
+        // } else if (randNum < 0.66) {
+        //     this.status = "warning";
+        // } else {
+        //     this.status = "danger";
+        // }
+        // return this.status
 
-        if (randNum < 0.33) {
-            this.status = "safe";
-        } else if (randNum < 0.66) {
-            this.status = "warning";
-        } else {
-            this.status = "danger";
+        switch (this.status) {
+            case 0:
+                return "safe";
+            case 1:
+                return "warning";
+            default:
+                return "danger";
         }
-
-        return this.status
     }
 
     draw(ctx, status) {
@@ -322,8 +374,8 @@ function showAoI(AoIs, animationTime) {
                         .attr("y", d => d.ymin)
                         .attr("dx", -strokeWidth / 2)
                         .attr("dy", -strokeWidth)
-                        .text(d => "Dwell Time:"+d.getDwellTime()),
-                update => update.text(d => "Dwell Time:"+d.getDwellTime()),
+                        .text(d => "#Confusion : "+d.status),
+                update => update.text(d => "#Confusion : "+d.status),
                 exit => exit.remove() // should never be called? remove of <g> should have handled this.
             )
             .call(s => s.each( function (d) {console.log(this.getBBox()); return d.bbox = this.getBBox();} ))
@@ -396,34 +448,6 @@ function showTransition(AoIs, TMatrix, animationTime) {
         .attr("d", (d, i) => arrowGenerator(
             AoIX[d.fixationId], AoIY[d.fixationId], AoIX[i], AoIY[i], arrowWidth*d.count/nTransition, theta, arrowLen
         ))
-
-
-    // gSelection.selectAll("path")
-    //             .data( (d, i) => {return {count:d,fixationId:i}})
-    //             .join(
-    //                 enter => enter,
-    //                 update => update.call(
-    //                     path => path.transition(t)
-    //                             .remove()
-    //                             .attr("d", (d, i) => arrowGenerator(AoIX[i], AoIX[i], AoIX[i], AoIX[i]))
-    //                 ),
-    //                 exit => exit.call(
-    //                     path => path.transition(t)
-    //                             .remove()
-    //                             .attr("d", (d, i) => arrowGenerator(AoIX[i], AoIX[i], AoIX[i], AoIX[i]))
-    //                 )
-    //             )
-    //             .append("path")
-    //             .call(
-    //                 path => path.transition(t)
-    //                             .attr("d", (d, i) => arrowGenerator(
-    //                                 AoIX[d.fixationId], AoIX[d.fixationId], AoIX[i], AoIX[i], 30, 10
-    //                             ))
-    //                             .attr("opacity", d => d/nTransition)
-    //                             .attr("stroke", "#aaa")
-    //                             .attr("stroke-width", d => 10*d/nTransition)
-    //             )
-
 }
 
 function arrowGenerator(fromX, fromY, toX, toY, width, theta,headlen) {

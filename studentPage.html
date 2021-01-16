@@ -9,13 +9,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
     <script src="https://api.gazerecorder.com/GazeCloudAPI.js"></script>
-<!--    <script src="js/webgazer.js"></script>-->
+    <!-- <script src="js/webgazer.js"></script> -->
     <!-- <script src="js/heatmap.js"></script> -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"> </script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script> -->
+    <script src="./js/camera_utils.js" crossorigin="anonymous"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"> </script> -->
+    <script src="https://unpkg.com/mathjs@8.0.1/lib/browser/math.js"></script>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <script src="./js/gazeClass.js"></script>
-    <script src="./js/Engbert_Kliegl.js"></script>
+    <script src="./js/Engbert_Kliegl_math.js"></script>
 
     <style type="text/css">
         body {
@@ -52,17 +54,19 @@
             position: absolute;
             z-index: 100;
         }
+        .invisible {
+            visibility: hidden;
+        }
     </style>
 
 </head>
 
 <body onkeypress="report(event)">
-    <!-- My layouts -->
+    <!-- Gaze Predictor Settings -->
     <!-- <input id="et1" type="checkbox" onchange="changeWG()"/>
     <label id="et1_label">WebGazer.js</label> -->
     <input id="et2" type="checkbox" onchange="changeGC()"/>
     <label id="et2_label">GazeCloudAPI</label>
-   <input id="et3" type="button" onclick="vizDisplay(event);" value="Hide Viz"/>
     <div id="gazecloudopts" style='display:none'>
         <button id="gc_start" type="button" onclick="GazeCloudAPI.StartEyeTracking();">Start tracking</button>
         <button id="gc_stop" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
@@ -73,41 +77,107 @@
         <button id="wg_stop" type="button" onclick="endWG();">Stop tracking</button>
     </form>
 
-    <!-- Heatmap is cancelled. -->
-    <!-- <button id="random" type="button">Start Random</button>
-    <input id="random-num" type="number" value=10></button>
-    <button id="fix" type="button">Start Fix</button>
-    <input id="fix-num" type="number" value=10></button>
+    <!--  SVG Visualization and Synchronization Settings  -->
+    <input id="et3" type="button" onclick="svgDisplay(event);" value="Hide SVG"/>
+    <button id="sync" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
 
-    <button id="clean" type="button">Clean heatmap</button>
-    <button id="display" type="button">Display dataset</button>
-    <button id="scale" type="button">Rescale heatmap</button> -->
-    <button id="sync" type="button">Synchronization</button>
-
+    <!--  Confusion Detection Settings  -->
     <button id="neutral_btn" type="button" onclick="reportNeutral();">Report Neutral</button>
     <button id="confused_btn" type="button" onclick="reportConfusion();">Report Confusion</button>
-    <!-- <div id="gazecloudopts">
-            <button id="gc_start" type="button" onclick="GazeCloudAPI.StartEyeTracking();">Start tracking</button>
-            <button id="gc_stop" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
-        </div> -->
+
+    <!--  Facial Expression  -->
     <div class="meshvideo">
         <video id="input_video" style='display:none;'></video>
         <canvas id="output_canvas" width="320px" height="180px" style='display:none;'></canvas>
     </div>
     <span id='status_bar'> </span>
-    
+
+    <!-- Gaze Point Visualization -->
     <div id="gaze"
         style='position: absolute;display:none;width: 100px;height: 100px;border-radius: 50%;border: solid 2px  rgba(255, 255,255, .2);	box-shadow: 0 0 100px 3px rgba(125, 125,125, .5);	pointer-events: none;	z-index: 999999'>
     </div>
-    <div id="container" onclick="showCoords(event)">
+
+    <!-- Modal. Choose to calibrate GazeCloud or not. Modal is achieved by using bootstrap.-->
+    <div id="calibrateModal" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-body">
+                    <h4 id="calibrateTitle">
+                        [Before start : 1/2] Please calibrate the GazeCloud for gaze collection.
+                    </h4>
+                    <p id="calibrateDescription">
+                        Loading...
+                    </p>
+                </div>
+                <div class="modal-footer" hidden>
+                    <button id="caliCloseBtn" type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal('calibrateModal'); openModal('initModal');"> Skip </button>
+                    <button id="caliBtn" type="button" class="btn btn-primary btn-sm" data-dismiss="modal" onclick="closeModal('calibrateModal'); GazeCloudAPI.StartEyeTracking();"> Calibrate </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal. Choose to Collect Confusion Expressions or not. Modal is achieved by using bootstrap.-->
+    <div id="initModal" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-body">
+                    <h4 id="modalTitle">
+                        [Before start : 2/2] Do you want to collect confusion expressions?
+                    </h4>
+                    <p>
+                        If click "Collect", your confused expressions will be collected; <br>
+                        else you could directly start to use the system.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button id="closeBtn" type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal('initModal'); systemStart(true)">No</button>
+                    <button type="button" class="btn btn-primary btn-sm" data-dismiss="modal" onclick="closeModal('initModal'); openModal('dataCollectModal')">Collect</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal. Collect Confusion Expressions. Modal is achieved by using bootstrap.-->
+    <div id="dataCollectModal" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-body">
+                    <h4 id="collectTitle">
+                        Please make confused expressions.
+                    </h4>
+                    <p id="collectDescription">
+                        Press "Collect" if you are ready.
+                    </p>
+                    <canvas id="collect_canvas" width="320px" height="180px" style='display:block;'></canvas>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal(); systemStart(true);">Cancel</button>
+                    <button id="collectBtn" type="button" class="btn btn-primary btn-sm" data-dismiss="modal" onclick="systemStart(false);">Collect</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!--  Main body. Zoom iframe will be embedded via Zoom/embed.js below  -->
+    <div id="container" onclick="showCoords(event)" ondblclick="event.preventDefault();">
         <svg id="plotting_svg"></svg>
         <!-- <img src='regression.jpg'> -->
     </div>
-    
-    <script src="js/student_client.js"></script>
 
     <script src="Zoom/tool.js"></script>
     <script src="Zoom/embed.js"></script>
+    <script src="js/globalVars.js"></script>
+    <script src="js/student_client.js"></script>
+
 </body>
 
 </html>

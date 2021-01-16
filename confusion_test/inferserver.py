@@ -30,6 +30,7 @@ POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
 if not os.path.exists(FILEPATH):
     # os.rmdir(FILEPATH)
     os.mkdir(FILEPATH)
+    print('folder {} not find, have created one.'.format(FILEPATH))
 
 modelPool = {}
 
@@ -261,8 +262,10 @@ parser.add_argument("-p", "--portid", type=int, default=0,
 args = parser.parse_args()
 
 host = ''
+
 PORT = 8000 + args.portid
 print('Serving on port {}...'.format(PORT))
+
 HTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
 
 
