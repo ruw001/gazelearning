@@ -18,7 +18,7 @@ let frameInterval,
     gazeX = 0,
     gazeY = 0;
 
-let total = 100;
+let total = 1000;
 let totalNeutral = total;
 let totalConfused = total;
 let collecting = 0;
@@ -43,6 +43,8 @@ let cameraId;
 
 let detector = new EKDetector();
 
+let faceLostReported = false;
+let lastHiddenTimestamp;
 // ==============================================================
 // constant definition (for better code comprehension)
 // possible states of variable collecting
@@ -92,12 +94,12 @@ for (let i = 0; i < GazeX[1].length; i+=1) {
 timestamp[1] = dumbTimestamp;
 
 timestamp[2].forEach((element, i)=>{
-    if (i != 0) timestamp[2][i] = timestamp[2][i] - timestamp[2][0];
+    if (i !== 0) timestamp[2][i] = timestamp[2][i] - timestamp[2][0];
 });
 timestamp[2][0] = 0; // tensorflow.js could not afford numbers as large as timestamp
 
 timestamp[3].forEach((element, i)=>{
-    if (i != 0) timestamp[3][i] = timestamp[3][i] - timestamp[3][0];
+    if (i !== 0) timestamp[3][i] = timestamp[3][i] - timestamp[3][0];
 });
 timestamp[3][0] = 0; // tensorflow.js could not afford numbers as large as timestamp
 
@@ -229,7 +231,7 @@ function PlotGaze(GazeData) {
     /*
         GazeData.state // 0: valid gaze data; -1 : face tracking lost, 1 : gaze uncalibrated
         GazeData.docX // gaze x in document coordinates
-        GazeData.docY // gaze y in document cordinates
+        GazeData.docY // gaze y in document coordinates
         GazeData.time // timestamp
     */
 
@@ -247,28 +249,51 @@ function PlotGaze(GazeData) {
 
     gazeX = docx;//GazeData.GazeX;
     gazeY = docy;//GazeData.GazeY;
-    if (totalConfused === 0 && totalNeutral === 0) {
-        gazeX_win.push(gazeX);
-        gazeY_win.push(gazeY);
-        timestamp_win.push(GazeData.time);
-    }
+
     let gaze = document.getElementById("gaze");
 
-    docx -= gaze.clientWidth / 2;
-    docy -= gaze.clientHeight / 2;
+    // if (GazeData.state != 0) {
+    //     if (gaze.style.display == 'block')
+    //         gaze.style.display = 'none';
+    // }
+    // else {
+    //     if (gaze.style.display == 'none')
+    //         gaze.style.display = 'block';
+    // }
 
-    gaze.style.left = docx + "px";
-    gaze.style.top = docy + "px";
-
-
-    if (GazeData.state != 0) {
-        if (gaze.style.display == 'block')
-            gaze.style.display = 'none';
+    switch (GazeData.state) {
+        case 0:
+            // 0: valid gaze data
+            // Push valid gaze data
+            if (totalConfused === 0 && totalNeutral === 0) {
+                gazeX_win.push(gazeX);
+                gazeY_win.push(gazeY);
+                timestamp_win.push(GazeData.time);
+            }
+            // Visualize gaze with DOM div element #gaze
+            docx -= gaze.clientWidth / 2;
+            docy -= gaze.clientHeight / 2;
+            gaze.style.left = docx + "px";
+            gaze.style.top = docy + "px";
+            if (gaze.style.display === 'none')
+                gaze.style.display = 'block';
+            break;
+        case -1:
+            // -1 : face tracking lost
+            // Hide gaze visualization
+            // The value of gazeX/gazeY stays same as last valid gaze
+            if (gaze.style.display === 'block')
+                gaze.style.display = 'none';
+            break;
+        case 1:
+            // 1 : gaze uncalibrated
+            // Hide gaze visualization
+            // The value of gazeX/gazeY stays same as last valid gaze
+            if (gaze.style.display === 'block')
+                gaze.style.display = 'none';
+            break;
     }
-    else {
-        if (gaze.style.display == 'none')
-            gaze.style.display = 'block';
-    }
+
 }
 
 // window.onbeforeunload = function () {
@@ -305,6 +330,7 @@ function selectCamera() {
         switch (devices.length) {
             case 0:
                 description.innerText = 'No camera available. Please check your device connection.';
+                break;
             case 1:
                 description.remove();
                 document.querySelector("#calibrateModal .modal-footer").hidden = false;
@@ -334,8 +360,8 @@ function selectCamera() {
                     radio.classList.add('form-check');
                     radio.innerHTML =
                         `<input className="form-check-input" type="radio" name="camera" id="cameraRadio${i}">
-                    <label className="form-check-label" htmlFor="cameraRadio${i}">
-                    ${device.label}</label>`;
+                        <label className="form-check-label" htmlFor="cameraRadio${i}">
+                        ${device.label}</label>`;
                     description.insertAdjacentElement('afterend', radio);
                 });
         }

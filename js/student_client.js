@@ -2,6 +2,7 @@
 // var ZoomMtg = require('@zoomus/websdk');
 // ==============================================================
 document.addEventListener("DOMContentLoaded", () => openModal("calibrateModal"));
+document.addEventListener('visibilitychange', reportInattention)
 
 window.onload = async function () {
     //////set callbacks for GazeCloudAPI/////////
@@ -115,25 +116,31 @@ async function update() {
     console.log('Updating student...');
     // query()
     // .then(() => {
-    // // Random test part
-    // // Math.random() returns a random number inclusive of 0, but not 1
-    // // only choose last two built-in gaze traces since they have timestamp information
-    // let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
-    // let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
-    // let endTimestamp = beginTimestamp;
-    // while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
-    //     endTimestamp++;
-    // }
-    // timestamp_win = timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp);
-    // for (let i = 0; i < updateInterval; i++) {
-    //     confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
-    // }
-    //
-    // let samples = {
-    //     x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-    //     y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-    //     t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-    // }
+   //  // Random test part
+   //  // Math.random() returns a random number inclusive of 0, but not 1
+   //  // only choose last two built-in gaze traces since they have timestamp information
+   //  let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
+   //  let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
+   //  let endTimestamp = beginTimestamp;
+   //  while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
+   //      endTimestamp++;
+   //  }
+   //  timestamp_win = timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp);
+   //  for (let i = 0; i < updateInterval; i++) {
+   //      // confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
+   //      confusion_win[i] = 'N/A';
+   //  }
+   // if (Math.random() > 0.5)  {
+   //     for (let i = 0; i < updateInterval; i++) {
+   //         confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
+   //     }
+   // }
+   //
+   //  let samples = {
+   //      x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+   //      y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+   //      t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+   //  }
         let samples = {
             x: gazeX_win,
             y: gazeY_win,
@@ -145,10 +152,22 @@ async function update() {
         let [fixations, saccades] = detector.detect(samples);
 
         let any_confused = confusion_win.some((state) => state === 'Confused');
+        let all_noface = confusion_win.every((state) => state === 'N/A');
 
+        if (all_noface) {
+            if (!faceLostReported) {
+                // Do not keep notifying the student, just once.
+                faceLostReported = true;
+                new Audio('/media/audio/facelost.mp3').play().catch(err => console.log(err));
+            }
+        } else if (faceLostReported) {
+            // Face is back, reset flag.
+            faceLostReported = false;
+        }
+
+        let lastConfusedFixation = 0;
+        // Nested for loops for confusion/fixation binding
         if (any_confused && fixations.length !== 0) {
-            let lastConfusedFixation = 0;
-
             for (const [i, state] of confusion_win.entries()) {
                 if (state === 'Confused') {
                     let tConfusion = (i + 1)*inferInterval + timestamp_win[0];
@@ -162,18 +181,13 @@ async function update() {
                     }
                 }
             }
+        }
 
-            fixations.forEach((fixation, i) => {
-                console.log(`#${i} : Confusion Count = ${fixation.confusionCount}`);
-            })
-            console.log(`Last fixation : #${lastConfusedFixation}`)
-
-            if (fixations[lastConfusedFixation].confusionCount > 0) {
-                console.log('draw box!')
-                showPromptBox(fixations[lastConfusedFixation], patch_w, patch_h);
-            } else {
-                showPromptBox(fixations[lastConfusedFixation], -1, -1); // -1 means to delete
-            }
+        if (fixations[lastConfusedFixation].confusionCount > 0) {
+            console.log('draw box!')
+            showPromptBox(fixations[lastConfusedFixation], patch_w, patch_h);
+        } else {
+            showPromptBox(fixations[lastConfusedFixation], -1, -1); // -1 means to delete
         }
 
         gazeX_win = [];
@@ -255,7 +269,7 @@ async function report(event) {
 }
 
 function showPromptBox(fixation, minWidth, minHeight) {
-    console.log('SHOW PROMPT BOX')
+    console.log(minWidth < 0 ? 'REMOVE PROMPT BOX' : 'SHOW PROMPT BOX')
 
     let tFast = d3.transition()
         .duration(500);
@@ -282,12 +296,12 @@ function showPromptBox(fixation, minWidth, minHeight) {
                 .attr('opacity', 0.7)
                 .attr('fill', '#7584AD'),
             update => update,
-            exit => exit.remove()
+            exit => exit.call(rect => rect.transition(tFast).attr("width", 0).attr("height", 0).remove())
         ).transition(tFast)
         .attr('width', Math.max(minWidth, fixation.xmax - fixation.xmin))
         .attr('height', Math.max(minHeight, fixation.ymax - fixation.ymin));
 
-    let text = svg.selectAll('text')
+    svg.selectAll('text')
         .data(data)
         .join(
             enter => enter.append('text')
@@ -337,6 +351,7 @@ async function stateInference() {
 }
 
 async function dataCollecting() {
+    // on server side, label CONFUSED(1) is confused expressions, label NOTCOLLECTING(0) is neutral
     let label = collecting === CONFUSED ? CONFUSED : NOTCOLLECTING;
     let result = await reportState(COLLECTION, label)
     if (collecting === CONFUSED) { // collecting confusion
@@ -439,3 +454,15 @@ async function reportConfusion() {
     }
 }
 // ==============================================================
+// confusion detection functions
+
+function reportInattention() {
+    if (document.visibilityState === 'hidden') {
+        lastHiddenTimestamp = new Date().getTime();
+        setTimeout(()=>{
+            if (lastHiddenTimestamp) new Audio('/media/audio/alert.mp3').play().catch(err => console.log(err));
+        }, updateInterval*inferInterval)
+    } else if (document.visibilityState === 'visible') {
+        lastHiddenTimestamp = 0;
+    }
+}
