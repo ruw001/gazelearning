@@ -116,36 +116,36 @@ async function update() {
     console.log('Updating student...');
     // query()
     // .then(() => {
-   //  // Random test part
-   //  // Math.random() returns a random number inclusive of 0, but not 1
-   //  // only choose last two built-in gaze traces since they have timestamp information
-   //  let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
-   //  let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
-   //  let endTimestamp = beginTimestamp;
-   //  while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
-   //      endTimestamp++;
-   //  }
-   //  timestamp_win = timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp);
-   //  for (let i = 0; i < updateInterval; i++) {
-   //      // confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
-   //      confusion_win[i] = 'N/A';
-   //  }
-   // if (Math.random() > 0.5)  {
-   //     for (let i = 0; i < updateInterval; i++) {
-   //         confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
-   //     }
-   // }
-   //
-   //  let samples = {
-   //      x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-   //      y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-   //      t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-   //  }
-        let samples = {
-            x: gazeX_win,
-            y: gazeY_win,
-            t: timestamp_win,
-        }
+    // Random test part
+    // Math.random() returns a random number inclusive of 0, but not 1
+    // only choose last two built-in gaze traces since they have timestamp information
+    let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
+    let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
+    let endTimestamp = beginTimestamp;
+    while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
+        endTimestamp++;
+    }
+    timestamp_win = timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp);
+    for (let i = 0; i < updateInterval; i++) {
+        // confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
+        confusion_win[i] = 'N/A';
+    }
+   if (Math.random() > 0.5)  {
+       for (let i = 0; i < updateInterval; i++) {
+           confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
+       }
+   }
+
+    let samples = {
+        x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+        y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+        t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+    }
+        // let samples = {
+        //     x: gazeX_win,
+        //     y: gazeY_win,
+        //     t: timestamp_win,
+        // }
 
         console.log(`Length of gaze ${gazeX_win.length}`);
 

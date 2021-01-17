@@ -322,6 +322,12 @@ function getCookie(name) {
 // The camera selection only enforces the new Camera()
 // rather than the GazeCloud, which seems to use the default one.
 function selectCamera() {
+    if (!navigator.mediaDevices) {
+        description.remove();
+        document.querySelector("#calibrateModal .modal-footer").hidden = false;
+        return
+    }
+
     navigator.mediaDevices.enumerateDevices()
     .then(devices => {
         devices = devices.filter(device => device.kind === 'videoinput');
