@@ -323,6 +323,7 @@ function getCookie(name) {
 // rather than the GazeCloud, which seems to use the default one.
 function selectCamera() {
     if (!navigator.mediaDevices) {
+        let description = document.getElementById("calibrateDescription");
         description.remove();
         document.querySelector("#calibrateModal .modal-footer").hidden = false;
         return
