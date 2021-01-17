@@ -72,19 +72,21 @@ function systemStart(fastMode) {
         collecting = CONFUSED; // start with collecting confused expressions
     }
 
-    const camera = new Camera(videoElement, {
-        onFrame: async () => {
-            if (collecting !== NOTCOLLECTING) {
-                await dataCollecting();
-            } else if (totalConfused === 0 && totalNeutral === 0) {
+    if (navigator.mediaDevices.enumerateDevices) {
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                if (collecting !== NOTCOLLECTING) {
+                    await dataCollecting();
+                } else if (totalConfused === 0 && totalNeutral === 0) {
 
-            }
-        },
-        width: 320,
-        height: 180,
-        deviceId: cameraId,
-    });
-    camera.start();
+                }
+            },
+            width: 320,
+            height: 180,
+            deviceId: cameraId,
+        });
+        camera.start();
+    }
 
     let infer = setInterval(() => {
         updateGazePoints()
