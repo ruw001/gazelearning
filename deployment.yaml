@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
         - name: nodejs
-          image: gcr.io/gazelearningdemo/github.com/voivio/gazelearning
+          image: gcr.io/gazelearningdemo/github.com/voivio/gazelearning:$COMMIT_SHA
           ports:
             - containerPort: 5000
