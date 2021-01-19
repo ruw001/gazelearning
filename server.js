@@ -2,11 +2,15 @@ var svmpkg = require('machinelearn/svm')
 var PORT = process.env.PORT || 5000;
 var express = require('express');
 var app = express();
+var fs = require('fs');
+let httpsServer;
 // var cors = require('cors')
 
 var http = require('http');
-var server = http.Server(app);
-
+const https = require('https');
+// var server = http.Server(app);
+let sslCrt = 'cert.pem';
+let sslKey = 'privkey.pem'
 // To process login form page
 const multipart = require("connect-multiparty");
 const multipartyModdleware = multipart();
@@ -14,6 +18,35 @@ const multipartyModdleware = multipart();
 
 // app.use(cors())
 app.use(express.static('./'));
+
+console.log('starting express');
+try {
+    const tls = {
+        cert: fs.readFileSync(sslCrt),
+        key: fs.readFileSync(sslKey),
+    };
+    httpsServer = https.createServer(tls, app);
+    httpsServer.on('error', (e) => {
+        console.error('https server error,', e.message);
+    });
+    await new Promise((resolve) => {
+        httpsServer.listen(PORT, () => {
+            console.log(`server is running and listening on ` +
+                `https://localhost:${PORT}`);
+            resolve();
+        });
+    });
+} catch (e) {
+    if (e.code === 'ENOENT') {
+        console.error('no certificates found (check config.js)');
+        console.error('  could not start https server ... trying http');
+    } else {
+        err('could not start https server', e);
+    }
+    app.listen(PORT, () => {
+        console.log(`http server listening on port ${PORT}`);
+    });
+}
 
 app.post('/users', multipartyModdleware, function (req, res, next) {
     let content = req.body;
@@ -58,9 +91,9 @@ app.get('/gazeData',
     sendGazePoints
 );
 
-server.listen(PORT, function () {
-    console.log('gaze server running');
-});
+// server.listen(PORT, function () {
+//     console.log('gaze server running');
+// });
 
 // var io = require('socket.io')(server);
 
