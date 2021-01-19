@@ -19,34 +19,38 @@ const multipartyModdleware = multipart();
 // app.use(cors())
 app.use(express.static('./'));
 
-console.log('starting express');
-try {
-    const tls = {
-        cert: fs.readFileSync(sslCrt),
-        key: fs.readFileSync(sslKey),
-    };
-    httpsServer = https.createServer(tls, app);
-    httpsServer.on('error', (e) => {
-        console.error('https server error,', e.message);
-    });
-    await new Promise((resolve) => {
-        httpsServer.listen(PORT, () => {
-            console.log(`server is running and listening on ` +
-                `https://localhost:${PORT}`);
-            resolve();
+async function startServer() {
+    console.log('starting express');
+    try {
+        const tls = {
+            cert: fs.readFileSync(sslCrt),
+            key: fs.readFileSync(sslKey),
+        };
+        httpsServer = https.createServer(tls, app);
+        httpsServer.on('error', (e) => {
+            console.error('https server error,', e.message);
         });
-    });
-} catch (e) {
-    if (e.code === 'ENOENT') {
-        console.error('no certificates found (check config.js)');
-        console.error('  could not start https server ... trying http');
-    } else {
-        err('could not start https server', e);
+        await new Promise((resolve) => {
+            httpsServer.listen(PORT, () => {
+                console.log(`server is running and listening on ` +
+                    `https://localhost:${PORT}`);
+                resolve();
+            });
+        });
+    } catch (e) {
+        if (e.code === 'ENOENT') {
+            console.error('no certificates found (check config.js)');
+            console.error('  could not start https server ... trying http');
+        } else {
+            err('could not start https server', e);
+        }
+        app.listen(PORT, () => {
+            console.log(`http server listening on port ${PORT}`);
+        });
     }
-    app.listen(PORT, () => {
-        console.log(`http server listening on port ${PORT}`);
-    });
 }
+
+startServer()
 
 app.post('/users', multipartyModdleware, function (req, res, next) {
     let content = req.body;
@@ -260,8 +264,6 @@ setInterval(() => {
 }, 5000);
 
 // Some codes about write gaze data into file, not tested yet
-
-const fs = require('fs');
 
 function saveGazePoints(req, res, next) {
     // Save gaze data from student
