@@ -2,7 +2,8 @@ node_modules
 .DS_Store
 package-lock.json
 # confusion_test/
-confusion_test/data*/
+*/data*/
+*/*/data*/
 .vscode/
 other stuff/
 test.html

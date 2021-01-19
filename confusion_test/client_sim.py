@@ -6,7 +6,8 @@ import base64
 import json
 from threading import Thread
 
-host =  '172.20.16.10' # '137.110.115.9'
+# '127.0.0.1' #'172.20.16.10' # '137.110.115.9'
+host = 'https://gazelearning-apis.wl.r.appspot.com'
 PORT = 8000
 N_SERVER = 10
 
@@ -25,12 +26,13 @@ IMG = getImage(0, labels[0])
 
 def sendRequest(pID):
     port = PORT + pID % N_SERVER
-    url = 'http://{}:{}'.format(host, port)
+    url = 'http://{}:{}/detection'.format(host, port)
+    url = 'https://mlserver-302123.uc.r.appspot.com/detection'
     pID = 'user_' + str(pID).zfill(2)
     stage = 0  # 0: collect data; 1: inference,
     idx = 0 # 0: nc, 1: c
     count = 0
-    total = 100
+    total = 200
     count_request = 0
     latency = [0,0]
     while True:
@@ -41,12 +43,12 @@ def sendRequest(pID):
             start = time.time()
             res = requests.post(url, data=json.dumps(data))
             latency[stage] += time.time() - start
-            # print(res)
+            print(res.content)
             count += 1
             if count == total:
                 idx += 1
                 count = 0
-            # time.sleep(0.001)
+            # time.sleep(0)
         else:
             stage = 1
             idx = 1
@@ -55,7 +57,7 @@ def sendRequest(pID):
             start = time.time()
             res = requests.post(url, data=json.dumps(data))
             latency[stage] += time.time() - start
-            # print(res)
+            print(res.data)
             time.sleep(1)
         print('pID:{}, count: {}, stage: {}'.format(pID, count_request, stage))
         count_request += 1
@@ -79,6 +81,6 @@ if threaded:
         request_threads[i].start()
         time.sleep(1.5)
 else:
-    sendRequest('user_00')
+    sendRequest(0)
 # test = getImage(0, labels[0])
 # print(test)
