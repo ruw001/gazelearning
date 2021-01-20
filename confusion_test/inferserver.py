@@ -287,11 +287,13 @@ server_threads = []
 
 for i in range(num_server):
     PORT = 8000 + i
-    print('Server {} is running on {}...'.format(i, PORT))
     server_threads.append(Thread(target=server_run, args=(PORT,)))
 
 for i in range(num_server):
+    print('Server {} is running on {}...'.format(i, PORT))
     server_threads[i].daemon = True
     server_threads[i].start()
     time.sleep(1)
 
+for i in range(num_server):
+    server_threads[i].join()
