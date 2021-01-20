@@ -283,7 +283,15 @@ num_server = args.numserver
 
 # HTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
 
+server_threads = []
+
 for i in range(num_server):
     PORT = 8000 + i
     print('Server {} is running on {}...'.format(i, PORT))
-    Thread(target=server_run, args=(PORT,)).start()    
+    server_threads.append(Thread(target=server_run, args=(PORT,)))
+
+for i in range(num_server):
+    server_threads[i].daemon = True
+    server_threads[i].start()
+    time.sleep(1)
+

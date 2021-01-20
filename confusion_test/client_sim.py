@@ -9,7 +9,7 @@ from threading import Thread
 # '127.0.0.1' #'172.20.16.10' # '137.110.115.9'
 host = '34.94.7.7'  # 'https://gazelearning-apis.wl.r.appspot.com'
 PORT = 8000
-N_SERVER = 10
+N_SERVER = 3
 
 img_folder = 'dataset_rw/'
 
