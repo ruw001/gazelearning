@@ -32,7 +32,7 @@ def sendRequest(pID):
     stage = 0  # 0: collect data; 1: inference,
     idx = 0 # 0: nc, 1: c
     count = 0
-    total = 200
+    total = 100
     count_request = 0
     latency = [0,0]
     while True:
@@ -57,15 +57,14 @@ def sendRequest(pID):
             start = time.time()
             res = requests.post(url, data=json.dumps(data))
             latency[stage] += time.time() - start
-            print(res.data)
+            print(res.content)
             time.sleep(1)
         print('pID:{}, count: {}, stage: {}'.format(pID, count_request, stage))
         count_request += 1
         if count_request == total * 2 + 25:
             break
-    res = 'pID: {}, Total latency:{}, Stage0 Latency:{}, Stage1 Latency:{}'\
-            .format(pID,
-            (latency[0] + latency[1])/count_request, 
+    res = 'pID: {}, Stage0 Latency:{}, Stage1 Latency:{}'\
+            .format(pID, 
             latency[0] / (2 * total),
             latency[1] / (count_request - 2 * total))
     with open('res.txt', 'a') as outfile:

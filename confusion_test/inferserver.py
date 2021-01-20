@@ -17,6 +17,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 import time
 import argparse
+from threading import Thread
 
 CNTR = 0
 TOTAL = 1000
@@ -114,6 +115,7 @@ class StatePredictor:
         self.username = usrname
         self.retrain_interval = 1000 # TODO: incremental training!
         self.dir = os.path.join(FILEPATH, self.username)
+        self.training = False
         if not os.path.exists(self.dir):
             os.mkdir(self.dir)
         elif os.path.exists(os.path.join(self.dir, 'pca.joblib')):
@@ -162,10 +164,17 @@ class StatePredictor:
         dump(self.clf, os.path.join(self.dir, 'model_pca.joblib'))
         dump(self.pca, os.path.join(self.dir, 'pca.joblib'))
 
+        self.training = False
+
     
     def confusionDetection(self, img):
-        if self.clf is None:
-            self.train()
+        if self.clf is None and not self.training:
+            self.training = True
+            Thread(target=self.train(), args=(self, )).start()
+            # self.train()
+            return 'training'
+        elif self.training:
+            return 'training'
         tag = ['Neutral', 'Confused']
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img.flags.writeable = False
@@ -255,17 +264,26 @@ class ConfusionDetectionRequestHandler(BaseHTTPRequestHandler):
             'body': {'result': result},
         })
 
+def server_run(port):
+    HTTPServer((host, port), ConfusionDetectionRequestHandler).serve_forever()
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-p", "--portid", type=int, default=0,
+# parser.add_argument("-p", "--portid", type=int, default=0,
+#                     help="port id")
+parser.add_argument("-n", "--numserver", type=int, default=0,
                     help="port id")
 args = parser.parse_args()
 
 host = ''
 
-PORT = 8000 + args.portid
-print('Serving on port {}...'.format(PORT))
+num_server = args.numserver
+# PORT = 8000 + args.portid
+# print('Serving on port {}...'.format(PORT))
 
-HTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
+# HTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
 
-
+for i in range(num_server):
+    PORT = 8000 + i
+    print('Server {} is running on {}...'.format(i, PORT))
+    Thread(target=server_run, args=(PORT,)).start()    
