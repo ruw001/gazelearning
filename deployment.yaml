@@ -1,21 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  annotations:
-    deployment.kubernetes.io/revision: "1"
-  creationTimestamp: "2021-01-21T05:25:29Z"
-  generation: 2
   labels:
     app: nodejstest
   name: nodejstest
   namespace: default
-  resourceVersion: "10653"
-  selfLink: /apis/apps/v1/namespaces/default/deployments/nodejstest
-  uid: 613e7f7b-feb5-4f36-b87f-e47f08701e24
 spec:
-  progressDeadlineSeconds: 600
-  replicas: 1
-  revisionHistoryLimit: 10
+  replicas: 3
   selector:
     matchLabels:
       app: nodejstest
@@ -26,38 +17,52 @@ spec:
     type: RollingUpdate
   template:
     metadata:
-      creationTimestamp: null
       labels:
         app: nodejstest
     spec:
       containers:
-        - image: gcr.io/cogteach-distributed/github.com/voivio/gazelearning@sha256:425b8da6c0f4c9b1462e7e6a5e02cdda6baa0bb6277e2e40d49a8739d0135f6c
+        - image: gcr.io/cogteach-distributed/github_voivio_gazelearning
           imagePullPolicy: IfNotPresent
-          name: gazelearning-sha256-1
-          resources: {}
-          terminationMessagePath: /dev/termination-log
-          terminationMessagePolicy: File
-      dnsPolicy: ClusterFirst
-      restartPolicy: Always
-      schedulerName: default-scheduler
-      securityContext: {}
-      terminationGracePeriodSeconds: 30
-status:
-  availableReplicas: 1
-  conditions:
-    - lastTransitionTime: "2021-01-21T05:26:16Z"
-      lastUpdateTime: "2021-01-21T05:26:16Z"
-      message: Deployment has minimum availability.
-      reason: MinimumReplicasAvailable
-      status: "True"
-      type: Available
-    - lastTransitionTime: "2021-01-21T05:25:29Z"
-      lastUpdateTime: "2021-01-21T05:26:16Z"
-      message: ReplicaSet "nodejstest-66cd49cbf6" has successfully progressed.
-      reason: NewReplicaSetAvailable
-      status: "True"
-      type: Progressing
-  observedGeneration: 2
-  readyReplicas: 1
-  replicas: 1
-  updatedReplicas: 1
+          name: github-voivio-gazelearning-sha256-1
+---
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  labels:
+    app: nodejstest
+  name: nodejstest-hpa-ause
+  namespace: default
+spec:
+  maxReplicas: 5
+  metrics:
+    - resource:
+        name: cpu
+        targetAverageUtilization: 80
+      type: Resource
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: nodejstest
+---
+apiVersion: v1
+kind: Service
+metadata:
+  finalizers:
+    - service.kubernetes.io/load-balancer-cleanup
+  labels:
+    app: nodejstest
+  name: nodejstest-service
+  namespace: default
+spec:
+  clusterIP: 10.52.15.188
+  externalTrafficPolicy: Cluster
+  ports:
+    - nodePort: 31341
+      port: 80
+      protocol: TCP
+      targetPort: 5000
+  selector:
+    app: nodejstest
+  sessionAffinity: None
+  type: LoadBalancer
