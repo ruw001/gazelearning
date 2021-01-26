@@ -70,7 +70,7 @@ def sendRequest(pID):
     with open('res.txt', 'a') as outfile:
         outfile.write(res + '\n')
 
-threaded = True
+threaded = False
 if threaded:
     request_threads = []
     for i in range(30):
