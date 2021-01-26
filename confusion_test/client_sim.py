@@ -7,9 +7,9 @@ import json
 from threading import Thread
 
 # '127.0.0.1' #'172.20.16.10' # '137.110.115.9'
-host = '34.94.7.7'  # 'https://gazelearning-apis.wl.r.appspot.com'
+host = '34.68.142.133'  # '34.94.7.7'  # 'https://gazelearning-apis.wl.r.appspot.com'
 PORT = 8000
-N_SERVER = 10
+N_SERVER = 15
 
 img_folder = 'dataset_rw/'
 
@@ -70,7 +70,7 @@ def sendRequest(pID):
     with open('res.txt', 'a') as outfile:
         outfile.write(res + '\n')
 
-threaded = False
+threaded = True
 if threaded:
     request_threads = []
     for i in range(30):

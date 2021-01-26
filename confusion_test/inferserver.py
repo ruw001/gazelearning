@@ -1,4 +1,4 @@
-from http.server import HTTPServer, BaseHTTPRequestHandler#, ThreadingHTTPServer
+from http.server import HTTPServer, BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import base64
 import numpy as np
@@ -269,31 +269,37 @@ def server_run(port):
 
 
 parser = argparse.ArgumentParser()
-# parser.add_argument("-p", "--portid", type=int, default=0,
-#                     help="port id")
-parser.add_argument("-n", "--numserver", type=int, default=0,
-                    help="port id")
+parser.add_argument("-t", "--threaded", action='store_true',
+                    help="if it's multithreaded")
+# if not multithreaded: specify port id
+parser.add_argument("-p", "--portid", type=int, default=0, help="port id")
+# else specify number of servers
+parser.add_argument("-n", "--numserver", type=int,
+                    default=0, help="# of servers")
 args = parser.parse_args()
 
 host = ''
 
-num_server = args.numserver
-# PORT = 8000 + args.portid
-# print('Serving on port {}...'.format(PORT))
+threaded = args.threaded
 
-# HTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
+if threaded:
+    PORT = 8000 + args.portid
+    print('Serving on port {}...'.format(PORT))
+    ThreadingHTTPServer(
+        (host, PORT), ConfusionDetectionRequestHandler).serve_forever()
+else:
+    num_server = args.numserver
+    server_threads = []
 
-server_threads = []
+    for i in range(num_server):
+        PORT = 8000 + i
+        server_threads.append(Thread(target=server_run, args=(PORT,)))
 
-for i in range(num_server):
-    PORT = 8000 + i
-    server_threads.append(Thread(target=server_run, args=(PORT,)))
+    for i in range(num_server):
+        print('Server {} is running on {}...'.format(i, 8000 + i))
+        server_threads[i].daemon = True
+        server_threads[i].start()
+        time.sleep(1)
 
-for i in range(num_server):
-    print('Server {} is running on {}...'.format(i, 8000 + i))
-    server_threads[i].daemon = True
-    server_threads[i].start()
-    time.sleep(1)
-
-for i in range(num_server):
-    server_threads[i].join()
+    for i in range(num_server):
+        server_threads[i].join()
