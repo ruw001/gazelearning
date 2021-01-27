@@ -21,7 +21,7 @@ spec:
         app: pythontest
     spec:
       containers:
-        - image: gcr.io/cogteach-distributed/github_voivio_gazelearning
+        - image: gcr.io/cogteach-distributed/github_voivio_gazelearning/python
           imagePullPolicy: IfNotPresent
           name: gazelearning-sha256-1
 ---
