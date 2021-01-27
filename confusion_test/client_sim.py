@@ -26,8 +26,8 @@ IMG = getImage(0, labels[0])
 
 def sendRequest(pID):
     port = PORT + pID % N_SERVER
-    url = 'http://{}:{}'.format(host, port)
-    # url = 'http://{}:{}/detection'.format(host, port)
+    # url = 'http://{}:{}'.format(host, port)
+    url = 'http://{}:{}/detection'.format(host, port)
     # url = 'https://mlserver-302123.uc.r.appspot.com/detection'
     pID = 'user_' + str(pID).zfill(2)
     stage = 0  # 0: collect data; 1: inference,
