@@ -9,7 +9,7 @@ from threading import Thread
 # '127.0.0.1' #'172.20.16.10' # '137.110.115.9'
 host = '34.68.142.133'  # '34.94.7.7'  # 'https://gazelearning-apis.wl.r.appspot.com'
 PORT = 8000
-N_SERVER = 15
+N_SERVER = 1
 
 img_folder = 'dataset_rw/'
 
@@ -26,7 +26,8 @@ IMG = getImage(0, labels[0])
 
 def sendRequest(pID):
     port = PORT + pID % N_SERVER
-    url = 'http://{}:{}/detection'.format(host, port)
+    url = 'http://{}:{}'.format(host, port)
+    # url = 'http://{}:{}/detection'.format(host, port)
     # url = 'https://mlserver-302123.uc.r.appspot.com/detection'
     pID = 'user_' + str(pID).zfill(2)
     stage = 0  # 0: collect data; 1: inference,
