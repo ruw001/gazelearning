@@ -282,7 +282,7 @@ host = ''
 
 threaded = args.threaded
 
-if threaded:
+if not threaded:
     PORT = 8000 + args.portid
     print('Serving on port {}...'.format(PORT))
     ThreadingHTTPServer(
