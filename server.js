@@ -61,7 +61,11 @@ app.post('/users', multipartyModdleware, function (req, res, next) {
     console.log(content);
 
     if ( content['student-number'] && !fs.existsSync( path.join(FILEPATH, content['student-number'],'/gaze') ) ) {
-        fs.mkdir(path.join(FILEPATH, content['student-number'],'/gaze'), { recursive: true });
+        fs.mkdir(path.join(FILEPATH, content['student-number'],'/gaze'),
+                { recursive: true },
+                (err) => {
+                    if (err) throw err;
+                });
     } 
 
     res.cookie(
