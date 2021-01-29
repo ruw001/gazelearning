@@ -17,7 +17,7 @@ let sslKey = 'privkey.pem'
 const multipart = require("connect-multiparty");
 const multipartyModdleware = multipart();
 
-// const FILEPATH = 'D:/gazelearning/gazeData/sync';
+// const FILEPATH = 'D:/gazelearning/confusion_test/data_temp';
 const FILEPATH = '/mnt/fileserver'
 
 // app.use(cors())
@@ -284,6 +284,7 @@ function saveGazePoints(req, res, next) {
     const writableStream = fs.createWriteStream(
         path.join(FILEPATH,
             `/${req.body['stuNum']}`,
+            '/gaze',
             `/${new Date().getTime()}.json`
     ));
     writableStream.write(JSON.stringify(req.body));

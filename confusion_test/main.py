@@ -24,7 +24,7 @@ LASTLABEL = 1 # 1 for confused, 0 for neutral, used for face storage
 CNTR = 0
 TOTAL = 1000
 
-deployed = True
+deployed = False
 
 # FILEPATH = 'data_temp'
 FILEPATH = '/mnt/fileserver'
@@ -110,6 +110,7 @@ def warpFrom(pt1, pt2, pt3):
 class StatePredictor:
 
     def __init__(self, usrname, deployed):
+        global FILEPATH
         self.facemesh = mp.solutions.face_mesh.FaceMesh(
             max_num_faces=1,
             min_detection_confidence=0.5)
@@ -119,7 +120,7 @@ class StatePredictor:
         self.pca = None
         self.username = usrname
         self.retrain_interval = 1000 # TODO: incremental training!
-        self.dir = os.path.join(FILEPATH, self.username, '/face')
+        self.dir = os.path.join(FILEPATH, str(self.username), 'face')
             # FILEPATH + username dir will be created in node.js
         self.training = False
         self.deployed = deployed
