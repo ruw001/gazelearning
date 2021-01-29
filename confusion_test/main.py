@@ -119,7 +119,8 @@ class StatePredictor:
         self.pca = None
         self.username = usrname
         self.retrain_interval = 1000 # TODO: incremental training!
-        self.dir = os.path.join(FILEPATH, self.username)
+        self.dir = os.path.join(FILEPATH, self.username, '/face')
+            # FILEPATH + username dir will be created in node.js
         self.training = False
         self.deployed = deployed
         if not self.deployed:
@@ -130,11 +131,22 @@ class StatePredictor:
                 self.pca = load(os.path.join(self.dir, 'pca.joblib'))
 
     def addData(self, img, label, incre=False):
+        global CNTR, LASTLABEL
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img.flags.writeable = False
         results = self.facemesh.process(img)
         img.flags.writeable = True
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+        # Save collected image. TODO: Deal with multiple user scenario, may need to create self.CNTR/LASTLABEL
+        if not LASTLABEL == label:
+            CNTR = 0
+            LASTLABEL = label
+        CNTR+=1
+        cv2.imwrite(os.path.join(
+            self.dir,'{}_{}.jpg'.format(LASTLABEL, CNTR)
+        ), img)
+
         if results.multi_face_landmarks:
             face_landmarks = results.multi_face_landmarks[0]
             # print(matrix)
@@ -232,13 +244,6 @@ def confusion_detection():
     try:
         if stage == 0:
             modelPool[username].addData(img, data['label'])
-            if not LASTLABEL == data['label']:
-                CNTR = 0
-                LASTLABEL = data['label']
-            CNTR+=1
-            cv2.imwrite(os.path.join(
-                FILEPATH, username, '/face','{}_{}.jpg'.format(LASTLABEL, CNTR)
-            ), img)
         elif stage == 1:
             result = modelPool[username].confusionDetection(img)
         else:
