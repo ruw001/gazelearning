@@ -391,10 +391,11 @@ async function reportState(stage, label) {
     }
     canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
     let base64ImageData = canvasElement.toDataURL();
-    let data = { img: base64ImageData, stage: stage, label: label, username: 'ruru' };
+    let data = { img: base64ImageData, stage: stage, label: label, username: userInfo['number'] };
     let result = null;
     try {
-        await fetch('/detection', { // 172.20.16.10
+        // await fetch('http://127.0.0.1:8000', { // 172.20.16.10
+        await fetch('/detection', {
             method: 'POST',
             body: JSON.stringify(data),
             referrerPolicy: "origin",

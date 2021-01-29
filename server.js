@@ -2,7 +2,9 @@ var svmpkg = require('machinelearn/svm')
 var PORT = process.env.PORT || 5000;
 var express = require('express');
 var app = express();
+const path = require('path');
 var fs = require('fs');
+const stream = require('stream');
 let httpsServer;
 // var cors = require('cors')
 
@@ -15,6 +17,8 @@ let sslKey = 'privkey.pem'
 const multipart = require("connect-multiparty");
 const multipartyModdleware = multipart();
 
+// const FILEPATH = 'D:/gazelearning/gazeData/sync';
+const FILEPATH = '/mnt/fileserver'
 
 // app.use(cors())
 app.use(express.static('./'));
@@ -55,6 +59,10 @@ startServer()
 app.post('/users', multipartyModdleware, function (req, res, next) {
     let content = req.body;
     console.log(content);
+
+    if (content['student-number'] && !fs.existsSync(path.join(FILEPATH, content['student-number']),'/gaze')) {
+        fs.mkdirSync(path.join(FILEPATH, content['student-number'],'/gaze'));
+    } 
 
     res.cookie(
         'userInfo',
@@ -156,7 +164,7 @@ let dataset = [];
 
 let confusion_queue = [];
 
-app.post('/gazeData/sync', express.json({ type: '*/*' }), async (req, res) => {
+app.post('/gazeData/sync', express.json({ type: '*/*' }), saveGazePoints, async (req, res) => {
     // let { , role, pts } = req.body;
     let role = +req.body['role'];
     console.log('==========================');
@@ -213,6 +221,7 @@ app.post('/gazeData/sync', express.json({ type: '*/*' }), async (req, res) => {
 
             console.log(`Receive ${all_fixations.get(stuNum).length} fixations at ${new Date()}`);
 
+            res.statusCode = 200;
             res.send({
                 result: `Fixations and saccades are logged @ ${Date.now()}`,
             });
@@ -267,20 +276,21 @@ setInterval(() => {
 
 function saveGazePoints(req, res, next) {
     // Save gaze data from student
-    const writableStream = fs.createWriteStream(__dirname + '/gazeData/gaze.json');
-    req.pipe(writableStream);
 
-    req.on('end', ()=>{
-        writableStream.end();
-        // Return
-        res.statusCode = 200;
-        res.end();
-    });
+    const writableStream = fs.createWriteStream(
+        path.join(FILEPATH,
+            `/${req.body['stuNum']}`,
+            `/${new Date().getTime()}.json`
+    ));
+    writableStream.write(JSON.stringify(req.body));
+
+    // req is a ended stream.Readable. readable.readableEnded=true;
+    next();
 }
 
 function sendGazePoints(req, res, next) {
     // Send gaze data to teacher
-    const readableStream  = fs.createReadStream(__dirname + '/gazeData/gaze.json');
+    const readableStream  = fs.createReadStream(path.join(FILEPATH,'/gazeData/gaze.json'));
     readableStream.pipe(res);
 
     readableStream.on('end', ()=>{

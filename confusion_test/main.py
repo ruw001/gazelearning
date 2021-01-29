@@ -20,12 +20,14 @@ from flask import Flask, redirect, render_template, request
 from threading import Thread
 import logging
 
+LASTLABEL = 1 # 1 for confused, 0 for neutral
 CNTR = 0
 TOTAL = 1000
 
 deployed = True
 
-FILEPATH = 'data_temp'
+# FILEPATH = 'data_temp'
+FILEPATH = '/mnt/fileserver'
 
 POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
            158, 157, 173, 263, 249, 390, 373, 374, 380, 381, 382, 362,
@@ -208,12 +210,12 @@ def index():
         ask for a new translation.
     """
 
-    return "<h1>GazeLearning Server: There's nothing you can find here!< /h1 >"
+    return "<h1>GazeLearning Server: There's nothing you can find here!</h1>"
 
 
 @app.route('/detection', methods=['POST'])
 def confusion_detection():
-    global CNTR, TOTAL, FILEPATH, deployed
+    global CNTR, TOTAL, FILEPATH, LASTLABEL, deployed
     data = request.data #.decode('utf-8')
     data = json.loads(data)
     # print(data)
@@ -230,6 +232,13 @@ def confusion_detection():
     try:
         if stage == 0:
             modelPool[username].addData(img, data['label'])
+            if not LASTLABEL == data['label']:
+                CNTR = 0
+                LASTLABEL = data['label']
+            CNTR+=1
+            cv2.imwrite(os.path.join(
+                FILEPATH, username, '/face','{}_{}.jpg'.format(LASTLABEL, CNTR)
+            ), img)
         elif stage == 1:
             result = modelPool[username].confusionDetection(img)
         else:

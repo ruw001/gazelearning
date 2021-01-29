@@ -24,6 +24,14 @@ spec:
         - image: gcr.io/cogteach-distributed/github_voivio_gazelearning
           imagePullPolicy: IfNotPresent
           name: github-voivio-gazelearning-sha256-1
+          volumeMounts:
+          - mountPath: /mnt/fileserver
+            name: mypvc
+      volumes:
+      - name: mypvc
+        persistentVolumeClaim:
+          claimName: fileserver-claim
+          readOnly: false
 ---
 apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
