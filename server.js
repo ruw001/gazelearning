@@ -60,7 +60,7 @@ app.post('/users', multipartyModdleware, function (req, res, next) {
     let content = req.body;
     console.log(content);
 
-    if (content['student-number'] && !fs.existsSync(path.join(FILEPATH, content['student-number']),'/gaze')) {
+    if ( content['student-number'] && !fs.existsSync( path.join(FILEPATH, content['student-number'],'/gaze') ) ) {
         fs.mkdirSync(path.join(FILEPATH, content['student-number'],'/gaze'));
     } 
 

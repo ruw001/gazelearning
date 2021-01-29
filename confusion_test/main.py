@@ -20,7 +20,7 @@ from flask import Flask, redirect, render_template, request
 from threading import Thread
 import logging
 
-LASTLABEL = 1 # 1 for confused, 0 for neutral
+LASTLABEL = 1 # 1 for confused, 0 for neutral, used for face storage
 CNTR = 0
 TOTAL = 1000
 
