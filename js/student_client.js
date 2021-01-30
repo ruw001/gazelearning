@@ -391,7 +391,13 @@ async function reportState(stage, label) {
     }
     canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
     let base64ImageData = canvasElement.toDataURL();
-    let data = { img: base64ImageData, stage: stage, label: label, username: userInfo['number'] };
+    let data = {
+        img: base64ImageData, 
+        stage: stage, 
+        label: label, 
+        username: userInfo['number'],
+        frameId: label ? totalConfused : totalNeutral,
+    };
     let result = null;
     try {
         // await fetch('http://127.0.0.1:8000/detection', { // 172.20.16.10

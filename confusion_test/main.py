@@ -20,7 +20,6 @@ from flask import Flask, redirect, render_template, request
 from threading import Thread
 import logging
 
-LASTLABEL = 1 # 1 for confused, 0 for neutral, used for face storage
 CNTR = 0
 TOTAL = 1000
 
@@ -131,8 +130,7 @@ class StatePredictor:
                 self.clf = load(os.path.join(self.dir, 'model_pca.joblib'))
                 self.pca = load(os.path.join(self.dir, 'pca.joblib'))
 
-    def addData(self, img, label, incre=False):
-        global CNTR, LASTLABEL
+    def addData(self, img, label, frameId, incre=False):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img.flags.writeable = False
         results = self.facemesh.process(img)
@@ -140,12 +138,9 @@ class StatePredictor:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
         # Save collected image. TODO: Deal with multiple user scenario, may need to create self.CNTR/LASTLABEL
-        if not LASTLABEL == label:
-            CNTR = 0
-            LASTLABEL = label
-        CNTR+=1
+
         cv2.imwrite(os.path.join(
-            self.dir,'{}_{}.jpg'.format(LASTLABEL, CNTR)
+            self.dir,'{}_{}.jpg'.format(label, frameId)
         ), img)
 
         if results.multi_face_landmarks:
@@ -241,14 +236,14 @@ def confusion_detection():
         modelPool[username] = StatePredictor(username, deployed)
 
     result = 'success'
-    print(username, 'stage', stage)
+    print(username, 'stage', stage, '{}:No.{}'.format( 'Confusion' if data['label'] else 'Neutral', 1000+1-data['frameId'] ))
     try:
         if stage == 0:
-            modelPool[username].addData(img, data['label'])
+            modelPool[username].addData(img, data['label'], data['frameId'])
         elif stage == 1:
             result = modelPool[username].confusionDetection(img)
         else:
-            modelPool[username].addData(img, data['label'], incre=True)
+            modelPool[username].addData(img, data['label'], data['frameId'], incre=True)
     except Exception as e:
         result = 'ERROR'
         logging.error('ERROR:{}'.format(e))
