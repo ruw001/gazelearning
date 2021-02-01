@@ -249,12 +249,13 @@ def confusion_detection():
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--portid", type=int, default=0,
-                        help="port id")
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("-p", "--portid", type=int, default=0,
+    #                     help="port id")
+    # args = parser.parse_args()
 
-    PORT = 8000 + args.portid
+    # PORT = 8000 + args.portid
+    PORT = 8000
     # This is used when running locally only. When deploying to Google App
     # Engine, a webserver process such as Gunicorn will serve the app. This
     # can be configured by adding an `entrypoint` to app.yaml.

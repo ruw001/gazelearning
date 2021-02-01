@@ -33,7 +33,7 @@ def sendRequest(pID):
     stage = 0  # 0: collect data; 1: inference,
     idx = 0 # 0: nc, 1: c
     count = 0
-    total = 100
+    total = 200
     count_request = 0
     latency = [0,0]
     while True:

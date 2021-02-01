@@ -72,19 +72,21 @@ function systemStart(fastMode) {
         collecting = CONFUSED; // start with collecting confused expressions
     }
 
-    const camera = new Camera(videoElement, {
-        onFrame: async () => {
-            if (collecting !== NOTCOLLECTING) {
-                await dataCollecting();
-            } else if (totalConfused === 0 && totalNeutral === 0) {
+    if (navigator.mediaDevices.enumerateDevices) {
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                if (collecting !== NOTCOLLECTING) {
+                    await dataCollecting();
+                } else if (totalConfused === 0 && totalNeutral === 0) {
 
-            }
-        },
-        width: 320,
-        height: 180,
-        deviceId: cameraId,
-    });
-    camera.start();
+                }
+            },
+            width: 320,
+            height: 180,
+            deviceId: cameraId,
+        });
+        camera.start();
+    }
 
     let infer = setInterval(() => {
         updateGazePoints()
@@ -116,36 +118,36 @@ async function update() {
     console.log('Updating student...');
     // query()
     // .then(() => {
-   //  // Random test part
-   //  // Math.random() returns a random number inclusive of 0, but not 1
-   //  // only choose last two built-in gaze traces since they have timestamp information
-   //  let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
-   //  let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
-   //  let endTimestamp = beginTimestamp;
-   //  while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
-   //      endTimestamp++;
-   //  }
-   //  timestamp_win = timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp);
-   //  for (let i = 0; i < updateInterval; i++) {
-   //      // confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
-   //      confusion_win[i] = 'N/A';
-   //  }
-   // if (Math.random() > 0.5)  {
-   //     for (let i = 0; i < updateInterval; i++) {
-   //         confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
-   //     }
-   // }
-   //
-   //  let samples = {
-   //      x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-   //      y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-   //      t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-   //  }
-        let samples = {
-            x: gazeX_win,
-            y: gazeY_win,
-            t: timestamp_win,
-        }
+    // Random test part
+    // Math.random() returns a random number inclusive of 0, but not 1
+    // only choose last two built-in gaze traces since they have timestamp information
+    let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
+    let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
+    let endTimestamp = beginTimestamp;
+    while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
+        endTimestamp++;
+    }
+    timestamp_win = timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp);
+    for (let i = 0; i < updateInterval; i++) {
+        // confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
+        confusion_win[i] = 'N/A';
+    }
+   if (Math.random() > 0.5)  {
+       for (let i = 0; i < updateInterval; i++) {
+           confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
+       }
+   }
+
+    let samples = {
+        x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+        y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+        t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+    }
+        // let samples = {
+        //     x: gazeX_win,
+        //     y: gazeY_win,
+        //     t: timestamp_win,
+        // }
 
         console.log(`Length of gaze ${gazeX_win.length}`);
 
@@ -389,12 +391,20 @@ async function reportState(stage, label) {
     }
     canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
     let base64ImageData = canvasElement.toDataURL();
-    let data = { img: base64ImageData, stage: stage, label: label, username: 'ruru' };
+    let data = {
+        img: base64ImageData, 
+        stage: stage, 
+        label: label, 
+        username: userInfo['number'],
+        frameId: label ? totalConfused : totalNeutral,
+    };
     let result = null;
     try {
-        await fetch('http://127.0.0.1:8000', { // 172.20.16.10
+        // await fetch('http://127.0.0.1:8000/detection', { // 172.20.16.10
+        fetch('/detection', {
             method: 'POST',
             body: JSON.stringify(data),
+            referrerPolicy: "origin",
         }).then(
             response => response.json()
         ).then(data => {

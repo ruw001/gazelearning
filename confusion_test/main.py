@@ -1,466 +1,46 @@
+import json
+import base64
+import numpy as np
 import cv2
+import os
 import mediapipe as mp
 import math
-import numpy as np
-import os
-import tqdm
-from sklearn.svm import OneClassSVM, SVC
+from sklearn.svm import OneClassSVM
+from sklearn import svm
 from joblib import dump, load
+from sklearn.decomposition import PCA
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+from sklearn.model_selection import GridSearchCV
+from sklearn.svm import SVC
 import time
+import argparse
+import flask
+from flask import Flask, redirect, render_template, request
+from threading import Thread
+import logging
 
-mp_drawing = mp.solutions.drawing_utils
-mp_face_mesh = mp.solutions.face_mesh
+CNTR = 0
+TOTAL = 1000
 
-'''
-https://github.com/google/mediapipe/blob/master/mediapipe/python/solutions/face_mesh.py 
-Check this link for grouping and facelandmark format
+deployed = False
 
-'''
+# FILEPATH = 'data_temp'
+FILEPATH = '/mnt/fileserver'
 
-PART_CONNECTION = {
-    'left eye': [(33, 7),
-                 (7, 163),
-                 (163, 144),
-                 (144, 145),
-                 (145, 153),
-                 (153, 154),
-                 (154, 155),
-                 (155, 133),
-                 (33, 246),
-                 (246, 161),
-                 (161, 160),
-                 (160, 159),
-                 (159, 158),
-                 (158, 157),
-                 (157, 173),
-                 (173, 133)],
-    'right eye': [(263, 249),
-                  (249, 390),
-                  (390, 373),
-                  (373, 374),
-                  (374, 380),
-                  (380, 381),
-                  (381, 382),
-                  (382, 362),
-                  (263, 466),
-                  (466, 388),
-                  (388, 387),
-                  (387, 386),
-                  (386, 385),
-                  (385, 384),
-                  (384, 398),
-                  (398, 362)],
-    'left eyebrow': [(46, 53),
-                     (53, 52),
-                     (52, 65),
-                     (65, 55),
-                     (70, 63),
-                     (63, 105),
-                     (105, 66),
-                     (66, 107)],
-    'right eyebrow': [(276, 283),
-                      (283, 282),
-                      (282, 295),
-                      (295, 285),
-                      (300, 293),
-                      (293, 334),
-                      (334, 296),
-                      (296, 336)],
-}
+POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
+           158, 157, 173, 263, 249, 390, 373, 374, 380, 381, 382, 362,
+           466, 388, 387, 386, 385, 384, 398, 46, 53, 52, 65, 55, 70, 63, 105,
+           66, 107, 276, 283, 282, 295, 285, 300, 293, 334, 296, 336]
 
-FACE_CONNECTIONS = [
-    # Lips.
-    [(61, 146),
-    (146, 91),
-    (91, 181),
-    (181, 84),
-    (84, 17),
-    (17, 314),
-    (314, 405),
-    (405, 321),
-    (321, 375),
-    (375, 291),
-    (61, 185),
-    (185, 40),
-    (40, 39),
-    (39, 37),
-    (37, 0),
-    (0, 267),
-    (267, 269),
-    (269, 270),
-    (270, 409),
-    (409, 291),
-    (78, 95),
-    (95, 88),
-    (88, 178),
-    (178, 87),
-    (87, 14),
-    (14, 317),
-    (317, 402),
-    (402, 318),
-    (318, 324),
-    (324, 308),
-    (78, 191),
-    (191, 80),
-    (80, 81),
-    (81, 82),
-    (82, 13),
-    (13, 312),
-    (312, 311),
-    (311, 310),
-    (310, 415),
-    (415, 308)],
+if not deployed:
+    if not os.path.exists(FILEPATH):
+        # os.rmdir(FILEPATH)
+        os.mkdir(FILEPATH)
+        print('folder {} not find, have created one.'.format(FILEPATH))
 
-    # Left eye.
-    [(33, 7),
-    (7, 163),
-    (163, 144),
-    (144, 145),
-    (145, 153),
-    (153, 154),
-    (154, 155),
-    (155, 133),
-    (33, 246),
-    (246, 161),
-    (161, 160),
-    (160, 159),
-    (159, 158),
-    (158, 157),
-    (157, 173),
-    (173, 133)],
-
-    # Left eyebrow.
-    [(46, 53),
-    (53, 52),
-    (52, 65),
-    (65, 55),
-    (70, 63),
-    (63, 105),
-    (105, 66),
-    (66, 107)],
-
-    # Left subbrow
-    [(113, 225),
-    (225, 224),
-    (224, 223), 
-    (223,222), 
-    (222, 221), 
-    (221, 193)],
-
-    # Middle
-    [(107, 9), 
-    (9, 336), 
-    (55, 8), 
-    (8, 285), 
-    (417, 168),
-    (193, 168),
-    (133, 243), 
-    (243, 244), 
-    (244, 245), 
-    (245, 122), 
-    (122, 6), 
-    (6, 351), 
-    (351, 465), 
-    (465, 464), 
-    (464, 463), 
-    (463, 362)],
-
-    # Right eye.
-    [(263, 249),
-    (249, 390),
-    (390, 373),
-    (373, 374),
-    (374, 380),
-    (380, 381),
-    (381, 382),
-    (382, 362),
-    (263, 466),
-    (466, 388),
-    (388, 387),
-    (387, 386),
-    (386, 385),
-    (385, 384),
-    (384, 398),
-    (398, 362)],
-
-    # Right eyebrow.
-    [(276, 283),
-    (283, 282),
-    (282, 295),
-    (295, 285),
-    (300, 293),
-    (293, 334),
-    (334, 296),
-    (296, 336)],
-
-    # Right subbrow
-    [(417, 441), 
-    (441, 442), 
-    (442, 443), 
-    (443, 444), 
-    (444, 445), 
-    (445, 342)],
-
-    # Face oval.
-    [(10, 338),
-    (338, 297),
-    (297, 332),
-    (332, 284),
-    (284, 251),
-    (251, 389),
-    (389, 356),
-    (356, 454),
-    (454, 323),
-    (323, 361),
-    (361, 288),
-    (288, 397),
-    (397, 365),
-    (365, 379),
-    (379, 378),
-    (378, 400),
-    (400, 377),
-    (377, 152),
-    (152, 148),
-    (148, 176),
-    (176, 149),
-    (149, 150),
-    (150, 136),
-    (136, 172),
-    (172, 58),
-    (58, 132),
-    (132, 93),
-    (93, 234),
-    (234, 127),
-    (127, 162),
-    (162, 21),
-    (21, 54),
-    (54, 103),
-    (103, 67),
-    (67, 109),
-    (109, 10)]
-]
-
-w_mouth = False
-
-# 118 points w/ mouth
-point_of_interest_wmouth = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 
-                    291, 185, 40, 39, 37, 0, 267, 269, 270, 409, 
-                    78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 
-                    308, 191, 80, 81, 82, 13, 312, 311, 310, 415, 
-                    33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 
-                    161, 160, 159, 158, 157, 173, 46, 53, 52, 65, 
-                    55, 70, 63, 105, 66, 107, 113, 225, 224, 223, 
-                    222, 221, 193, 9, 336, 8, 285, 417, 168, 243, 
-                    244, 245, 122, 6, 351, 465, 464, 463, 362, 263, 
-                    249, 390, 373, 374, 380, 381, 382, 466, 388, 387, 
-                    386, 385, 384, 398, 276, 283, 282, 295, 300, 293, 
-                    334, 296, 441, 442, 443, 444, 445, 342]
-
-
-if not w_mouth:
-    point_of_interest = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 
-                        161, 160, 159, 158, 157, 173, 46, 53, 52, 65, 
-                        55, 70, 63, 105, 66, 107, 113, 225, 224, 223, 
-                        222, 221, 193, 9, 336, 8, 285, 417, 168, 
-                        243, 244, 245, 122, 6, 351, 465, 464, 463, 362, 
-                        263, 249, 390, 373, 374, 380, 381, 382, 466, 388, 
-                        387, 386, 385, 384, 398, 276, 283, 282, 295, 300, 
-                        293, 334, 296, 441, 442, 443, 444, 445, 342]
-
-def facemesh_local_data_gen(dataset_dir):
-    # For static images:
-    face_mesh = mp_face_mesh.FaceMesh(
-        static_image_mode=True,
-        max_num_faces=1,
-        min_detection_confidence=0.5)
-    conf_set = [os.path.join(dataset_dir, 'confused', f)
-                for f in os.listdir(os.path.join(dataset_dir, 'confused'))]
-    unconf_set = [os.path.join(dataset_dir, 'not_confused', f) 
-                for f in os.listdir(os.path.join(dataset_dir, 'not_confused'))]
-
-    imgset = [unconf_set, conf_set]
-    inputs = []
-    labels = []
-    for label in range(len(imgset)):
-        print('Generating data for label {}...'.format(label))
-        for f in tqdm.tqdm(imgset[label]):
-            image = cv2.imread(f)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            image = cv2.resize(image, (640, 360))
-            results = face_mesh.process(image)
-            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-            if results.multi_face_landmarks:
-                face_landmarks = results.multi_face_landmarks[0]
-                # print(matrix)
-                h, w, _ = image.shape
-                try:
-                    feature = getPOI(h, w, face_landmarks)
-                    inputs.append(feature)
-                    labels.append(label)
-                except Exception as e:
-                    print('FILE:{}, ERROR:{}'.format(f, e))
-    print('Data generation done!')    
-    face_mesh.close()
-    inputs, labels = np.array(inputs), np.array(labels)
-    print('input shape:{}, labels shape:{}'.format(inputs.shape, labels.shape))
-    return inputs, labels
-
-def classify(inputs, labels, modelname):
-    #### using OneClassSVM
-    # inputs = np.reshape(inputs, (inputs.shape[0], -1))
-    # conf_inputs = inputs[labels == 1].copy()
-    # unconf_inputs = inputs[labels == 0].copy()
-    # indices = np.arange(conf_inputs.shape[0])
-    # np.random.shuffle(indices)
-    # conf_inputs = conf_inputs[indices]
-    # train_set = conf_inputs[:int(0.7*len(conf_inputs))]
-    # test_conf_set = conf_inputs[len(train_set):]
-    # clf = OneClassSVM(gamma='auto').fit(train_set)
-    # res = clf.predict(test_conf_set)
-    # print('Recall: {}'.format((res == 1).sum() / len(res)))
-
-    #### using SVC
-    inputs = np.reshape(inputs, (inputs.shape[0], -1))
-    indices = np.arange(inputs.shape[0])
-    np.random.shuffle(indices)
-    inputs = inputs[indices]
-    labels = labels[indices]
-    traindata = inputs[:int(0.4*len(inputs))]
-    trainlabels = labels[:int(0.4*len(labels))]
-    testdata = inputs[len(traindata):]
-    testlabels = labels[len(trainlabels):]
-    clf = svm.SVC()
-    clf.fit(traindata, trainlabels)
-    res = clf.predict(testdata)
-    print('Accuracy: {}'.format((res == testlabels).sum() / len(res)))
-    dump(clf, modelname)
-
-
-def facemesh_online_exp(retrain, model_dir):
-    face_mesh = mp_face_mesh.FaceMesh(
-        max_num_faces=1,
-        min_detection_confidence=0.5)
-    cap = cv2.VideoCapture(0)
-
-    try:
-        clf = load(os.path.join(model_dir, 'model.joblib'))
-    except:
-        clf = None
-    # pca = load(os.path.join(model_dir, 'pca.joblib'))
-
-    if retrain:
-        response = input('Ready to collect neutral face?')
-        if response != 'y':
-            print('Thanks :)')
-            return
-        count = 0
-        total = 400
-        inputs = []
-        labels = []
-    collect = 0  # 0: neutral, 1: confused
-    while cap.isOpened():
-        success, image = cap.read()
-        if not success:
-            break
-        # Flip the image horizontally for a later selfie-view display, and convert
-        # the BGR image to RGB.
-        image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
-        image = cv2.resize(image, (640, 360))
-        # print(image.shape)
-        # To improve performance, optionally mark the image as not writeable to
-        # pass by reference.
-        image.flags.writeable = False
-        results = face_mesh.process(image)
-
-        # Draw the face mesh annotations on the image.
-        image.flags.writeable = True
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        if results.multi_face_landmarks:
-            face_landmarks = results.multi_face_landmarks[0]
-            feature = getPOI(image, face_landmarks)
-            if collect < 2 and retrain:
-                inputs.append(np.reshape(feature, (-1)))
-                labels.append(collect)
-                count += 1
-                # print(count)
-                image = cv2.putText(image, str(
-                    count), (50, 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-                if count > total:
-                    collect += 1
-                    count = 0
-                    if collect == 1:
-                        response = input('Ready to collect CONFUSED face?')
-                        if response != 'y':
-                            print('Thanks :)')
-                            return
-                    elif collect == 2:
-                        # data collection done!
-                        inputs = np.array(inputs)
-                        labels = np.array(labels)
-
-                        t0 = time.time()
-                        clf = SVC()
-                        print(inputs.shape)
-                        clf = clf.fit(inputs, labels)
-                        print('SVM train done in {}s'.format(time.time() - t0))
-
-                        dump(clf, os.path.join(model_dir, 'model.joblib'))
-
-            else:
-                pred = clf.predict(np.reshape(feature, (1,-1)))
-                res = 'Confused' if pred[0] == 1 else 'Neutral'
-                image = cv2.putText(image, res, (50, 20),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-
-            cv2.imshow('confusion detection', image)
-        if cv2.waitKey(5) & 0xFF == 27:
-            break
-
-    face_mesh.close()
-    cap.release()
-
-
-
-
-def facemesh_online_testing():
-    # For webcam input:
-    face_mesh = mp_face_mesh.FaceMesh(
-        max_num_faces=1,
-        min_detection_confidence=0.5)
-    # drawing_spec = mp_drawing.DrawingSpec(thickness=1, circle_radius=1)
-    cap = cv2.VideoCapture(0)
-    while cap.isOpened():
-        success, image = cap.read()
-        if not success:
-            break
-
-        # Flip the image horizontally for a later selfie-view display, and convert
-        # the BGR image to RGB.
-        image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
-        image = cv2.resize(image, (640, 360))
-        # print(image.shape)
-        # To improve performance, optionally mark the image as not writeable to
-        # pass by reference.
-        image.flags.writeable = False
-        results = face_mesh.process(image)
-
-        # Draw the face mesh annotations on the image.
-        image.flags.writeable = True
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-        if results.multi_face_landmarks:
-            face_landmarks = results.multi_face_landmarks[0]
-            # print(matrix)
-            h, w, _ = image.shape
-            # feature = np.reshape(getPOI(h, w, face_landmarks), (1,-1))
-            # res = clf.predict(feature)
-            drawLandmarks(image, face_landmarks)
-        cv2.imshow('MediaPipe FaceMesh', image)
-        if cv2.waitKey(5) & 0xFF == 27:
-            break
-        
-    face_mesh.close()
-    cap.release()
-
+modelPool = {}
+metricPool = {}
 
 def _normalized_to_pixel_coordinates(normalized_x, normalized_y, image_width, image_height):
     """Converts normalized value pair to pixel coordinates."""
@@ -478,6 +58,42 @@ def _normalized_to_pixel_coordinates(normalized_x, normalized_y, image_width, im
     y_px = min(math.floor(normalized_y * image_height), image_height - 1)
     return x_px, y_px
 
+def getCrop(img, landmarks):
+    h, w, _ = img.shape
+    pt1, pt2, pt3 = landmarks.landmark[133], landmarks.landmark[362], landmarks.landmark[2]
+    matrix = warpFrom(
+        _normalized_to_pixel_coordinates(pt1.x, pt1.y, w, h),
+        _normalized_to_pixel_coordinates(pt2.x, pt2.y, w, h),
+        _normalized_to_pixel_coordinates(pt3.x, pt3.y, w, h),
+    )
+    dstImg = cv2.warpAffine(img, matrix, (img.shape[1], img.shape[0]))
+
+    left, top, bottom, right = -1, -1, -1, -1
+
+    init = False
+    for idx in POI4AOI:
+        px = landmarks.landmark[idx]
+        try:
+            px = _normalized_to_pixel_coordinates(px.x, px.y, w, h)
+            px = (matrix @ np.array([px[0], px[1], 1])).astype(np.int)
+            if not init:
+                left, right = px[0], px[0]
+                top, bottom = px[1], px[1]
+                init = True
+                continue
+            if left > px[0]:
+                left = px[0]
+            if right < px[0]:
+                right = px[0]
+            if top > px[1]:
+                top = px[1]
+            if bottom < px[1]:
+                bottom = px[1]
+        except Exception as e:
+            print('ERROR:{}'.format(e))
+
+    # return cv2.rectangle(dstImg, (left, top), (right, bottom), (255, 0, 0), 2)
+    return dstImg[top:bottom+1, left:right+1]
 
 def warpFrom(pt1, pt2, pt3):
 
@@ -488,100 +104,251 @@ def warpFrom(pt1, pt2, pt3):
     dstTri = np.array([[300, 180],
                        [340, 180],
                        [320, 240]]).astype(np.float32)
-    dstTri = np.array([[140, 180],
-                       [180, 180],
-                       [160, 240]]).astype(np.float32)
     matrix = cv2.getAffineTransform(srcTri, dstTri)
     return matrix
 
-
-def getPOI(image, landmarks):
-    h, w, _ = image.shape
-    pt1, pt2, pt3 = landmarks.landmark[133], landmarks.landmark[362], landmarks.landmark[2]
-    matrix = warpFrom(
-        _normalized_to_pixel_coordinates(pt1.x, pt1.y, w, h),
-        _normalized_to_pixel_coordinates(pt2.x, pt2.y, w, h),
-        _normalized_to_pixel_coordinates(pt3.x, pt3.y, w, h),
-    )
-    point_list = []
-    all_point = range(0, len(landmarks.landmark))
-    for idx in point_of_interest:
-        pt = landmarks.landmark[idx]
-        pt = _normalized_to_pixel_coordinates(pt.x, pt.y, w, h)
-        pt = matrix @ np.array([pt[0], pt[1], 1])
-        point_list.append(pt)
-    return np.array(point_list)
-
-
-
-def drawLandmarks(img, landmarks):
-    h, w, _ = img.shape
-    # idx_to_coordinates = {}
-    try:
-        pt1, pt2, pt3 = landmarks.landmark[133], landmarks.landmark[362], landmarks.landmark[2]
-        matrix = warpFrom(
-            _normalized_to_pixel_coordinates(pt1.x, pt1.y, w, h),
-            _normalized_to_pixel_coordinates(pt2.x, pt2.y, w, h),
-            _normalized_to_pixel_coordinates(pt3.x, pt3.y, w, h),
+class Metric:
+    def __init__(self):
+        self.req_count = 0
+        self.file_count = 0
+        self.nc_req_first = 0
+        self.nc_req_last = 0
+        self.nc_file_first = 0
+        self.nc_file_last = 0
+        self.c_req_first = 0
+        self.c_req_last = 0
+        self.c_file_first = 0
+        self.c_file_last = 0
+    def inc_req(self):
+        self.req_count+=1
+    def inc_file(self):
+        self.file_count+=1
+    def output(self):
+        text = 'REQ COUNT : {}, FILE COUNT : {}\n'.format(self.req_count, self.file_count)
+        text = text + 'NC PHASE: Req last {}, first {}, diff {}, File last {}, first {}, diff {}\n'.format(
+            self.nc_req_last, self.nc_req_first, self.nc_req_last - self.nc_req_first / 60,
+            self.nc_file_last, self.nc_file_first, self.nc_file_last - self.nc_file_first
         )
+        text = text + 'C PHASE: Req last {}, first {}, diff {}, File last {}, first {}, diff {}\n'.format(
+            self.c_req_last, self.c_req_first, self.c_req_last - self.c_req_first,
+            self.c_file_last, self.c_file_first, self.c_file_last - self.c_file_first
+        )
+        return text
+
+class StatePredictor:
+
+    def __init__(self, usrname, deployed):
+        global FILEPATH
+        self.facemesh = mp.solutions.face_mesh.FaceMesh(
+            max_num_faces=1,
+            min_detection_confidence=0.5)
+        self.inputs = []
+        self.labels = []
+        self.clf = None
+        self.pca = None
+        self.username = usrname
+        self.retrain_interval = 1000 # TODO: incremental training!
+        self.dir = os.path.join(FILEPATH, str(self.username), 'face')
+            # FILEPATH + username dir will be created in node.js
+        self.training = False
+        self.deployed = deployed
+        if not self.deployed:
+            if not os.path.exists(self.dir):
+                os.mkdir(self.dir)
+            elif os.path.exists(os.path.join(self.dir, 'pca.joblib')):
+                self.clf = load(os.path.join(self.dir, 'model_pca.joblib'))
+                self.pca = load(os.path.join(self.dir, 'pca.joblib'))
+
+    def addData(self, img, label, frameId, incre=False):
+        global TOTAL, metricPool
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img.flags.writeable = False
+        results = self.facemesh.process(img)
+        img.flags.writeable = True
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+        # Save collected image.
+        cv2.imwrite(os.path.join(
+            self.dir,'{}_{}.jpg'.format(label, frameId)
+        ), img)
+
+        metricPool[self.username].inc_file()
+        if frameId == TOTAL:
+            # Recieve first frame
+            if label == 0:
+                metricPool[self.username].nc_file_first = time.time()
+            else:
+                metricPool[self.username].c_file_first = time.time()
+        
+        if frameId == 1:
+            # Recieve last frame
+            if label == 0:
+                metricPool[self.username].nc_file_last = time.time()
+            else:
+                metricPool[self.username].c_file_last = time.time()
+
+        if results.multi_face_landmarks:
+            face_landmarks = results.multi_face_landmarks[0]
+            # print(matrix)
+            cropped = getCrop(img, face_landmarks)
+            img = cv2.cvtColor(cv2.resize(
+                cropped, (100, 50)), cv2.COLOR_BGR2GRAY)
+            if not incre:
+                self.inputs.append(np.reshape(img, (-1)))
+                self.labels.append(label)
+            # TODO: svm incremental learning 
+    
+    def train(self):
+        inputs = np.array(self.inputs)
+        labels = np.array(self.labels)
+
+        t0 = time.time()
+        n_component = 150
+        self.pca = PCA(n_component, svd_solver='auto',
+                  whiten=True).fit(inputs)
+        print('PCA fit done in {}s'.format(time.time() - t0))
+
+        t0 = time.time()
+        X_train_pca = self.pca.transform(inputs)
+        print('PCA transform done in {}s'.format(
+            time.time() - t0))
+
+        t0 = time.time()
+        self.clf = SVC()
+        print(X_train_pca.shape)
+        self.clf = self.clf.fit(X_train_pca, labels)
+        print('SVM train done in {}s'.format(time.time() - t0))
+
+        if not self.deployed:
+            dump(self.clf, os.path.join(self.dir, 'model_pca.joblib'))
+            dump(self.pca, os.path.join(self.dir, 'pca.joblib'))
+
+        self.training = False
+    
+    def confusionDetection(self, img):
+        if self.clf is None and not self.training:
+            self.training = True
+            Thread(target=self.train(), args=(self, )).start()
+            # self.train()
+            return 'training'
+        elif self.training:
+            return 'training'
+        tag = ['Neutral', 'Confused']
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img.flags.writeable = False
+        results = self.facemesh.process(img)
+        img.flags.writeable = True
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        if results.multi_face_landmarks:
+            face_landmarks = results.multi_face_landmarks[0]
+            # print(matrix)
+            cropped = getCrop(img, face_landmarks)
+            img = cv2.cvtColor(cv2.resize(
+                cropped, (100, 50)), cv2.COLOR_BGR2GRAY)
+            feature = np.reshape(img, (1, -1))
+            reduced_feature = self.pca.transform(feature)
+            pred = self.clf.predict(reduced_feature)
+            res = tag[pred[0]]
+            return res
+        return 'N/A'
+
+
+app = Flask(__name__)
+
+
+@app.route('/', methods=['GET'])
+def index():
+    """ The home page has a list of prior translations and a form to
+        ask for a new translation.
+    """
+
+    return "<h1>GazeLearning Server: There's nothing you can find here!</h1>"
+
+
+@app.route('/detection', methods=['POST'])
+def confusion_detection():
+    global CNTR, TOTAL, FILEPATH, deployed
+    data = request.data #.decode('utf-8')
+    data = json.loads(data)
+    # print(data)
+    img_bytes = base64.b64decode(data['img'].split(',')[1])
+    im_arr = np.frombuffer(img_bytes, dtype=np.uint8)
+    img = cv2.imdecode(im_arr, flags=cv2.IMREAD_COLOR)
+    stage = data['stage']
+    username = data['username']
+    if username not in modelPool:
+        metricPool[username] = Metric()
+        modelPool[username] = StatePredictor(username, deployed)
+
+    result = 'success'
+    print(username,
+        'stage', stage,
+        '{}:No.{}'.format( 
+        'Confusion' if data['label'] else 'Neutral', 1000+1-data['frameId'] ),
+        time.time()
+    )
+    try:
+        if stage == 0:
+            metricPool[username].inc_req()
+            if data['frameId'] == TOTAL:
+                # Recieve first frame
+                if data['label'] == 0:
+                    metricPool[username].nc_req_first = time.time()
+                else:
+                    metricPool[username].c_req_first = time.time()
+            
+            if data['frameId'] == 1:
+                # Recieve last frame
+                if data['label'] == 0:
+                    metricPool[username].nc_req_last = time.time()
+                else:
+                    metricPool[username].c_req_last = time.time()
+
+            modelPool[username].addData(img, data['label'], data['frameId'])
+        elif stage == 1:
+            result = modelPool[username].confusionDetection(img)
+        else:
+            modelPool[username].addData(img, data['label'], data['frameId'], incre=True)
     except Exception as e:
-        print(e)
-    # for part in FACE_CONNECTIONS[:-1]:
-    #     for pair in part:
-    #         px1, px2 = landmarks.landmark[pair[0]], landmarks.landmark[pair[1]]
-    #         try:
-    #             px1 = _normalized_to_pixel_coordinates(px1.x, px1.y, w, h)
-    #             px2 = _normalized_to_pixel_coordinates(px2.x, px2.y, w, h)
-    #             cv2.circle(img, tuple(px1), 1, (0, 0, 255), -1)
-    #             cv2.circle(img, tuple(px2), 1, (0, 0, 255), -1)
-    #             cv2.line(img, tuple(px1), tuple(px2), (0, 0, 255), 1)
-                
-    #             px1 = (matrix @ np.array([px1[0], px1[1], 1])).astype(np.int)
-    #             px2 = (matrix @ np.array([px2[0], px2[1], 1])).astype(np.int)
-    #             cv2.circle(img, tuple(px1), 1, (0, 0, 255), -1)
-    #             cv2.circle(img, tuple(px2), 1, (0, 0, 255), -1)
-    #             cv2.line(img, tuple(px1), tuple(px2), (0, 0, 255), 1)
-    #         except Exception as e:
-    #             print(e)
+        result = 'ERROR'
+        logging.error('ERROR:{}'.format(e))
+        print('ERROR:{}'.format(e))
+    resp = flask.Response()
+    resp.set_data(json.dumps({'body': {'result': result, 'frameId': data['frameId']}}))
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "x-api-key,Content-Type"
+    resp.headers['Content-Type'] = 'application/json'
+    return resp
+    
+import signal
 
-    for pt in landmarks.landmark:
-        try:
-            pt = _normalized_to_pixel_coordinates(pt.x, pt.y, w, h)
-            cv2.circle(img, tuple(pt), 1, (0, 0, 255), -1)
-            pt = (matrix @ np.array([pt[0], pt[1], 1])).astype(np.int)
-            cv2.circle(img, tuple(pt), 1, (0, 0, 255), -1)
-        except Exception as e:
-            print(e)
+def before_termination(signal, frame):
+    global metricPool, FILEPATH
+    print('SIGTERM in flask')
+    print(os.path.join(FILEPATH, '{}.txt'.format(time.time())))
+    with open( os.path.join(FILEPATH, '{}.txt'.format(time.time())), 'a' ) as outfile:
+        outfile.write('================================')
+        for username, metricInstance in metricPool.items():
+            outfile.write(username + '\n')
+            outfile.write(metricInstance.output())
+    sys.exit(0)
+signal.signal(signal.SIGTERM, before_termination)
 
 
-    # for idx, landmark in enumerate(landmarks.landmark):
-    #     if landmark.visibility < 0 or landmark.presence < 0:
-    #         continue
-    #     landmark_px = _normalized_to_pixel_coordinates(landmark.x, landmark.y, w, h)
-    #     cv2.circle(img, landmark_px, 1, (0, 0, 255), -1)
-    return img
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--portid", type=int, default=0,
+                        help="port id")
+    args = parser.parse_args()
 
-
-
-# facemesh_online()
-
-def findKeypoints():
-    point_list = []
-    for part in FACE_CONNECTIONS[1:-1]:
-        for pair in part:
-            # print(pair)
-            p1, p2 = pair
-            if p1 not in point_list:
-                point_list.append(p1)
-            if p2 not in point_list:
-                point_list.append(p2)
-    print(point_list)
-
-# findKeypoints()
-
-# inputs, labels = facemesh_local_data_gen('dataset_dyh')
-# classify(inputs, labels, os.path.join('dataset_dyh', 'model.joblib'))
-# facemesh_online_testing(os.path.join('dataset_rw', 'model.joblib'))
-
-# facemesh_online_exp(True, 'dataset_rw')
-facemesh_online_testing()
+    PORT = 8000 + args.portid
+    # This is used when running locally only. When deploying to Google App
+    # Engine, a webserver process such as Gunicorn will serve the app. This
+    # can be configured by adding an `entrypoint` to app.yaml.
+    # Flask's development server will automatically serve static files in
+    # the "static" directory. See:
+    # http://flask.pocoo.org/docs/1.0/quickstart/#static-files. Once deployed,
+    # App Engine itself will serve those files as configured in app.yaml.
+    app.run(host='0.0.0.0', port=PORT, debug=True)
+    
