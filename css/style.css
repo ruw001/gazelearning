@@ -10,6 +10,7 @@ body {
 /* Navbar styling */
 #webgazerNavbar {
     left: 320px;
+    width: calc(100% - 320px); /*Do not exceed the window*/
     z-index: 0;
     box-shadow: 0px 3px 5px #ddd;
     border:0px;
@@ -54,7 +55,7 @@ li {
 }
 
 /* Calibration button styling */
-.Calibration{
+.Calibration, .Test{
     width: 20px;
     height: 20px;
     -webkit-border-radius: 25px;
@@ -68,40 +69,60 @@ li {
 }
 
 /* Calibration point position */
-#Pt1{
+#Pt0{
     top: 70px;
     left:340px;
 }
-#Pt2{
+
+#Pt1{
     top: 70px;
     left:50vw;
     margin-left: 340;
 }
-#Pt3{
+#Pt2{
     top: 70px;
     right:2vw;
 }
+#Pt3{
+    top: 50vh;
+    right:2vw;
+}
 #Pt4{
+    bottom: 2vh;
+    right: 2vw;
+}
+#Pt5{
+    bottom:2vh;
+    left:50vw;
+}
+#Pt6{
+    bottom:2vh;
+    left: 2vw;
+}
+#Pt7{
     top:50vh;
     left:2vw;
 }
-#Pt5{
-    top: 50vh;
-    left: 50vw;
-}
-#Pt6{
-    top: 50vh;
-    right:2vw;
-}
-#Pt7{
-    bottom:2vw;
-    left: 2vw;
-}
 #Pt8{
-    bottom:2vw;
+    top:50vh;
     left:50vw;
 }
-#Pt9{
-    bottom:2vw;
-    right:2vw;
+
+/* Calibration test point position */
+
+#upperleft{
+    top:25vh;
+    left:25vw;
+}
+#upperright{
+    top:25vh;
+    left:75vw;
+}
+#lowerleft{
+    top:75vh;
+    left:25vw;
+}
+#lowerright{
+    top:75vh;
+    left:75vw;
 }

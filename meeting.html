@@ -1,0 +1,87 @@
+<!DOCTYPE HTML>
+<!-- This page is where meeting really happens. Jump from startMeeting.html -->
+
+<html>
+
+<head>
+    <!-- <title>Gaze APIs and Heatmap Demo</title> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://api.gazerecorder.com/GazeCloudAPI.js"></script>
+    <script src="./webgazer.js"></script>
+    <!-- <script type="text/javascript" src="./client.js"></script> -->
+    <script src="./client.js"></script>
+    <!-- <script src="./bundle.js"></script> -->
+    <script src="./heatmap.js"></script>
+    <!-- <script src="./node_modules/jquery/dist/jquery.min.js"></script> -->
+    <!-- <script src="./node_modules/bootstrap/dist/js/bootstrap.min.js"></script> -->
+    <style type="text/css">
+        body {
+            overflow: hidden;
+        }
+
+        img {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: 5%;
+            width: 80%;
+        }
+
+        #zmmtg-root {
+            height: auto;
+            width: auto;
+        }
+    </style>
+    <!-- import local css for #zmmtg-root -->
+    <!-- <link type="text/css" rel="stylesheet" href="node_modules/@zoomus/websdk/dist/css/bootstrap.css" />
+    <link type="text/css" rel="stylesheet" href="node_modules/@zoomus/websdk/dist/css/react-select.css" /> -->
+</head>
+<!-- size: meeting-client-inner -->
+<!-- size: zmmtg-root -->
+
+<body>
+    <!-- My layouts -->
+    <!-- <input id="et1" type="checkbox" onchange="changeWG()"></input> -->
+    <!-- <label id="et1_label">WebGazer.js</label> -->
+    <!-- <input id="et2" type="checkbox" onchange="changeGC()"></input> -->
+    <!-- <label id="et2_label">GazeCloudAPI</label> -->
+    <!-- <div id="gazecloudopts" style='display:none'>
+        <button id="gc_start" type="button" onclick="GazeCloudAPI.StartEyeTracking();">Start tracking</button>
+        <button id="gc_stop" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
+    </div> -->
+    <!-- <form id="webgazeropts" style='display:none' method="get" action="calibration.html">
+        <button id="cali" type="submit">Start calibrating</button>
+        <button id="wg_start" type="button" onclick="beginWG()">Start tracking</button>
+        <button id="wg_stop" type="button" onclick="endWG();">Stop tracking</button>
+    </form>
+    <div id="gaze"
+        style='position: absolute;display:none;width: 100px;height: 100px;border-radius: 50%;border: solid 2px  rgba(255, 255,255, .2);	box-shadow: 0 0 100px 3px rgba(125, 125,125, .5);	pointer-events: none;	z-index: 999999'>
+    </div>
+    <div id="container"> -->
+        <!-- <img src='regression.jpg'> -->
+    <!-- </div> -->
+
+    <!-- import ZoomMtg dependencies -->
+    <script src="https://source.zoom.us/1.8.1/lib/vendor/react.min.js"></script>
+    <script src="https://source.zoom.us/1.8.1/lib/vendor/react-dom.min.js"></script>
+    <script src="https://source.zoom.us/1.8.1/lib/vendor/redux.min.js"></script>
+    <script src="https://source.zoom.us/1.8.1/lib/vendor/redux-thunk.min.js"></script>
+    <script src="https://source.zoom.us/1.8.1/lib/vendor/jquery.min.js"></script>
+    <script src="https://source.zoom.us/1.8.1/lib/vendor/lodash.min.js"></script>
+    <!-- import ZoomMtg -->
+    <script src="https://source.zoom.us/zoom-meeting-1.8.1.min.js"></script>
+    <!-- Meeting js codes -->
+    <script src="Zoom/tool.js"></script>
+    <script src="Zoom/vconsole.min.js"></script>
+    <script src="Zoom/meeting.js"></script>
+
+    <script>
+        const simd = async () => WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 3, 2, 1, 0, 10, 9, 1, 7, 0, 65, 0, 253, 15, 26, 11]))
+        simd().then((res) => {
+          console.log("simd check", res);
+        });
+    </script>
+
+</body>
+
+</html>
