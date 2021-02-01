@@ -124,4 +124,4 @@ WORKDIR /app
 CMD gunicorn -b :$PORT main:app
 
 # In case I need better log.
-# gunicorn -b 000 main:app --error-logfile "$(date +"%Y_%m_%d_%I_%M_%p").log", --log-file "$(date +"%Y_%m_%d_%I_%M_%p").log" --capture-output
+# gunicorn -b :8000 main:app --error-logfile "$(date +"%Y_%m_%d_%I_%M_%p").log", --log-file "$(date +"%Y_%m_%d_%I_%M_%p").log" --capture-output

@@ -40,6 +40,7 @@ if not deployed:
         print('folder {} not find, have created one.'.format(FILEPATH))
 
 modelPool = {}
+metricPool = {}
 
 def _normalized_to_pixel_coordinates(normalized_x, normalized_y, image_width, image_height):
     """Converts normalized value pair to pixel coordinates."""
@@ -106,6 +107,34 @@ def warpFrom(pt1, pt2, pt3):
     matrix = cv2.getAffineTransform(srcTri, dstTri)
     return matrix
 
+class Metric:
+    def __init__(self):
+        self.req_count = 0
+        self.file_count = 0
+        self.nc_req_first = 0
+        self.nc_req_last = 0
+        self.nc_file_first = 0
+        self.nc_file_last = 0
+        self.c_req_first = 0
+        self.c_req_last = 0
+        self.c_file_first = 0
+        self.c_file_last = 0
+    def inc_req(self):
+        self.req_count+=1
+    def inc_file(self):
+        self.file_count+=1
+    def output(self):
+        text = 'REQ COUNT : {}, FILE COUNT : {}\n'.format(self.req_count, self.file_count)
+        text = text + 'NC PHASE: Req last {}, first {}, diff {}, File last {}, first {}, diff {}\n'.format(
+            self.nc_req_last, self.nc_req_first, self.nc_req_last - self.nc_req_first / 60,
+            self.nc_file_last, self.nc_file_first, self.nc_file_last - self.nc_file_first
+        )
+        text = text + 'C PHASE: Req last {}, first {}, diff {}, File last {}, first {}, diff {}\n'.format(
+            self.c_req_last, self.c_req_first, self.c_req_last - self.c_req_first,
+            self.c_file_last, self.c_file_first, self.c_file_last - self.c_file_first
+        )
+        return text
+
 class StatePredictor:
 
     def __init__(self, usrname, deployed):
@@ -131,17 +160,32 @@ class StatePredictor:
                 self.pca = load(os.path.join(self.dir, 'pca.joblib'))
 
     def addData(self, img, label, frameId, incre=False):
+        global TOTAL, metricPool
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img.flags.writeable = False
         results = self.facemesh.process(img)
         img.flags.writeable = True
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-        # Save collected image. TODO: Deal with multiple user scenario, may need to create self.CNTR/LASTLABEL
-
+        # Save collected image.
         cv2.imwrite(os.path.join(
             self.dir,'{}_{}.jpg'.format(label, frameId)
         ), img)
+
+        metricPool[self.username].inc_file()
+        if frameId == TOTAL:
+            # Recieve first frame
+            if label == 0:
+                metricPool[self.username].nc_file_first = time.time()
+            else:
+                metricPool[self.username].c_file_first = time.time()
+        
+        if frameId == 1:
+            # Recieve last frame
+            if label == 0:
+                metricPool[self.username].nc_file_last = time.time()
+            else:
+                metricPool[self.username].c_file_last = time.time()
 
         if results.multi_face_landmarks:
             face_landmarks = results.multi_face_landmarks[0]
@@ -223,7 +267,7 @@ def index():
 
 @app.route('/detection', methods=['POST'])
 def confusion_detection():
-    global CNTR, TOTAL, FILEPATH, LASTLABEL, deployed
+    global CNTR, TOTAL, FILEPATH, deployed
     data = request.data #.decode('utf-8')
     data = json.loads(data)
     # print(data)
@@ -233,12 +277,33 @@ def confusion_detection():
     stage = data['stage']
     username = data['username']
     if username not in modelPool:
+        metricPool[username] = Metric()
         modelPool[username] = StatePredictor(username, deployed)
 
     result = 'success'
-    print(username, 'stage', stage, '{}:No.{}'.format( 'Confusion' if data['label'] else 'Neutral', 1000+1-data['frameId'] ))
+    print(username,
+        'stage', stage,
+        '{}:No.{}'.format( 
+        'Confusion' if data['label'] else 'Neutral', 1000+1-data['frameId'] ),
+        time.time()
+    )
     try:
         if stage == 0:
+            metricPool[username].inc_req()
+            if data['frameId'] == TOTAL:
+                # Recieve first frame
+                if data['label'] == 0:
+                    metricPool[username].nc_req_first = time.time()
+                else:
+                    metricPool[username].c_req_first = time.time()
+            
+            if data['frameId'] == 1:
+                # Recieve last frame
+                if data['label'] == 0:
+                    metricPool[username].nc_req_last = time.time()
+                else:
+                    metricPool[username].c_req_last = time.time()
+
             modelPool[username].addData(img, data['label'], data['frameId'])
         elif stage == 1:
             result = modelPool[username].confusionDetection(img)
@@ -249,13 +314,26 @@ def confusion_detection():
         logging.error('ERROR:{}'.format(e))
         print('ERROR:{}'.format(e))
     resp = flask.Response()
-    resp.set_data(json.dumps({'body': {'result': result}}))
+    resp.set_data(json.dumps({'body': {'result': result, 'frameId': data['frameId']}}))
     resp.headers['Access-Control-Allow-Origin'] = '*'
     resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "x-api-key,Content-Type"
     resp.headers['Content-Type'] = 'application/json'
     return resp
     
+import signal
+
+def before_termination(signal, frame):
+    global metricPool, FILEPATH
+    print('SIGTERM in flask')
+    print(os.path.join(FILEPATH, '{}.txt'.format(time.time())))
+    with open( os.path.join(FILEPATH, '{}.txt'.format(time.time())), 'a' ) as outfile:
+        outfile.write('================================')
+        for username, metricInstance in metricPool.items():
+            outfile.write(username + '\n')
+            outfile.write(metricInstance.output())
+    sys.exit(0)
+signal.signal(signal.SIGTERM, before_termination)
 
 
 if __name__ == '__main__':
