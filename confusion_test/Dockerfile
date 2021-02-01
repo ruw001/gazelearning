@@ -122,7 +122,7 @@ ADD . /app
 ENV PORT=8000
 ENV STORAGEPATH='/mnt/fileserver/'
 WORKDIR /app
-CMD gunicorn -b :8000 main:app --error-logfile "$STORAGEPATH$(date +"%Y_%m_%d_%I_%M_%p")_gunicorn.log" --log-file "$STORAGEPATH$(date +"%Y_%m_%d_%I_%M_%p")_gunicorn.log" --capture-output
+CMD [ "/bin/bash", "-c", "gunicorn -b :8000 main:app", "--error-logfile $STORAGEPATH$(date +\"%Y_%m_%d_%I_%M_%p\")_gunicorn.log", "--log-file $STORAGEPATH$(date +\"%Y_%m_%d_%I_%M_%p\")_gunicorn.log", "--capture-output" ]
 # CMD gunicorn -b :$PORT main:app
 
 # In case I need better log.
