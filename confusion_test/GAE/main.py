@@ -23,7 +23,7 @@ import logging
 CNTR = 0
 TOTAL = 200
 
-deployed = True
+deployed = False
 
 FILEPATH = 'fileserver'
 
@@ -156,7 +156,7 @@ class StatePredictor:
         self.deployed = deployed
         if not self.deployed:
             if not os.path.exists(self.dir):
-                os.mkdir(self.dir)
+                os.makedirs(self.dir)
             elif os.path.exists(os.path.join(self.dir, 'pca.joblib')):
                 self.clf = load(os.path.join(self.dir, 'model_pca.joblib'))
                 self.pca = load(os.path.join(self.dir, 'pca.joblib'))
