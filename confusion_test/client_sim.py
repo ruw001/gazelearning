@@ -7,9 +7,11 @@ import json
 from threading import Thread
 
 # '127.0.0.1' #'172.20.16.10' # '137.110.115.9'
-host = '34.68.142.133'  # '34.94.7.7'  # 'https://gazelearning-apis.wl.r.appspot.com'
+# '34.68.142.133'  # '34.94.7.7'  # 'https://gazelearning-apis.wl.r.appspot.com'
+host = '34.69.132.236'
 PORT = 8000
 N_SERVER = 1
+TOTAL = 200
 
 img_folder = 'dataset_rw/'
 
@@ -33,13 +35,14 @@ def sendRequest(pID):
     stage = 0  # 0: collect data; 1: inference,
     idx = 0 # 0: nc, 1: c
     count = 0
-    total = 200
+    total = TOTAL
     count_request = 0
     latency = [0,0]
     while True:
         if idx < 2 and stage < 1:
             # img = getImage(count, labels[idx])
-            data = {'img': IMG, 'stage': stage, 'label': idx, 'username': pID}
+            data = {'img': IMG, 'stage': stage, 'label': idx,
+                    'username': pID, 'frameId': count+1}  
             # print(data)
             start = time.time()
             res = requests.post(url, data=json.dumps(data))
@@ -54,8 +57,9 @@ def sendRequest(pID):
             stage = 1
             idx = 1
             # img = getImage(count, labels[idx])
-            data = {'img': IMG, 'stage': stage, 'label': idx, 'username': pID}
             start = time.time()
+            data = {'img': IMG, 'stage': stage, 'label': idx,
+                    'username': pID, 'frameId': -1}
             res = requests.post(url, data=json.dumps(data))
             latency[stage] += time.time() - start
             print(res.content)
@@ -72,12 +76,13 @@ def sendRequest(pID):
         outfile.write(res + '\n')
 
 threaded = True
+num_threads = 5
 if threaded:
     request_threads = []
-    for i in range(30):
+    for i in range(num_threads):
         request_threads.append(Thread(target=sendRequest, args=(i, )))
 
-    for i in range(30):
+    for i in range(num_threads):
         request_threads[i].start()
         time.sleep(1.5)
 else:
