@@ -25,7 +25,7 @@ TOTAL = 200
 
 deployed = True
 
-FILEPATH = '/mnt/fileserver'
+FILEPATH = 'fileserver'
 
 POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
            158, 157, 173, 263, 249, 390, 373, 374, 380, 381, 382, 362,
@@ -169,7 +169,7 @@ class StatePredictor:
         ), img)
 
         metricPool[self.username].inc_file()
-        if frameId == TOTAL:
+        if frameId == TOTAL // 2:
             # Receive first frame
             if label == 0:
                 metricPool[self.username].nc_file_first = time.time()
@@ -307,14 +307,14 @@ def confusion_detection():
     print(username,
           'stage', stage,
           '{}:No.{}'.format(
-              'Confusion' if data['label'] else 'Neutral', 1000+1-data['frameId']),
+              'Confusion' if data['label'] else 'Neutral', total//2 + 1 - data['frameId']),
           time.time()
           )
     try:
         if stage == 0:
             metricPool[username].inc_req()
             modelPool[username].addData(img, data['label'], data['frameId'])
-            if data['frameId'] == TOTAL:
+            if data['frameId'] == TOTAL // 2:
                 # Recieve first frame
                 if data['label'] == 0:
                     metricPool[username].nc_req_first = time.time()
@@ -324,10 +324,10 @@ def confusion_detection():
                 # Recieve last frame
                 if data['label'] == 0:
                     metricPool[username].nc_req_last = time.time()
+                    # here train the classifier at the last frame of NC collecting stage
+                    modelPool[username].threaded_train()
                 else:
                     metricPool[username].c_req_last = time.time()
-                # here train the classifier at the last frame
-                modelPool[username].threaded_train()
         elif stage == 1:
             result = modelPool[username].confusionDetection(img)
         else:

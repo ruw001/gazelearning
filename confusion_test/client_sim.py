@@ -33,16 +33,17 @@ def sendRequest(pID):
     # url = 'https://mlserver-302123.uc.r.appspot.com/detection'
     pID = 'user_' + str(pID).zfill(2)
     stage = 0  # 0: collect data; 1: inference,
-    idx = 0 # 0: nc, 1: c
+    idx = 0 # 0: collect c, 1: collect nc
+    label_idx = [1, 0]  # 1: cofused label, 0: neutral label
     count = 0
-    total = TOTAL
+    total = TOTAL // 2
     count_request = 0
     latency = [0,0]
     while True:
         if idx < 2 and stage < 1:
             # img = getImage(count, labels[idx])
-            data = {'img': IMG, 'stage': stage, 'label': idx,
-                    'username': pID, 'frameId': count+1}  
+            data = {'img': IMG, 'stage': stage, 'label': label_idx[idx],
+                    'username': pID, 'frameId': total-count}  
             # print(data)
             start = time.time()
             res = requests.post(url, data=json.dumps(data))
@@ -58,7 +59,7 @@ def sendRequest(pID):
             idx = 1
             # img = getImage(count, labels[idx])
             start = time.time()
-            data = {'img': IMG, 'stage': stage, 'label': idx,
+            data = {'img': IMG, 'stage': stage, 'label': label_idx[idx],
                     'username': pID, 'frameId': -1}
             res = requests.post(url, data=json.dumps(data))
             latency[stage] += time.time() - start
