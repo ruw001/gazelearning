@@ -307,7 +307,7 @@ def confusion_detection():
     print(username,
           'stage', stage,
           '{}:No.{}'.format(
-              'Confusion' if data['label'] else 'Neutral', total//2 + 1 - data['frameId']),
+              'Confusion' if data['label'] else 'Neutral', TOTAL//2 + 1 - data['frameId']),
           time.time()
           )
     try:
