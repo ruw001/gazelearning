@@ -9,7 +9,7 @@ const PORT = process.env.PORT || 5000;
 const app = express();
 let server = http.Server(app);
 server.listen(PORT, function () {
-    console.log('gaze server running');
+    console.log('dedicated server running');
 });
 
 // Global storage
