@@ -261,7 +261,7 @@ function saveGazePoints(req, res, next) {
 
 function sendGazePoints(req, res, next) {
     // Send gaze data to instructor
-    const endpoint = dedicated_service_hostname+'/gazeData/teacher';
+    const endpoint = 'http://'+dedicated_service_address+'/gazeData/teacher';
 
     const req_instructor = http.request(endpoint,
         {
