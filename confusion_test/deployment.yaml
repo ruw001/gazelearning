@@ -59,14 +59,27 @@ metadata:
   name: python-nodeport-service
   namespace: default
 spec:
-  clusterIP: 10.52.1.89
-  externalTrafficPolicy: Cluster
-  ports:
-    - nodePort: 31721
-      port: 85
-      protocol: TCP
-      targetPort: 8000
   selector:
     app: pythontest
-  sessionAffinity: None
   type: NodePort
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: python-nodeport-service
+#   namespace: default
+# spec:
+#   clusterIP: 10.52.1.89
+#   externalTrafficPolicy: Cluster
+#   ports:
+#     - nodePort: 31721
+#       port: 85
+#       protocol: TCP
+#       targetPort: 8000
+#   selector:
+#     app: pythontest
+#   sessionAffinity: None
+#   type: NodePort

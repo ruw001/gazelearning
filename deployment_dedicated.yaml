@@ -2,23 +2,19 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: nodejstest
-  name: nodejstest
+    app: dedicated-nodejs
+  name: dedicated-nodejs
   namespace: default
 spec:
-  replicas: 3
   selector:
     matchLabels:
-      app: nodejstest
+      app: dedicated-nodejs
   strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
+    type: Recreate
   template:
     metadata:
       labels:
-        app: nodejstest
+        app: dedicated-nodejs
     spec:
       containers:
         - image: gcr.io/cogteach-distributed/github_voivio_gazelearning
@@ -33,34 +29,14 @@ spec:
           claimName: fileserver-claim
           readOnly: false
 ---
-apiVersion: autoscaling/v2beta1
-kind: HorizontalPodAutoscaler
-metadata:
-  labels:
-    app: nodejstest
-  name: nodejstest-hpa-ause
-  namespace: default
-spec:
-  maxReplicas: 5
-  metrics:
-    - resource:
-        name: cpu
-        targetAverageUtilization: 80
-      type: Resource
-  minReplicas: 1
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: nodejstest
----
 apiVersion: v1
 kind: Service
 metadata:
-  name: nodejs-nodeport-service
+  name: dedicated-nodejs-nodeport-service
   namespace: default
 spec:
   selector:
-    app: nodejstest
+    app: dedicated-nodejs
   type: NodePort
   ports:
     - protocol: TCP

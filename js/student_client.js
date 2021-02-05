@@ -198,7 +198,7 @@ async function update() {
         confusion_win = [];
 
         signaling(
-            'sync',
+            '/gazeData/sync',
             {
                 stuNum: studentNumber,
                 fixations: fixations,
@@ -214,7 +214,7 @@ async function signaling(endpoint, data, role) {
     let headers = { 'Content-Type': 'application/json' },
         body = JSON.stringify({ ...data, role: role });
 
-    let res = await fetch('/gazeData/' + endpoint,
+    let res = await fetch(endpoint,
         { method: 'POST', body, headers }
     );
 
