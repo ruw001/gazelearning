@@ -26,6 +26,7 @@ const FILEPATH = '/mnt/fileserver';
 const dedicated_service_hostname ='dedicated-nodejs-nodeport-service';
 let dedicated_service_address = undefined;
 const resolver = new Resolver();
+resolver.setServers(['10.52.0.10']); // Specify DNS server in the cluster.
 
 resolver.resolve4(dedicated_service_hostname).then((addresses) => {
     console.log(`address of ${dedicated_service_hostname}: ${JSON.stringify(addresses)}`);
