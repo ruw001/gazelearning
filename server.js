@@ -23,16 +23,15 @@ const multipartyModdleware = multipart();
 const FILEPATH = '/mnt/fileserver';
 
 // Find dedicated service for instructor
-const dedicated_service_hostname ='dedicated-nodejs-nodeport-service';
+const dedicated_service_hostname ='dedicated-nodejs-nodeport-service.default.svc.cluster.local';
 let dedicated_service_address = undefined;
 const resolver = new Resolver();
 resolver.setServers(['10.52.0.10']); // Specify DNS server in the cluster.
-console.log(resolver.getServers());
 
 resolver.resolve4(dedicated_service_hostname).then((addresses) => {
     console.log(`address of ${dedicated_service_hostname}: ${JSON.stringify(addresses)}`);
     dedicated_service_address = addresses[0]
-}).catch(e => console.log(`Error : ${e}`));
+}).catch(e => console.log(e));
 
 // app.use(cors())
 app.use(express.static('./'));
