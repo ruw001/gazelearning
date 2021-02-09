@@ -164,9 +164,20 @@ class StatePredictor:
     def addData(self, img, label, frameId, incre=False):
         global TOTAL, metricPool
         # Save collected image.
-        cv2.imwrite(os.path.join(
-            self.dir, '{}_{}.jpg'.format(label, frameId)
-        ), img)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img.flags.writeable = False
+        results = self.facemesh.process(img)
+        img.flags.writeable = True
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        if results.multi_face_landmarks:
+            face_landmarks = results.multi_face_landmarks[0]
+            # print(matrix)
+            cropped = getCrop(img, face_landmarks)
+            img = cv2.cvtColor(cv2.resize(
+                cropped, (100, 50)), cv2.COLOR_BGR2GRAY)
+            cv2.imwrite(os.path.join(
+                self.dir, '{}_{}.jpg'.format(label, frameId)
+            ), img)
 
         metricPool[self.username].inc_file()
         if frameId == TOTAL // 2:
@@ -207,20 +218,9 @@ class StatePredictor:
         for f in img_list:
             label, _ = f.split('_')
             img = cv2.imread(os.path.join(self.dir, f))
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            img.flags.writeable = False
-            results = self.facemesh.process(img)
-            img.flags.writeable = True
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-            if results.multi_face_landmarks:
-                face_landmarks = results.multi_face_landmarks[0]
-                # print(matrix)
-                cropped = getCrop(img, face_landmarks)
-                img = cv2.cvtColor(cv2.resize(
-                    cropped, (100, 50)), cv2.COLOR_BGR2GRAY)
-                if not incre:
-                    inputs.append(np.reshape(img, (-1)))
-                    labels.append(label)
+            if not incre:
+                inputs.append(np.reshape(img, (-1)))
+                labels.append(label)
 
         inputs = np.array(inputs)
         labels = np.array(labels)
@@ -248,7 +248,7 @@ class StatePredictor:
     
     def threaded_train(self):
         Thread(target=self.train(), args=(self, )).start()
-        'Threaded Training Started!!!'
+        print('Threaded Training Started!!!')
         return 
 
     def confusionDetection(self, img):
