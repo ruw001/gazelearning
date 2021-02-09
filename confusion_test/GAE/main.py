@@ -271,6 +271,7 @@ class StatePredictor:
             feature = np.reshape(img, (1, -1))
             reduced_feature = self.pca.transform(feature)
             pred = self.clf.predict(reduced_feature)
+            print(pred)
             res = tag[pred[0]]
             return res
         return 'N/A'
