@@ -251,6 +251,7 @@ class StatePredictor:
 
     def confusionDetection(self, img):
         if self.clf is None:
+            print('HERE looking for models...')
             if os.path.exists(os.path.join(self.dir, 'pca.joblib')):
                 self.clf = load(os.path.join(self.dir, 'model_pca.joblib'))
                 self.pca = load(os.path.join(self.dir, 'pca.joblib'))
@@ -272,7 +273,7 @@ class StatePredictor:
             reduced_feature = self.pca.transform(feature)
             pred = self.clf.predict(reduced_feature)
             print(pred)
-            res = tag[pred[0]]
+            res = tag[int(pred[0])]
             return res
         return 'N/A'
 
