@@ -248,6 +248,8 @@ class StatePredictor:
     
     def threaded_train(self):
         Thread(target=self.train(), args=(self, )).start()
+        'Threaded Training Started!!!'
+        return 
 
     def confusionDetection(self, img):
         if self.clf is None:
