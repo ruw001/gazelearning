@@ -21,7 +21,7 @@ from threading import Thread
 import logging
 
 CNTR = 0
-TOTAL = 200
+TOTAL = 400
 
 deployed = False
 
@@ -310,29 +310,31 @@ def confusion_detection():
               'Confusion' if data['label'] else 'Neutral', TOTAL//2 + 1 - data['frameId']),
           time.time()
           )
+    
+    if stage == 0:
+        metricPool[username].inc_req()
+        modelPool[username].addData(img, data['label'], data['frameId'])
+        if data['frameId'] == TOTAL // 2:
+            # Recieve first frame
+            if data['label'] == 0:
+                metricPool[username].nc_req_first = time.time()
+            else:
+                metricPool[username].c_req_first = time.time()
+        elif data['frameId'] == 1:
+            # Recieve last frame
+            if data['label'] == 0:
+                metricPool[username].nc_req_last = time.time()
+                # here train the classifier at the last frame of NC collecting stage
+                modelPool[username].threaded_train()
+            else:
+                metricPool[username].c_req_last = time.time()
+    elif stage == 1:
+        result = modelPool[username].confusionDetection(img)
+    else:
+        modelPool[username].addData(
+            img, data['label'], data['frameId'], incre=True)
     try:
-        if stage == 0:
-            metricPool[username].inc_req()
-            modelPool[username].addData(img, data['label'], data['frameId'])
-            if data['frameId'] == TOTAL // 2:
-                # Recieve first frame
-                if data['label'] == 0:
-                    metricPool[username].nc_req_first = time.time()
-                else:
-                    metricPool[username].c_req_first = time.time()
-            elif data['frameId'] == 1:
-                # Recieve last frame
-                if data['label'] == 0:
-                    metricPool[username].nc_req_last = time.time()
-                    # here train the classifier at the last frame of NC collecting stage
-                    modelPool[username].threaded_train()
-                else:
-                    metricPool[username].c_req_last = time.time()
-        elif stage == 1:
-            result = modelPool[username].confusionDetection(img)
-        else:
-            modelPool[username].addData(
-                img, data['label'], data['frameId'], incre=True)
+        pass
     except Exception as e:
         result = 'ERROR'
         logging.error('ERROR:{}'.format(e))

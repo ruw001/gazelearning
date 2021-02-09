@@ -11,7 +11,7 @@ from threading import Thread
 host = '34.69.132.236'
 PORT = 8000
 N_SERVER = 1
-TOTAL = 200
+TOTAL = 400
 
 img_folder = 'dataset_rw/'
 
