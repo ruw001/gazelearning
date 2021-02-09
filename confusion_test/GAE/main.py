@@ -217,7 +217,7 @@ class StatePredictor:
         img_list = [f for f in os.listdir(self.dir) if '.jpg' in f]
         for f in img_list:
             label, _ = f.split('_')
-            img = cv2.imread(os.path.join(self.dir, f)， cv2.IMREAD_GRAYSCALE)
+            img = cv2.imread(os.path.join(self.dir, f), cv2.IMREAD_GRAYSCALE)
             if not incre:
                 inputs.append(np.reshape(img, (-1)))
                 labels.append(label)
