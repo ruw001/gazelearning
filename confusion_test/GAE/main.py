@@ -200,7 +200,7 @@ class StatePredictor:
                 self.labels.append(label)
             # TODO: svm incremental learning 
     
-    def train(self):
+    def train(self, incre=False):
         inputs = []
         labels = []
         img_list = [f for f in os.listdir(self.dir) if '.jpg' in f]
