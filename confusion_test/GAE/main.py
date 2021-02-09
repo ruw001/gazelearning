@@ -205,7 +205,7 @@ class StatePredictor:
         labels = []
         img_list = [f for f in os.listdir(self.dir) if '.jpg' in f]
         for f in img_list:
-            label, _ = f.split('_')[0]
+            label, _ = f.split('_')
             img = cv2.imread(os.path.join(self.dir, f))
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             img.flags.writeable = False
