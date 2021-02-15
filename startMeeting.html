@@ -1,18 +1,16 @@
 <!DOCTYPE html>
 <!-- This page is embedded into mainPage.html via iframe, it configs the meeting. -->
 <!-- This page will then jump to meeting.html -->
+<html lang="en">
 
 <head>
-    <!-- <title>Zoom WebSDK</title> -->
+    <title>Zoom WebSDK iframe</title>
     <meta charset="utf-8" />
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/1.8.1/css/bootstrap.css" />
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/1.8.1/css/react-select.css" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/1.8.5/css/bootstrap.css" />
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/1.8.5/css/react-select.css" />
     <meta name="format-detection" content="telephone=no">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
-</head>
-
-<body>
     <style>
         .sdk-select {
             height: 34px;
@@ -51,11 +49,13 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            left: 50%;
             margin: 0;
         }
     </style>
 
+</head>
+
+<body>
     <nav id="nav-tool" class="navbar navbar-inverse navbar-fixed-top">
         <div class="container">
             <div class="navbar-header">
@@ -113,7 +113,7 @@
                     <input type="hidden" value="" id="copy_link_value" />
                     <button type="submit" class="btn btn-primary" id="join_meeting">Join</button>
                     <button type="submit" class="btn btn-primary" id="clear_all">Clear</button>
-                    <button type="button" link="" onclick="window.copyJoinLink('#copy_join_link')"
+                    <button type="button" onclick="window.copyJoinLink('#copy_join_link')"
                         class="btn btn-primary" id="copy_join_link">Copy Direct join link</button>
 
 
@@ -142,14 +142,14 @@
         })
     </script>
 
-    <script src="https://source.zoom.us/1.8.1/lib/vendor/react.min.js"></script>
-    <script src="https://source.zoom.us/1.8.1/lib/vendor/react-dom.min.js"></script>
-    <script src="https://source.zoom.us/1.8.1/lib/vendor/redux.min.js"></script>
-    <script src="https://source.zoom.us/1.8.1/lib/vendor/redux-thunk.min.js"></script>
-    <script src="https://source.zoom.us/1.8.1/lib/vendor/jquery.min.js"></script>
-    <script src="https://source.zoom.us/1.8.1/lib/vendor/lodash.min.js"></script>
+    <script src="https://source.zoom.us/1.8.5/lib/vendor/react.min.js"></script>
+    <script src="https://source.zoom.us/1.8.5/lib/vendor/react-dom.min.js"></script>
+    <script src="https://source.zoom.us/1.8.5/lib/vendor/redux.min.js"></script>
+    <script src="https://source.zoom.us/1.8.5/lib/vendor/redux-thunk.min.js"></script>
+    <script src="https://source.zoom.us/1.8.5/lib/vendor/lodash.min.js"></script>
 
-    <script src="https://source.zoom.us/zoom-meeting-1.8.1.min.js"></script>
+    <script src="https://source.zoom.us/zoom-meeting-1.8.5.min.js"></script>
+
     <script src="Zoom/tool.js"></script>
     <script src="Zoom/vconsole.min.js"></script>
     <script src="Zoom/index.js"></script>
