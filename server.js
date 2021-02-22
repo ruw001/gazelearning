@@ -109,16 +109,6 @@ app.post('/gazeData/cluster', express.json(), function (req, res, next) {
 
     res.send();
 });
-  
-// Some codes about write gaze data into file, not tested yet
-
-app.post('/gazeData', 
-    saveGazePoints
-);
-
-app.get('/gazeData', 
-    sendGazePoints
-);
 
 // HTTP server
 // var server = http.Server(app);

@@ -20,7 +20,10 @@ let all_saccades = new Map();
 let last_seen = {};
 
 app.get('/',(req, res) => {
+    // When deployed on k8s
     res.send(`<h1>Dedicated server is on.</h1>`);
+    // When testing locally
+    // res.sendFile(path.join(__dirname, 'index.html'));
 })
 
 app.get('/gazeData/teacher', (req, res) => {
@@ -116,6 +119,164 @@ setInterval(() => {
         }
     });
 }, 5000);
+
+// ===================================
+// Some code about administration control
+const crypto = require("crypto");
+const cookieParser = require('cookie-parser');
+const path = require('path');
+const passcodeHash = "f1318196aaf4c2fc35932ac09b63d6bbde01fde79c401870a8321b361a47b01d";
+let digestMessage = function (message) {return crypto.createHash("sha256").update(message.toString()).digest("hex")};
+let authHash = digestMessage( Date.now() );
+
+class Trial {
+    constructor(lecture, setting) {
+        this.lecture = lecture;
+        this.setting = setting === undefined ? {gazeinfo: true, coginfo: true} : setting;
+    }
+    updateInfo(info) {
+        this.lecture = info.lecture;
+        this.setting = info.setting;
+    }
+}
+
+let registeredTrials = [];
+registeredTrials.push(new Trial({
+    title: 'Introduction in Linear Algebra',
+    abstract: 'This lecture will briefly introduce some basic concepts in linear algebra, such as vector, matrix and rules of calculation.',
+    instructor: 'David Liu',
+    time: (new Date('Tue Feb 23 2021 00:00:00 GMT+0800')).getTime(),
+    zoomid: '71123774899',
+}, {
+    gazeinfo: true,
+    coginfo: true,
+}));
+
+let registeredUsers = ['Yousef Contreras',
+    'Nadeem Joyce',
+    'Mamie Ratliff',
+    'Marianne Adams',
+    'Lucille Martins',
+    'Tonya Pickett',
+    'Rafe Hunter',
+    'Enrique Oneal',
+    'Aamir Emery',
+    'Moses Mccoy'
+];
+
+app.post('/admin', express.json({ type: '*/*' }), generateAuthCookie);
+app.get('/admin/trial',
+    (req, res) => {
+        res.statusCode = 200;
+        // req.body.number specifies how many lecture information is required.
+        res.send(registeredTrials[0]);
+});
+app.get('/admin/trials',
+    (req, res) => {
+        res.statusCode = 200;
+        // req.body.number specifies how many lecture information is required.
+        res.send(registeredTrials);
+});
+app.get('/admin.html',
+    cookieParser(),
+    express.json({ type: '*/*' }),
+    verifyUser,
+    (req, res) => { res.statusCode = 200; res.sendFile(path.join(__dirname, 'admin.html')); });
+app.post('/admin/trials',
+    cookieParser(),
+    express.json({ type: '*/*' }),
+    verifyUser,
+    informationPost);
+
+function generateAuthCookie(req, res) {
+    // Generate authorization cookie.
+    if (req.body.passcode !== passcodeHash) {
+        // Hash of passcode does not pass.
+        res.statusCode = 401;
+        res.send('Wrong message.')
+    } else {
+        // Passcode match. Generate authorization cookie.
+        authHash = digestMessage( Date.now() );
+
+        res.statusCode = 200;
+        res.cookie('userInfo',
+            JSON.stringify({
+                'identity': 'admin',
+                'authcode': authHash,
+            }));
+        res.send('Successfully logged in as admin.');
+    }
+}
+
+function verifyUser(req, res, next) {
+    try {
+        // Hash of passcode does not pass.
+        let parsedCookie = JSON.parse(req.cookies['userInfo']);
+
+        if ( !parsedCookie || parsedCookie.authcode !== authHash ) {
+            let err = new Error('Please login as admin first.');
+            err.statusCode = 401;
+            next(err);
+        }
+        // Authorization code match. Allow to proceed.
+        next();
+    } catch (err) {
+        err.statusCode = 401;
+        next(err);
+    }
+}
+
+function informationPost(req, res) {
+    // req.body
+    // {verb: add, lecture: lecture-info, setting: setting-info}
+    // {verb: delete, trialno: index}
+    // {verb: update, trialno: index, info: info}
+    console.log('===================================');
+    console.log('Received ' + req.body.verb.toUpperCase() + ' request.')
+    switch (req.body.verb) {
+        case 'add':
+            registeredTrials.push(new Trial(req.body.lecture, req.body.setting));
+            registeredTrials.sort((a, b) => a.lecture.time - b.lecture.time);
+            res.statusCode = 202;
+            res.send('Add new trial successfully.');
+            console.log('Add new trial successfully. There are '+registeredTrials.length+' registered trials.');
+            console.log(req.body.lecture, req.body.setting);
+            break
+        case 'delete':
+            registeredTrials.splice(req.body.trialno, 1); // from index req.body.trialno remove 1 element
+            res.statusCode = 202;
+            res.send('Delete specified trial successfully.');
+            console.log('Delete specified trial successfully. There are '+registeredTrials.length+' registered trials.');
+            break
+        case 'update':
+            registeredTrials[req.body.trialno].updateInfo(req.body.info);
+            res.statusCode = 202;
+            res.send('Update specified trial successfully.');
+            console.log('Update specified trial successfully. There are '+registeredTrials.length+' registered trials.');
+            console.log(req.body.info);
+            break
+        default:
+            res.statusCode = 404;
+            res.send('Invalid verb.')
+    }
+}
+
+// const options = { /* ... */ };
+// const io = require('socket.io')(server, options);
+//
+// const adminNamespace = io.of("/admin");
+//
+// adminNamespace.use((socket, next) => {
+//     // ensure the user has sufficient rights
+//     next();
+// });
+//
+// adminNamespace.on("connection", socket => {
+//     socket.on("delete user", () => {
+//         // ...
+//     });
+// });
+
 
 // ===================================
 // Some code about spectral clustering
