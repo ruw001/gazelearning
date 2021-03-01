@@ -13,18 +13,18 @@ PORT = 8000
 N_SERVER = 1
 TOTAL = 400
 
-img_folder = 'dataset_rw/'
+img_folder = 'data_temp/12344/face/' # 'dataset_rw/'
 
-labels = ['not_confused', 'confused']
+labels = [0, 1] # ['not_confused', 'confused']
 
 def getImage(count, label):
-    filename = str(count).zfill(3) + '.jpg'
-    filename = os.path.join(img_folder, label, filename)
+    filename = '{}_{}.jpg'.format(label, count)
+    filename = os.path.join(img_folder, filename)
     with open(filename, "rb") as img_file:
         imgb64 = base64.b64encode(img_file.read())
     return "test," + imgb64.decode('utf-8')
 
-IMG = getImage(0, labels[0])
+IMG = getImage(190, labels[1])
 
 def sendRequest(pID):
     port = PORT + pID % N_SERVER

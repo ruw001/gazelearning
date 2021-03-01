@@ -322,6 +322,7 @@ def confusion_detection():
     return resp
     
 import signal
+import sys
 
 def before_termination(signal, frame):
     global metricPool, FILEPATH

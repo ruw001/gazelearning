@@ -120,8 +120,10 @@ ADD . /app
 # Run a WSGI server to serve the application. gunicorn must be declared as
 # a dependency in requirements.txt.
 ENV PORT=8000
+ENV STORAGEPATH='/mnt/fileserver/'
 WORKDIR /app
-CMD gunicorn -b :$PORT main:app
+CMD [ "/bin/bash", "-c", "gunicorn -b :8000 main:app", "--error-logfile $STORAGEPATH$(date +\"%Y_%m_%d_%I_%M_%p\")_gunicorn.log", "--log-file $STORAGEPATH$(date +\"%Y_%m_%d_%I_%M_%p\")_gunicorn.log", "--capture-output" ]
+# CMD gunicorn -b :$PORT main:app
 
 # In case I need better log.
-# gunicorn -b :8000 main:app --error-logfile "$(date +"%Y_%m_%d_%I_%M_%p").log", --log-file "$(date +"%Y_%m_%d_%I_%M_%p").log" --capture-output
+# gunicorn -b :8000 main:app --error-logfile "$STORAGEPATH$(date +"%Y_%m_%d_%I_%M_%p")_gunicorn.log", --log-file "$STORAGEPATH$(date +"%Y_%m_%d_%I_%M_%p")_gunicorn.log" --capture-output
