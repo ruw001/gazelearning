@@ -195,7 +195,7 @@ async function reportState(stage, label) {
     let data = { img: base64ImageData, stage: stage, label: label, username: 'ruru'};
     var result = null;
     try {
-        await fetch('http://172.20.3.61:8000', { // 172.20.16.10
+        await fetch('http://127.0.0.1:8000/detection', { // 172.20.16.10 // 172.20.3.61:8000
             method: 'POST',
             body: JSON.stringify(data),
         }).then(

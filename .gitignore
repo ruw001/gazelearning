@@ -9,3 +9,5 @@ other stuff/
 test.html
 .idea/
 *.pem
+*/__pycache__/
+*/*/__pycache__/

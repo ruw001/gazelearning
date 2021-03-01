@@ -17,6 +17,7 @@ from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 import time
 import argparse
+from threading import Thread
 
 CNTR = 0
 TOTAL = 1000
@@ -114,6 +115,7 @@ class StatePredictor:
         self.username = usrname
         self.retrain_interval = 1000 # TODO: incremental training!
         self.dir = os.path.join(FILEPATH, self.username)
+        self.training = False
         if not os.path.exists(self.dir):
             os.mkdir(self.dir)
         elif os.path.exists(os.path.join(self.dir, 'pca.joblib')):
@@ -162,10 +164,17 @@ class StatePredictor:
         dump(self.clf, os.path.join(self.dir, 'model_pca.joblib'))
         dump(self.pca, os.path.join(self.dir, 'pca.joblib'))
 
+        self.training = False
+
     
     def confusionDetection(self, img):
-        if self.clf is None:
-            self.train()
+        if self.clf is None and not self.training:
+            self.training = True
+            Thread(target=self.train(), args=(self, )).start()
+            # self.train()
+            return 'training'
+        elif self.training:
+            return 'training'
         tag = ['Neutral', 'Confused']
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img.flags.writeable = False
@@ -255,17 +264,42 @@ class ConfusionDetectionRequestHandler(BaseHTTPRequestHandler):
             'body': {'result': result},
         })
 
+def server_run(port):
+    HTTPServer((host, port), ConfusionDetectionRequestHandler).serve_forever()
+
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-p", "--portid", type=int, default=0,
-                    help="port id")
+parser.add_argument("-t", "--threaded", action='store_true',
+                    help="if it's multithreaded")
+# if not multithreaded: specify port id
+parser.add_argument("-p", "--portid", type=int, default=0, help="port id")
+# else specify number of servers
+parser.add_argument("-n", "--numserver", type=int,
+                    default=0, help="# of servers")
 args = parser.parse_args()
 
 host = ''
 
-PORT = 8000 + args.portid
-print('Serving on port {}...'.format(PORT))
+threaded = args.threaded
 
-HTTPServer((host, PORT), ConfusionDetectionRequestHandler).serve_forever()
+if not threaded:
+    PORT = 8000 + args.portid
+    print('Serving on port {}...'.format(PORT))
+    ThreadingHTTPServer(
+        (host, PORT), ConfusionDetectionRequestHandler).serve_forever()
+else:
+    num_server = args.numserver
+    server_threads = []
 
+    for i in range(num_server):
+        PORT = 8000 + i
+        server_threads.append(Thread(target=server_run, args=(PORT,)))
 
+    for i in range(num_server):
+        print('Server {} is running on {}...'.format(i, 8000 + i))
+        server_threads[i].daemon = True
+        server_threads[i].start()
+        time.sleep(1)
+
+    for i in range(num_server):
+        server_threads[i].join()
