@@ -85,9 +85,7 @@
         console.log(b);
         return navigator.mediaDevices.getUserMedia({
             video: {
-                deviceId: b.deviceId,
-                width: b.width,
-                height: b.height
+                ...b
             }
         }).then(function (c) {
             t(a, c)

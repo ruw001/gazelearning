@@ -43,8 +43,8 @@ function detectFixations(samples, lambda=6, smooth_coordinates=false, smooth_sac
     sample2tensor(samples);
 
     if (smooth_coordinates) {
-        samples.x = vectorConv(samples.x, tf.ones([3,1]).mul(1/3), 'original');
-        samples.y = vectorConv(samples.y, tf.ones([3,1]).mul(1/3), 'original');
+        samples.x = vectorConv(samples.x, tf.ones([3, 1]).mul(1 / 3), 'original');
+        samples.y = vectorConv(samples.y, tf.ones([3, 1]).mul(1 / 3), 'original');
     }
 
     samples = detectSaccades(samples, lambda, smooth_saccades);
@@ -56,7 +56,7 @@ function detectFixations(samples, lambda=6, smooth_coordinates=false, smooth_sac
     return [fixations, saccades];
 }
 
-function detectSaccades(samples, lambda, smooth_saccades){
+function detectSaccades(samples, lambda, smooth_saccades) {
     let dx = vectorConv(samples.x, tf.tensor1d([-1, 0, 1]), 'result');
     let dy = vectorConv(samples.y, tf.tensor1d([-1, 0, 1]), 'result');
     let dt = vectorConv(samples.t, tf.tensor1d([-1, 0, 1]), 'result');
@@ -76,10 +76,10 @@ function detectSaccades(samples, lambda, smooth_saccades){
     let radiusy = msdy.mul(lambda);
 
     let sacc = vx.div(radiusx).pow(2)
-                .add(vy.div(radiusy).pow(2))
-                .greater(1);
+        .add(vy.div(radiusy).pow(2))
+        .greater(1);
     if (smooth_saccades) {
-        sacc = vectorConv(sacc, tf.ones([3,1]).mul(1/3), 'original');
+        sacc = vectorConv(sacc, tf.ones([3, 1]).mul(1 / 3), 'original');
         sacc = sacc.greater(0.5);
     }
 
@@ -93,15 +93,15 @@ function detectSaccades(samples, lambda, smooth_saccades){
 function aggregateFixations(samples) {
     let idx = tf.range(0, samples.saccade.shape[0]);
 
-    let sacc_event = tf.concat([tf.tensor2d([0], [1,1]),
-                                vectorConv(samples.saccade, tf.tensor1d([-1,1]), 'none')])
-                                .squeeze().arraySync();
+    let sacc_event = tf.concat([tf.tensor2d([0], [1, 1]),
+        vectorConv(samples.saccade, tf.tensor1d([-1, 1]), 'none')])
+        .squeeze().arraySync();
     // In sacc_event a 1 marks the start of a saccade and a -1 the
     // start of a fixation.
 
     let minusOnes = [];
     let plusOnes = [];
-    sacc_event.forEach((sacc_e, i)=>{
+    sacc_event.forEach((sacc_e, i) => {
         if (sacc_e == -1) minusOnes.push(i);
         if (sacc_e == 1) plusOnes.push(i);
     }); // have to remove the use of tf.booleanMaskAsync(), since is an async function
@@ -111,11 +111,11 @@ function aggregateFixations(samples) {
     let end = [...minusOnes];
     let markBegin = false;
     let markEnd = false;
-    if ( end[0] < begin[0] ){ // happens when the gaze starts directly from a fixation, end before start
+    if (end[0] < begin[0]) { // happens when the gaze starts directly from a fixation, end before start
         begin.unshift(0);
         markBegin = !markBegin;
-    } 
-    if ( begin[begin.length - 1] > end[end.length - 1] ) { // happens when the gaze ends with a fixation, begin after end
+    }
+    if (begin[begin.length - 1] > end[end.length - 1]) { // happens when the gaze ends with a fixation, begin after end
         end.push(samples.saccade.shape[0] - 1);
         markEnd = !markEnd;
     }
@@ -127,25 +127,25 @@ function aggregateFixations(samples) {
             samples.x.slice(element, sliceLen),
             samples.y.slice(element, sliceLen),
             samples.vx.slice(element, sliceLen),
-            samples.vy.slice(element, sliceLen))
+            samples.vy.slice(element, sliceLen)),
         );
     });
-    if ( (markBegin&&!markEnd) || (!markBegin&&markBegin)) {
+    if ((markBegin && !markEnd) || (!markBegin && markBegin)) {
         // markBegin xor markEnd, because there is no xor operator in js
         if (markBegin) {
             saccades[0].mark();
         } else {
-            saccades[ saccades.length - 1 ].mark();
+            saccades[saccades.length - 1].mark();
         }
     }
 
     // Genarate Fixations, special cases
     begin = [...minusOnes];
     end = [...plusOnes];
-    if ( end[0] < begin[0] ){ // happens when the gaze starts directly from a fixation, end before start
+    if (end[0] < begin[0]) { // happens when the gaze starts directly from a fixation, end before start
         begin.unshift(0);
-    } 
-    if ( begin[begin.length - 1] > end[end.length - 1] ) { // happens when the gaze ends with a fixation, begin after end
+    }
+    if (begin[begin.length - 1] > end[end.length - 1]) { // happens when the gaze ends with a fixation, begin after end
         end.push(samples.saccade.shape[0] - 1);
     }
 
@@ -164,11 +164,11 @@ function aggregateFixations(samples) {
     return [fixations, saccades];
 }
 
-function vectorConv(samples, kernal, padMode='original') {
+function vectorConv(samples, kernal, padMode = 'original') {
 
     let result = tf.conv1d(samples.reshape([1, -1, 1]),
-                            kernal.reshape([-1, 1, 1]),
-                            1,'valid').reshape([-1, 1]);
+        kernal.reshape([-1, 1, 1]),
+        1, 'valid').reshape([-1, 1]);
     // conv1d, x - [batch_size, input_size, feature_length]
     //         kernal - [kernal_width, indpeth, ourdepth]
     //         stride
@@ -183,13 +183,13 @@ function vectorConv(samples, kernal, padMode='original') {
             // use original value to fill empty
             return tf.concat([samples.slice([0], [1]),
                 result,
-                samples.slice([samples.shape[0]-1], [1])]);
+                samples.slice([samples.shape[0] - 1], [1])]);
             break;
         case 'result':
             // use computed result to fill empty
-            return tf.concat([result.slice([0], [1]), 
+            return tf.concat([result.slice([0], [1]),
                 result,
-                result.slice([result.shape[0]-1], [1])]);
+                result.slice([result.shape[0] - 1], [1])]);
             break;
         default:
             throw new Error('Wrong padding mode in function kernal()! Either original or result.');
@@ -198,7 +198,7 @@ function vectorConv(samples, kernal, padMode='original') {
 
 // Experimental: This function tries to detect blinks and artifacts
 // based on x- and y-dispersion and duration of fixations.
-function removeArtifacts(fixations){
+function removeArtifacts(fixations) {
     // not implemented yet... might cost a lot
 
     // fixations.forEach((fixation)=>{
@@ -219,13 +219,13 @@ function sample2tensor(samples) {
 function get_median(v) {
     let flattenV = v.reshape([-1]);
     let len = flattenV.shape[0]
-    let mid = Math.floor(len/2) + 1
+    let mid = Math.floor(len / 2) + 1
     let val = tf.topk(flattenV.arraySync(), mid).values.dataSync();
     // I do not know why? Why must .arraySync()? Otherwise the topk() will raise an error.
-    
+
     if (len % 2 == 1) {
-        return tf.scalar(val[val.length-1]);
+        return tf.scalar(val[val.length - 1]);
     } else {
-        return tf.scalar((val[val.length-1] + val[val.length-2])/2);
+        return tf.scalar((val[val.length - 1] + val[val.length - 2]) / 2);
     }
 }
