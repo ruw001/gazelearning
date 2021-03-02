@@ -86,7 +86,7 @@
 
     let timestamp = [];
 
-    let AoIs, TMatrix;
+    let fixations, saccades, AoIs, TMatrix;
 
     let videoElement = document.getElementById('input_video');
     let videoCanvas = document.getElementById("video_canvas");
@@ -375,10 +375,10 @@
             x: gazeX,
             y: gazeY,
             t: timestamp, // not used right now
-        }
+        };
 
         // // LAMBDA = 6
-        // let [fixations, saccades] = detectFixations(samples);
+        // [fixations, saccades] = detectFixations(samples);
         // // Visualize fixations
         // fixations.forEach((fixation, id) => {
         //     fixation.draw(ctx);
@@ -393,7 +393,7 @@
         // });
 
         // LAMBDA = 3
-        let [fixations, saccades] = detectFixations(samples, lambda = 3);
+        [fixations, saccades] = detectFixations(samples, 3);
         // // Visualize fixations
         // fixations.forEach((fixation, id) => {
         //     fixation.draw(ctx, r=10, color='green');
@@ -407,8 +407,8 @@
         //     console.log(`#${id} saccade`);
         // });
 
+        console.log('============Fixations============');
         console.log(fixations);
-        console.log(fixations.map(fixation => fixation.toPercentage()));
 
         // AoI and T-matrix
         let classes = await fetch('/gazeData/cluster', {
@@ -422,10 +422,13 @@
             .then(result => JSON.parse(result.result))
             .catch(err => console.error(err));
 
+        console.log('============Classification of fixations============');
         console.log(classes);
         [AoIs, TMatrix] = AoIBuilder(fixations, saccades, classes);
 
+        console.log('============AoIs============');
         console.log(AoIs);
+        console.log('============TMatrix============');
         console.log(TMatrix);
 
         let animationTime = 1000; //ms
