@@ -252,10 +252,10 @@ document.getElementById("sync").addEventListener(
 
         userInfo = JSON.parse(userInfo);
 
-        setInterval(async () => {
+        let update = setInterval(async () => {
             // error in updateGazePoints() is handled here
             updateGazePoints(userInfo).catch(err => {
-                clearInterval(updateInterval);
+                clearInterval(update);
                 console.log(err);
             });
         }, updateInterval);
@@ -267,7 +267,7 @@ async function signaling(endpoint, data, role) {
         let headers = { 'Content-Type': 'application/json' },
             body = JSON.stringify({ ...data, role: role });
 
-        let res = await fetch('/gazeData/' + endpoint,
+        let res = await fetch(endpoint,
             { method: 'POST', body, headers }
         );
 
@@ -285,7 +285,7 @@ async function updateGazePoints(userInfo) {
     console.log('Updating teacher...')
 
     signaling(
-        'sync',
+        'gazeData/teacher',
         {
             stuNum: studentNumber,
             pts: []

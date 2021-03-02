@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-
+<html lang="en">
 <head>
     <title>Gaze Learning</title>
-    <meta charset="utf-8" />
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/1.8.1/css/bootstrap.css" />
+    <meta charset="utf-8"/>
+    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/1.8.5/css/bootstrap.css"/>
+
+    <!--<script src="https://cdn.socket.io/3.1.1/socket.io.min.js"></script>-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.1.1/socket.io.js"></script>
 
     <meta name="format-detection" content="telephone=no">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
@@ -16,101 +19,218 @@
 </head>
 
 <body>
-    <!-- https://bootsnipp.com/forms for form generation -->
-    <form class="form-horizontal">
-        <fieldset>
-        
-        <!-- Form Name -->
-        <legend>Basic Information</legend>
-        
-        <!-- Multiple Radios -->
-        <div class="form-group">
-        <label class="col-md-4 control-label" for="identity">Identity</label>
-        <div class="col-md-4">
-        <div class="radio">
-            <label for="identity-0">
-            <input type="radio" name="identity" id="identity-0" value="1" checked="checked">
-            Student
-            </label>
-            </div>
-        <div class="radio">
-            <label for="identity-1">
-            <input type="radio" name="identity" id="identity-1" value="2">
-            Teacher
-            </label>
-            </div>
-        </div>
-        </div>
-        
-        <!-- Select Basic -->
-        <div class="form-group">
-        <label class="col-md-4 control-label" for="student-number">Student Number</label>
-        <div class="col-md-4">
-            <input type="number" name="student-number" id="student-number" class="form-control">
-            <!-- <option value="1">Option one</option>
-            <option value="2">Option two</option> -->
-            <!-- </select> -->
-        </div>
-        </div>
 
-        <!-- Privacy -->
-        <div class="form-group">
-            <label class="col-md-4 control-label" for="checkboxes"></label>
-            <div class="col-md-4">
-            <div class="checkbox">
-                <input type="checkbox" class="form-check-input" id="privacy">
-                <label class="form-check-label" for="privacy">I have read ralated <a href="#">privacy policy</a>.</label>
-            </div>
-            </div>
-        </div>
-        
-        <!-- Button -->
-        <div class="form-group">
-        <label class="col-md-4 control-label"></label>
-        <div class="col-md-4">
-            <button id="submitbtn" class="btn btn-primary">Submit</button>
-        </div>
-        </div>
-        
-        </fieldset>
+<div class="container">
+    <div class="row">
+        <!-- https://bootsnipp.com/forms for form generation -->
+
+        <form class="form-horizontal">
+            <fieldset>
+
+                <!-- Form Name -->
+                <legend class="text-center">Basic Information</legend>
+
+                <!-- Multiple Radios -->
+                <div class="form-group">
+                    <label class="col-md-3 control-label">Identity</label>
+                    <div class="col-md-6">
+                        <div class="radio">
+                            <label for="identity-0">
+                                <input type="radio" name="identity" id="identity-0" value="1" checked="checked">
+                                Student
+                            </label>
+                        </div>
+                        <div class="radio">
+                            <label for="identity-1">
+                                <input type="radio" name="identity" id="identity-1" value="2">
+                                Teacher
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Select Basic -->
+                <div class="form-group">
+                    <label class="col-md-3 control-label" for="student-number">Student Number</label>
+                    <div class="col-md-6">
+                        <input type="number" name="student-number" id="student-number" class="form-control">
+                        <!-- <option value="1">Option one</option>
+                        <option value="2">Option two</option> -->
+                        <!-- </select> -->
+                    </div>
+                </div>
+
+                <!-- Name input-->
+                <div class="form-group">
+                    <label class="col-md-3 control-label">Name</label>
+                    <div class="form-row">
+                        <div class="col-md-3">
+                            <input id="first-name" name="first-name" type="text" placeholder="First Name"
+                                   class="form-control input-md">
+                        </div>
+                        <div class="col-md-3">
+                            <input id="last-name" name="last-name" type="text" placeholder="Last Name"
+                                   class="form-control input-md">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Privacy -->
+                <div class="form-group">
+                    <label class="col-md-3 control-label"></label>
+                    <div class="col-md-6">
+                        <div class="checkbox">
+                            <input type="checkbox" class="form-check-input" id="privacy">
+                            <label class="form-check-label" for="privacy">I have read related <a href="#">privacy
+                                policy</a>.</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Button -->
+                <div class="form-group">
+                    <label class="col-md-3 control-label"></label>
+                    <div class="col-md-6">
+                        <button id="submitbtn" class="btn btn-primary" disabled>Submit</button>
+                        <button id="devbtn" class="btn btn-primary">Submit [dev, always on]</button>
+                    </div>
+                </div>
+
+            </fieldset>
         </form>
+    </div>
 
-       <script>
-           document.getElementById("identity-1").addEventListener("input", () => {
-                document.getElementById("student-number").disabled = true;
-           });
+    <div class="row" id="lecture-info" hidden>
+        <div class="col-md-3">
+        </div>
+        <div class="card col-md-6">
+            <h5 class="card-header">
+                <hr style="height:2px;border:none;color:#333;background-color:#333;">
+            </h5>
+            <div class="card-body">
+                <h3 class="card-title" id="lecture-title">Lecture title</h3>
+                <p class="card-text" id="lecture-abstract">Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+                    Nulla suscipit diam at est rutrum, eu luctus eros iaculis.</p>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item" id="lecture-instructor">Cras justo odio</li>
+                <li class="list-group-item" id="lecture-time">Dapibus ac facilisis in</li>
+                <li class="list-group-item" id="lecture-zoomid">Vestibulum at eros</li>
+            </ul>
+            <hr style="height:2px;border:none;color:#333;background-color:#333;">
+        </div>
+    </div>
 
-           document.getElementById("identity-0").addEventListener("input", () => {
-                document.getElementById("student-number").disabled = false;
-           });
+    <div class="row">
+        <div class="col-md-3">
+        </div>
+        <div class="col-md-3">
+            <input id="admin-passcode" type="password" class="form-control input-md">
+        </div>
+        <div class="col-md-3">
+            <button id="adminbtn" class="btn btn-danger"
+                    onclick="digestMessage(document.getElementById('admin-passcode').value).then(v => loginAsAdmin(v))">
+                Login as Admin
+            </button>
+        </div>
+    </div>
 
-           document.addEventListener("submit", (e) => {
-               e.preventDefault(); // We will handle submit
-               let formData = new FormData(e.target);
-               fetch('/users', {
-                    method: 'POST',
-                    body:formData
-                }).then(response => {
-                    if (response.ok) {
-                        console.log("User information posted.");
-                        if (document.getElementById('identity-0').checked) {
-                            window.open('studentPage.html', '_self');
-                        } else {
-                            window.open('teacherPage.html', '_self');
-                        }
-                    }
-                }).catch(err => {
-                    console.error(err);
-                });
-           });
+</div>
 
-           function getCookie(name) {
-                let matches = document.cookie.match(new RegExp(
-                    "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
-                ));
-                return matches ? decodeURIComponent(matches[1]) : undefined;
+<script>
+
+    const errorLectureInfo = {
+        title: 'Cannot retrieve next lecture information',
+        abstract: 'Please contact with related staff via contact@cogteach.com.',
+        instructor: 'Unknown',
+        time: 'Unknown',
+        zoomid: 'Unknown',
+    }
+
+    // Get latest lecture information
+    window.onload = function () {
+        fetch('/admin/trial', {
+            method: 'GET',
+        }).then(res => res.json()
+        ).then(lectureInfo => formatLectureInfo(lectureInfo)
+        ).catch(e => {
+            console.log(e);
+            formatLectureInfo(errorLectureInfo);
+        })
+    }
+
+    // Select identity. identity-1 as Teacher and identity-0 as student
+    document.getElementById("identity-1").addEventListener("input", () => {
+        document.getElementById("student-number").disabled = true;
+        document.getElementById("first-name").disabled = true;
+        document.getElementById("last-name").disabled = true;
+    });
+    document.getElementById("identity-0").addEventListener("input", () => {
+        document.getElementById("student-number").disabled = false;
+        document.getElementById("first-name").disabled = false;
+        document.getElementById("last-name").disabled = false;
+    });
+
+    // Submit basic information to server
+    document.addEventListener("submit", (e) => {
+        e.preventDefault(); // We will handle submit
+        let formData = new FormData(e.target);
+        fetch('/users', {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                console.log("User information posted.");
+                if (document.getElementById('identity-0').checked) {
+                    window.open('studentPage.html', '_self');
+                } else {
+                    window.open('teacherPage.html', '_self');
+                }
             }
-       </script> 
+        }).catch(err => {
+            console.error(err);
+        });
+    });
+
+    async function digestMessage(message) {
+        const msgUint8 = new TextEncoder().encode(message);                           // encode as (utf-8) Uint8Array
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);           // hash the message
+        const hashArray = Array.from(new Uint8Array(hashBuffer));                     // convert buffer to byte array
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join(''); // convert bytes to hex string
+        return hashHex;
+    }
+
+    function formatLectureInfo(lectureInfo) {
+        document.getElementById("lecture-title").innerHTML = lectureInfo.lecture.title;
+        document.getElementById("lecture-abstract").innerHTML = lectureInfo.lecture.abstract;
+        document.getElementById("lecture-instructor").innerHTML = '<b>Instructor</b>: ' + lectureInfo.lecture.instructor;
+        document.getElementById("lecture-time").innerHTML = '<b>Time</b>: ' + new Date(lectureInfo.lecture.time);
+        document.getElementById("lecture-zoomid").innerHTML = '<b>Zoom ID</b>: ' + lectureInfo.lecture.zoomid;
+
+        document.getElementById("lecture-info").hidden = false;
+
+        const currentTime = Date.now();
+        console.log(currentTime);
+        console.log(lectureInfo.lecture.time);
+        if (Math.abs(currentTime - lectureInfo.lecture.time) < 30*60*1000) {
+            document.getElementById('submitbtn').disabled = false;
+        } else {
+            document.getElementById('submitbtn').innerText = 'No hurry! Please come back when lecture will begin within 30 minutes.'
+        }
+    }
+
+    function loginAsAdmin(passcodeHash) {
+        fetch('/admin', {
+            method: 'POST',
+            body: JSON.stringify({passcode: passcodeHash}),
+        }).then(res => {
+            if (res.ok) window.open('admin.html', '_self')
+        }).catch(e => {
+            console.log(e);
+        })
+    }
+
+</script>
 </body>
 
 </html>
