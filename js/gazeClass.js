@@ -40,6 +40,15 @@ class Fixation{
         this.confusionCount = 0;
     }
 
+    toPercentage() {
+        // Note: since the server side only relies on fixation.x and fixation.y
+        // to cluster, we will only return {x:, y:} in this function.
+        return {
+            x: this.x * 100 / document.documentElement.clientWidth,
+            y: this.y * 100 / document.documentElement.clientHeight,
+        }
+    }
+
     contain(timestamp) {
         return timestamp >= this.start && timestamp <= this.end;
     }
