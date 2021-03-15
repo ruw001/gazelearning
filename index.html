@@ -92,7 +92,7 @@
                     <label class="col-md-3 control-label"></label>
                     <div class="col-md-6">
                         <button id="submitbtn" class="btn btn-primary" disabled>Submit</button>
-                        <button id="devbtn" class="btn btn-primary">Submit [dev, always on]</button>
+                        <button id="devbtn" class="btn btn-primary dev">Submit [dev, always on]</button>
                     </div>
                 </div>
 
@@ -172,8 +172,43 @@
     });
 
     // Submit basic information to server
+    // Will only be triggered by student/teacher. Admin login is handled elsewhere
     document.addEventListener("submit", (e) => {
         e.preventDefault(); // We will handle submit
+
+        // =====Disable buttons
+        document.getElementById("submitbtn").innerText = "Submitting";
+        document.getElementById("submitbtn").disabled = true;
+        // document.getElementById("devbtn").innerText = 'Submitting'
+        // document.getElementById("devbtn").disabled = true;
+
+        // =====Socket connection to admin server
+        const socket = io("/admin", {
+            autoConnect: false,
+            auth: {
+                identity: document.getElementById("identity-0").checked ? 1 : 2,
+                name: document.getElementById("identity-0").checked ?
+                    [document.getElementById("first-name").value, document.getElementById("last-name").value].join(' ') : 'Instructor',
+            }
+        });
+        // In case the same user logs in several times
+        const sessionID = sessionStorage.getItem("sessionID");
+        if (sessionID) {
+            socket.auth = { sessionID };
+        }
+        socket.connect();
+        console.log(socket)
+
+        socket.on("session", ({ sessionID, userID }) => {
+            // attach the session ID to the next reconnection attempts
+            socket.auth = { sessionID };
+            // store it in the localStorage
+            sessionStorage.setItem("sessionID", sessionID);
+            // save the ID of the user
+            socket.userID = userID;
+        });
+
+        // =====Post form data
         let formData = new FormData(e.target);
         fetch('/users', {
             method: 'POST',
