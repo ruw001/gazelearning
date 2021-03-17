@@ -296,7 +296,7 @@ function spectralCluster(X, Y, repeat) {
     let matY = Y instanceof Matrix ? Y : new Matrix(Y);
 
     // Construct similarity matrix
-    let sigma = 2.5;
+    let sigma = 7.5;
     let distance = matX.repeat({columns:matX.rows})
         .subtract(matX.transpose().repeat({rows:matX.rows}))
         .pow(2)
@@ -314,9 +314,11 @@ function spectralCluster(X, Y, repeat) {
     let lambda = eig.realEigenvalues.sort(); // js array
     let deltaLambda = lambda.slice(0, lambda.length - 1)
         .map((elem, i) => lambda[i + 1] - elem);
-    let k = deltaLambda.slice(0, Math.ceil(lambda.length / 2))
-        .reduce((maxIdx, item, index) => deltaLambda[maxIdx] < item ? index : maxIdx, 0) + 1;
-    // var k = Math.random() > 0.5 ? 4 : 3;
+    // let k = deltaLambda.slice(0, Math.ceil(lambda.length / 2))
+    //     .reduce((maxIdx, item, index) => deltaLambda[maxIdx] < item ? index : maxIdx, 0) + 1;
+    var k = 5;//Math.random() > 0.5 ? 4 : 3;
+    
+
     console.log(`k = ${k}`);
 
     let columns = [];
@@ -362,6 +364,6 @@ function mode(nestedArray, max) {
         mode.push( elemCount.indexOf( Math.max(...elemCount) ));
     }
 
-    console.log(mode);
+    console.log('mode:', mode);
     return mode
 }

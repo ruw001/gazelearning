@@ -7,12 +7,16 @@ class Fixation{
             this.xmax = tf.max(x_coords).squeeze().dataSync()[0];
             this.xmin = tf.min(x_coords).squeeze().dataSync()[0];
             this.xmad = get_median(x_coords.sub(get_median(x_coords))).dataSync()[0];
+            this.xvar = tf.moments(x_coords).variance.sqrt()
 
             this.yall = y_coords;
             this.y = tf.mean(y_coords).squeeze().dataSync()[0];
             this.ymax = tf.max(y_coords).squeeze().dataSync()[0];
             this.ymin = tf.min(y_coords).squeeze().dataSync()[0];
             this.ymad = get_median(y_coords.sub(get_median(y_coords))).dataSync()[0];
+            this.yvar = tf.moments(y_coords).variance.sqrt()
+
+            console.log('variance!!!:', this.xvar.toString(), this.yvar.toString())
 
             this.start = start;
             this.end = end;
@@ -67,6 +71,7 @@ class Fixation{
     drawId(ctx, index, r=10, fontsize=16) {
         ctx.font = fontsize+'px serif';
         ctx.fillText(index, this.x+r, this.y+r);
+        // ctx.fillText(this.xvar.print() + ', ' + this.yvar.print(), this.x + 2*r, this.y + r);
         console.log(this.x);
         console.log(this.y);
     }
