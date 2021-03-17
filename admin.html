@@ -527,7 +527,8 @@
                     break;
                 }
             }
-            document.getElementById("countdown-description").innerText = 'All registered trials expired.'
+
+            if (i === allTrials.length) document.getElementById("countdown-description").innerText = 'All registered trials expired.'
         }
     }
 

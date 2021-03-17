@@ -177,7 +177,7 @@ registeredTrials.push(new Trial({
     title: 'Introduction in Linear Algebra',
     abstract: 'This lecture will briefly introduce some basic concepts in linear algebra, such as vector, matrix and rules of calculation.',
     instructor: 'David Liu',
-    time: (new Date('Tue Mar 16 2021 20:00:00 GMT+0800')).getTime(),
+    time: (new Date('Wed Mar 17 2021 14:00:00 GMT+0800')).getTime(),
     zoomid: '71123774899',
 }, {
     gazeinfo: true,
