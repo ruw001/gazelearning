@@ -45,7 +45,14 @@ class Fixation{
         // to cluster, we will only return {x:, y:} in this function.
         return {
             x: this.x * 100 / document.documentElement.clientWidth,
+            xmin: this.xmin * 100 / document.documentElement.clientWidth,
+            xmax: this.xmax * 100 / document.documentElement.clientWidth,
+            xmad: this.xmad * 100 / document.documentElement.clientWidth,
+
             y: this.y * 100 / document.documentElement.clientHeight,
+            ymin: this.ymin * 100 / document.documentElement.clientHeight,
+            ymax: this.ymax * 100 / document.documentElement.clientHeight,
+            ymad: this.ymad * 100 / document.documentElement.clientHeight,
         }
     }
 
@@ -295,6 +302,24 @@ function AoIBuilder (fixations, saccades, classes) {
     let TMatrix = d3.range(0, nClass).fill(d3.range(0, nClass).fill(0));
     // equals to zeros(nClass, nClass)
     // which creates a nClass x nClass matrix filled with zeros
+
+    // 2021.3.15 fixations on server are scaled to percentages.
+    // Not saccades might not be converted, hence exists possibility to cause bugs
+    fixations = fixations.map(fixation => {
+        return {
+            x: fixation.x / 100 * document.documentElement.clientWidth,
+            xmin: fixation.xmin / 100 * document.documentElement.clientWidth,
+            xmax: fixation.xmax / 100 * document.documentElement.clientWidth,
+            xmad: fixation.xmad / 100 * document.documentElement.clientWidth,
+
+            y: fixation.y / 100 * document.documentElement.clientHeight,
+            ymin: fixation.ymin / 100 * document.documentElement.clientHeight,
+            ymax: fixation.ymax / 100 * document.documentElement.clientHeight,
+            ymad: fixation.ymad / 100 * document.documentElement.clientHeight,
+        }
+    });
+    console.log('inside AoIbuilder')
+    console.log(fixations)
 
     for (let classId of Array(nClass).keys()) {
 

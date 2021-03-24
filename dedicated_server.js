@@ -26,6 +26,46 @@ app.get('/',(req, res) => {
     // res.sendFile(path.join(__dirname, 'index.html'));
 })
 
+// ===================================
+// When testing locally
+// const multipart = require("connect-multiparty");
+// var fs = require('fs');
+//
+// const multipartyModdleware = multipart();
+// const FILEPATH = 'D:/gazelearning/confusion_test/data_temp';
+// // please change to local filepath where gaze/face will be stored
+//
+// app.use(express.static('./'));
+//
+// app.post('/users', multipartyModdleware, function (req, res, next) {
+//     let content = req.body;
+//     console.log(content);
+//
+//     if ( content['student-number'] && !fs.existsSync( path.join(FILEPATH, content['student-number'],'/gaze') ) ) {
+//         fs.mkdir(path.join(FILEPATH, content['student-number'],'/gaze'),
+//             { recursive: true },
+//             (err) => {
+//                 if (err) throw err;
+//             });
+//     }
+//
+//     res.cookie(
+//         'userInfo',
+//         JSON.stringify({'identity': content.identity,
+//             'number': content['student-number'] ? content['student-number'] : null,})
+//     );
+//
+//     res.format({'application/json': function(){
+//             res.send({ message: 'Cookie set.' });
+//         }
+//     });
+//
+//     res.send();
+// });
+
+// ===================================
+// Deployment code on k8s
+
 app.get('/gazeData/teacher', (req, res) => {
     res.send(`<h1>Dedicated server, page /gazeData/teacher</h1>`);
 })
@@ -68,11 +108,6 @@ app.post('/gazeData/teacher', express.json({ type: '*/*' }), async (req, res) =>
             console.log(`Fixations to cluster : ${fixationX.length}`);
 
             res.statusCode = 200;
-
-            // res.setHeader('Access-Control-Allow-Origin', '*')
-            // res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-            // res.setHeader('Access-Control-Allow-Headers', 'x-api-key,Content-Type')
-
             res.format({'application/json': function(){
                     res.send({
                         fixations: fixationFlat,
@@ -94,9 +129,6 @@ app.post('/gazeData/teacher', express.json({ type: '*/*' }), async (req, res) =>
             console.log(`Receive ${all_fixations.get(stuNum).length} fixations at ${new Date()}`);
 
             res.statusCode = 200;
-            // res.setHeader('Access-Control-Allow-Origin', '*')
-            // res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-            // res.setHeader('Access-Control-Allow-Headers', 'x-api-key,Content-Type')
             res.send({
                 result: `Fixations and saccades are logged @ ${Date.now()}`,
             });
@@ -121,7 +153,7 @@ setInterval(() => {
 }, 5000);
 
 // ===================================
-// Some code about administration control
+// Some code about administration control (Information Hub)
 const crypto = require("crypto");
 const cookieParser = require('cookie-parser');
 const path = require('path');
@@ -145,24 +177,12 @@ registeredTrials.push(new Trial({
     title: 'Introduction in Linear Algebra',
     abstract: 'This lecture will briefly introduce some basic concepts in linear algebra, such as vector, matrix and rules of calculation.',
     instructor: 'David Liu',
-    time: (new Date('Tue Feb 23 2021 00:00:00 GMT+0800')).getTime(),
+    time: (new Date('Wed Mar 17 2021 14:10:00 GMT+0800')).getTime(),
     zoomid: '71123774899',
 }, {
     gazeinfo: true,
     coginfo: true,
 }));
-
-let registeredUsers = ['Yousef Contreras',
-    'Nadeem Joyce',
-    'Mamie Ratliff',
-    'Marianne Adams',
-    'Lucille Martins',
-    'Tonya Pickett',
-    'Rafe Hunter',
-    'Enrique Oneal',
-    'Aamir Emery',
-    'Moses Mccoy'
-];
 
 app.post('/admin', express.json({ type: '*/*' }), generateAuthCookie);
 app.get('/admin/trial',
@@ -261,22 +281,157 @@ function informationPost(req, res) {
     }
 }
 
-// const options = { /* ... */ };
-// const io = require('socket.io')(server, options);
-//
-// const adminNamespace = io.of("/admin");
-//
-// adminNamespace.use((socket, next) => {
-//     // ensure the user has sufficient rights
-//     next();
-// });
-//
-// adminNamespace.on("connection", socket => {
-//     socket.on("delete user", () => {
-//         // ...
-//     });
-// });
+// ===================================
+// Some code about administration control (Timing control)
 
+const options = { /* ... */ };
+const io = require('socket.io')(server, options);
+
+/* abstract */
+class SessionStore {
+    findSession(id) {}
+    saveSession(id, session) {}
+    findAllSessions() {}
+}
+
+class InMemorySessionStore extends SessionStore {
+    constructor() {
+        super();
+        this.sessions = new Map();
+    }
+
+    findSession(id) {
+        return this.sessions.get(id);
+    }
+
+    saveSession(id, session) {
+        this.sessions.set(id, session);
+    }
+
+    findAllSessions() {
+        return [...this.sessions.values()];
+    }
+}
+let sessionStore = new InMemorySessionStore();
+
+const randomId = () => crypto.randomBytes(8).toString("hex");
+
+const adminNamespace = io.of("/admin");
+adminNamespace.use((socket, next) => {
+    const sessionID = socket.handshake.auth.sessionID;
+    if (sessionID) {
+        // find existing session
+        const session = sessionStore.findSession(sessionID);
+        if (session) {
+
+            console.log('============================')
+            console.log('Existing socket.')
+            console.log(`session.name: ${session.name}`);
+            console.log(`session.identity: ${session.identity}`);
+
+            socket.sessionID = sessionID;
+            socket.userID = session.userID;
+            socket.name = session.name;
+            socket.identity = session.identity;
+            return next();
+        }
+    }
+    // create new session
+    socket.sessionID = randomId();
+    socket.userID = randomId();
+    socket.name = socket.handshake.auth.name;
+    socket.identity = socket.handshake.auth.identity;
+
+    console.log('============================')
+    console.log('New socket.')
+    console.log(`socket.handshake.auth.name: ${socket.handshake.auth.name}`);
+    console.log(`socket.handshake.auth.identity: ${socket.handshake.auth.identity}`);
+    console.log(`socket.name ${socket.name}`);
+    console.log(`socket.identity ${socket.identity}`);
+
+    next();
+})
+
+adminNamespace.on("connection", socket => {
+    if (socket.identity === STUDENT) {
+        socket.join("student");
+    } else if (socket.identity === TEACHER) {
+        socket.join("teacher");
+    } else {
+        socket.join("admin");
+    }
+
+    socket.emit("session", {
+        sessionID: socket.sessionID,
+        userID: socket.userID,
+    });
+
+    const users = [];
+    for (let [id, socket] of adminNamespace.sockets) {
+        users.push({
+            userID: socket.userID,
+            name: socket.name,
+        });
+    }
+
+    adminNamespace.to("admin").emit("users", users); // When new users logged in, notify admin
+    console.log(`Connected users:`);
+    console.log(users);
+
+    socket.on("ready", () => {
+        // event ready comes from the teacherPage/studentPage.
+        // when the students/instructor logs in, the server will "start" to schedule the start event
+        // If the instructor receives "teacher start" event, it is similar to click on sync button;
+        // If the student receives "student start" event, it will start to infer every inferInterval;
+        // "delay" event is used to block students/teacher from accessing the next procedure.
+
+        // Some possible bugs:
+        // 1. The instructor comes in early, the same lecture will be scheduled several times
+        // 2. When to remove past course?
+
+        let delay = registeredTrials[0].lecture.time - Date.now();
+        if (delay) {
+            // Emit "delay" event
+            adminNamespace.to("student").to("teacher").to("admin").emit("delay", delay);
+
+            // Schedule "student start" event for students
+            let startStudentEvent = setTimeout(() => {
+                adminNamespace.to("student").emit("student start");
+                console.log('============================');
+                console.log('student start is sent to students');
+            }, delay);
+
+            // Schedule "teacher start" event for instructor
+            let startInstructorEvent = setTimeout(() => {
+                adminNamespace.to("teacher").to("admin").emit("teacher start");
+                console.log('teacher start is sent to teacher and administrator');
+            }, delay+2*1000); // delay 2 seconds then students
+
+            // Unregister trial
+            let unregisterEvent = setTimeout(() => {
+                registeredTrials.shift();
+                console.log('============================');
+                console.log('Trial is removed.');
+            }, delay+30*60*1000);
+        }
+    });
+
+    socket.on("disconnect", async () => {
+        const matchingSockets = await adminNamespace.in(socket.userID).allSockets();
+        const isDisconnected = matchingSockets.size === 0;
+        if (isDisconnected) {
+            // notify other users
+            socket.broadcast.emit("user disconnected", socket.userID);
+            // update the connection status of the session
+            sessionStore.saveSession(socket.sessionID, {
+                userID: socket.userID,
+                name: socket.name,
+                identity: socket.identity,
+                connected: false,
+            });
+        }
+    });
+});
 
 // ===================================
 // Some code about spectral clustering
@@ -291,7 +446,7 @@ function spectralCluster(X, Y, repeat) {
     let matY = Y instanceof Matrix ? Y : new Matrix(Y);
 
     // Construct similarity matrix
-    let sigma = 5;
+    let sigma = 7.5;
     let distance = matX.repeat({columns:matX.rows})
         .subtract(matX.transpose().repeat({rows:matX.rows}))
         .pow(2)
@@ -301,11 +456,11 @@ function spectralCluster(X, Y, repeat) {
                 .pow(2)
         ).sqrt().div(-2*sigma*sigma).exp();
     let D = Matrix.diag(
-        distance.mmul(Matrix.ones(distance.rows, 1)).to1DArray()
+        distance.mmul(Matrix.ones(distance.rows, 1)).to1DArray().map(item => 1 / item)
     );
 
     // Eigenvalue decomposition
-    let eig = new EigenvalueDecomposition(D.sub(distance));
+    let eig = new EigenvalueDecomposition(Matrix.eye(distance.rows).sub(D.mmul(distance)));
     let lambda = eig.realEigenvalues.sort(); // js array
     let deltaLambda = lambda.slice(0, lambda.length - 1)
         .map((elem, i) => lambda[i + 1] - elem);

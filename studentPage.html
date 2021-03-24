@@ -17,6 +17,7 @@
     <!-- <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"> </script> -->
     <script src="https://unpkg.com/mathjs@8.0.1/lib/browser/math.js"></script>
     <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.1.1/socket.io.js"></script>
     <script src="./js/gazeClass.js"></script>
     <script src="./js/Engbert_Kliegl_math.js"></script>
 
@@ -85,6 +86,15 @@
     <button id="neutral_btn" type="button" onclick="reportNeutral();">Report Neutral</button>
     <button id="confused_btn" type="button" onclick="reportConfusion();">Report Confusion</button>
 
+    <!--dev only - start system-->
+    <button class="dev" type="button" onclick="let informal_infer = setInterval(() => {
+        updateGazePoints()
+            .catch(err => {
+                clearInterval(informal_infer);
+                console.log(err)
+            });
+    }, inferInterval);">Start Signalling [dev only]</button>
+
     <!--  Facial Expression  -->
     <div class="meshvideo">
         <video id="input_video" style='display:none;'></video>
@@ -95,6 +105,29 @@
     <!-- Gaze Point Visualization -->
     <div id="gaze"
         style='position: absolute;display:none;width: 100px;height: 100px;border-radius: 50%;border: solid 2px  rgba(255, 255,255, .2);	box-shadow: 0 0 100px 3px rgba(125, 125,125, .5);	pointer-events: none;	z-index: 999999'>
+    </div>
+
+    <!-- Modal. Prevent teacher from operating before scheduled time. Modal is achieved by using bootstrap.-->
+    <div id="before-lecture-modal" class="modal fade" role="dialog">
+        <div class="modal-dialog">
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-body">
+                    <h4 id="before-lecture-modal-title">
+                        Next scheduled lecture will start within:
+                    </h4>
+                    <h4 id="countdown-description">
+                        Loading...
+                    </h4>
+                    <p>
+                        Access to the page will be granted <b>10 minutes</b> earlier to complete pre-lecture procedure.
+                    </p>
+                    <div class="modal-footer" hidden>
+                        <button type="button" class="btn btn-light btn-sm dev" data-dismiss="modal" onclick="closeModal('before-lecture-modal'); if (document.getElementById('calibrateModal')) openModal('calibrateModal');"> Quick Access [dev only] </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Modal. Choose to calibrate GazeCloud or not. Modal is achieved by using bootstrap.-->
@@ -159,11 +192,10 @@
                     <canvas id="collect_canvas" width="320px" height="180px" style='display:block;'></canvas>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal(); systemStart(true);">Cancel</button>
+                    <button type="button" class="btn btn-light btn-sm" data-dismiss="modal" onclick="closeModal('dataCollectModal'); systemStart(true);">Cancel</button>
                     <button id="collectBtn" type="button" class="btn btn-primary btn-sm" data-dismiss="modal" onclick="systemStart(false);">Collect</button>
                 </div>
             </div>
-
         </div>
     </div>
 
