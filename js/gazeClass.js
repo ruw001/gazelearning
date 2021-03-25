@@ -1,71 +1,106 @@
 class Fixation{
     constructor(x_coords, y_coords, start, end){
+        this.data = {};
         if (typeof(tf) !== "undefined") {
             // Toggle when use tensorflow.js to compute fixations and saccades
-            this.xall = x_coords;
-            this.x = tf.mean(x_coords).squeeze().dataSync()[0];
-            this.xmax = tf.max(x_coords).squeeze().dataSync()[0];
-            this.xmin = tf.min(x_coords).squeeze().dataSync()[0];
-            this.xmad = get_median(x_coords.sub(get_median(x_coords))).dataSync()[0];
+            // xall & yall are converted to percentage, ranging from [0, 100);
+            if (x_coords instanceof Array) {
+                // Reconstruct from server data, already percentage
+                this.data.xall = x_coords;
+                this.data.yall = y_coords;
+            } else {
+                // First time construction
+                this.data.xall = x_coords.div(document.documentElement.clientWidth/100);
+                this.data.yall = y_coords.div(document.documentElement.clientHeight/100);
+            }
 
-            this.yall = y_coords;
-            this.y = tf.mean(y_coords).squeeze().dataSync()[0];
-            this.ymax = tf.max(y_coords).squeeze().dataSync()[0];
-            this.ymin = tf.min(y_coords).squeeze().dataSync()[0];
-            this.ymad = get_median(y_coords.sub(get_median(y_coords))).dataSync()[0];
+            this.data.x_per = tf.mean(this.data.xall).squeeze().dataSync()[0];
+            this.data.xmax_per = tf.max(this.data.xall).squeeze().dataSync()[0];
+            this.data.xmin_per = tf.min(this.data.xall).squeeze().dataSync()[0];
+            this.data.xmad_per = get_median(this.data.xall.sub(get_median(this.data.xall))).dataSync()[0];
 
-            this.start = start;
-            this.end = end;
-            this.duration = end.sub(start).dataSync()[0];
+            this.data.y_per = tf.mean(this.data.yall).squeeze().dataSync()[0];
+            this.data.ymax_per = tf.max(this.data.yall).squeeze().dataSync()[0];
+            this.data.ymin_per = tf.min(this.data.yall).squeeze().dataSync()[0];
+            this.data.ymad_per = get_median(this.data.yall.sub(get_median(this.data.yall))).dataSync()[0];
+
+            if (!(x_coords instanceof Array)) {
+                this.data.xall = this.data.xall.squeeze().dataSync()[0];
+                this.data.yall = this.data.yall.squeeze().dataSync()[0];
+            }
+
+            this.data.start = start;
+            this.data.end = end;
+            this.data.duration = end.sub(start).dataSync()[0];
         } else {
             // Toggle when use math.js to compute fixations and saccades
-            this.xall = x_coords;
-            this.x = math.mean(x_coords);
-            this.xmad = math.mad(x_coords);
-            this.xmax = math.max(x_coords);
-            this.xmin = math.min(x_coords);
+            // xall & yall are converted to percentage, ranging from [0, 100);
+            if (x_coords instanceof Array) {
+                // Reconstruct from server data, already percentage
+                this.data.xall = x_coords;
+                this.data.yall = y_coords;
+            } else {
+                this.data.xall = math.divide(x_coords, document.documentElement.clientWidth/100).toArray();
+                this.data.yall = math.divide(y_coords, document.documentElement.clientHeight/100).toArray();
+            }
 
-            this.yall = y_coords;
-            this.y = math.mean(y_coords);
-            this.ymad = math.mad(y_coords);
-            this.ymax = math.max(y_coords);
-            this.ymin = math.min(y_coords);
+            this.data.x_per = math.mean(this.data.xall);
+            this.data.xmad_per = math.mad(this.data.xall);
+            this.data.xmax_per = math.max(this.data.xall);
+            this.data.xmin_per = math.min(this.data.xall);
 
-            this.start = start;
-            this.end = end;
-            this.duration = end - start;
+            this.data.y_per = math.mean(this.data.yall);
+            this.data.ymad_per = math.mad(this.data.yall);
+            this.data.ymax_per = math.max(this.data.yall);
+            this.data.ymin_per = math.min(this.data.yall);
+
+            this.data.start = start;
+            this.data.end = end;
+            this.data.duration = end - start;
         }
 
         // Bind confusion detection with fixation
-        this.confusionCount = 0;
+        this.data.confusionCount = 0;
     }
 
-    toPercentage() {
-        // Note: since the server side only relies on fixation.x and fixation.y
-        // to cluster, we will only return {x:, y:} in this function.
-        return {
-            x: this.x * 100 / document.documentElement.clientWidth,
-            xmin: this.xmin * 100 / document.documentElement.clientWidth,
-            xmax: this.xmax * 100 / document.documentElement.clientWidth,
-            xmad: this.xmad * 100 / document.documentElement.clientWidth,
-
-            y: this.y * 100 / document.documentElement.clientHeight,
-            ymin: this.ymin * 100 / document.documentElement.clientHeight,
-            ymax: this.ymax * 100 / document.documentElement.clientHeight,
-            ymad: this.ymad * 100 / document.documentElement.clientHeight,
+    static fromFixationData(fixationData) {
+        if (typeof(tf) !== "undefined") {
+            return new this(tf.tensor1d(fixationData.xall), tf.tensor1d(fixationData.yall), fixationData.start, fixationData.end);
+        } else {
+            return new this(fixationData.xall, fixationData.yall, fixationData.start, fixationData.end);
         }
     }
 
+    // Getters. Cater for visualization need. This is user-dependent.
+    get x() {return this.data.x_per / 100 * document.documentElement.clientWidth}
+    get xmax() {return this.data.xmax_per / 100 * document.documentElement.clientWidth}
+    get xmin() {return this.data.xmin_per / 100 * document.documentElement.clientWidth}
+    get xmad() {return this.data.xmad_per / 100 * document.documentElement.clientWidth}
+    get y() {return this.data.y_per / 100 * document.documentElement.clientHeight}
+    get ymax() {return this.data.ymax_per / 100 * document.documentElement.clientHeight}
+    get ymin() {return this.data.ymin_per / 100 * document.documentElement.clientHeight}
+    get ymad() {return this.data.ymad_per / 100 * document.documentElement.clientHeight}
+
+    // Setters
+    set x(val) {this.data.x_per = val * 100 / document.documentElement.clientWidth}
+    set xmax(val) {this.data.xmax_per = val * 100 / document.documentElement.clientWidth}
+    set xmin(val) {this.data.xmin_per = val * 100 / document.documentElement.clientWidth}
+    set xmad(val) {this.data.xmad_per = val * 100 / document.documentElement.clientWidth}
+    set y(val) {this.data.y_per = val * 100 / document.documentElement.clientHeight}
+    set ymax(val) {this.data.ymax_per = val * 100 / document.documentElement.clientHeight}
+    set ymin(val) {this.data.ymin_per = val * 100 / document.documentElement.clientHeight}
+    set ymad(val) {this.data.ymad_per = val * 100 / document.documentElement.clientHeight}
+
     contain(timestamp) {
-        return timestamp >= this.start && timestamp <= this.end;
+        return timestamp >= this.data.start && timestamp <= this.data.end;
     }
 
     incConfusionCount() {
-        this.confusionCount++;
+        this.data.confusionCount++;
     }
 
     draw(ctx, r=10, color='#0B5345') {
-        ctx.fillStyle = color; 
+        ctx.fillStyle = color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, r, 0, Math.PI * 2, true);
         ctx.fill();
@@ -89,16 +124,18 @@ class Saccade{
     constructor(x_coords, y_coords, vx, vy) {
         if (typeof(tf) !== "undefined") {
             // Toggle when use tensorflow.js to compute fixations and saccades
-            this.xall = x_coords.squeeze().arraySync();
-            this.yall = y_coords.squeeze().arraySync();
-            this.vx = vx.squeeze().arraySync();
-            this.vy = vy.squeeze().arraySync();
+            // xall & yall are converted to percentage, ranging from [0, 100);
+            this.xall = x_coords.div(document.documentElement.clientWidth/100).squeeze().arraySync();
+            this.yall = y_coords.div(document.documentElement.clientHeight/100).squeeze().arraySync();
+            this.vx = vx.div(document.documentElement.clientWidth/100).squeeze().arraySync();
+            this.vy = vy.div(document.documentElement.clientHeight/100).squeeze().arraySync();
         } else {
             // Toggle when use math.js to compute fixations and saccades
-            this.xall = x_coords;
-            this.yall = y_coords;
-            this.vx = vx;
-            this.vy = vy;
+            // xall & yall are converted to percentage, ranging from [0, 100);
+            this.xall = math.divide(x_coords, document.documentElement.clientWidth/100);
+            this.yall = math.divide(y_coords, document.documentElement.clientHeight/100);
+            this.vx = math.divide(vx, document.documentElement.clientWidth/100);
+            this.vy = math.divide(vy, document.documentElement.clientHeight/100);
         }
     }
 
@@ -176,7 +213,7 @@ class AoI{
         };
 
         this.status = fixations.reduce(
-            (confusionCountSum, fixation) => confusionCountSum + fixation.confusionCount,
+            (confusionCountSum, fixation) => confusionCountSum + fixation.data.confusionCount,
             0
         );
 
@@ -302,25 +339,7 @@ function AoIBuilder (fixations, saccades, classes) {
     let TMatrix = d3.range(0, nClass).fill(d3.range(0, nClass).fill(0));
     // equals to zeros(nClass, nClass)
     // which creates a nClass x nClass matrix filled with zeros
-
-    // 2021.3.15 fixations on server are scaled to percentages.
-    // Not saccades might not be converted, hence exists possibility to cause bugs
-    fixations = fixations.map(fixation => {
-        return {
-            x: fixation.x / 100 * document.documentElement.clientWidth,
-            xmin: fixation.xmin / 100 * document.documentElement.clientWidth,
-            xmax: fixation.xmax / 100 * document.documentElement.clientWidth,
-            xmad: fixation.xmad / 100 * document.documentElement.clientWidth,
-
-            y: fixation.y / 100 * document.documentElement.clientHeight,
-            ymin: fixation.ymin / 100 * document.documentElement.clientHeight,
-            ymax: fixation.ymax / 100 * document.documentElement.clientHeight,
-            ymad: fixation.ymad / 100 * document.documentElement.clientHeight,
-        }
-    });
-    console.log('inside AoIbuilder')
-    console.log(fixations)
-
+    console.log(fixations);
     for (let classId of Array(nClass).keys()) {
 
         let fixationInAoI = [];

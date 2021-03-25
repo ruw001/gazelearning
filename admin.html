@@ -21,7 +21,7 @@
             crossorigin="anonymous"></script>
     <!--  Zoom and visualization  -->
     <script src="js/webgazer.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs/dist/tf.min.js"></script>
+    <script src="https://unpkg.com/mathjs@8.0.1/lib/browser/math.js"></script>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <script src="js/gazeClass.js"></script>
     <!--Custome styles-->
@@ -589,7 +589,7 @@
         maxW,
         xOffset,
         yOffset,
-        navbar_offset_percentage;
+        navbar_offset;
 
     // Basically come from client.js, but have to make some modifications
     async function sync() {
@@ -600,7 +600,7 @@
         maxW = containerRect.width;
         xOffset = containerRect.left;
         yOffset = containerRect.top;
-        navbar_offset_percentage = document.getElementById("nav-tab").getBoundingClientRect().height * 100 / maxH;
+        navbar_offset = document.getElementById("nav-tab").getBoundingClientRect().height;
 
         d3.select("#container").insert("svg", "iframe").attr("id", "plotting_svg");
 
@@ -675,10 +675,11 @@
             .then(result => {
                 console.log(result.result);
 
+                result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));
                 result.fixations.forEach(fixation => {
-                    fixation.y -= navbar_offset_percentage;
-                    fixation.ymin -= navbar_offset_percentage;
-                    fixation.ymax -= navbar_offset_percentage;
+                    fixation.y -= navbar_offset;
+                    fixation.ymin -= navbar_offset;
+                    fixation.ymax -= navbar_offset;
                 });
                 let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
 

@@ -402,7 +402,7 @@ socket.on("delay", (delay) => {
     delay = (delay - minutes) / 60; // in hours
     let hours = Math.floor(delay);
 
-    if (hours === 0 && minutes <= 10) {
+    if ( (hours === 0 && minutes <= 10) || (seconds < 0) || (minutes < 0) || (hours < 0) ) {
         // Next lecture will start within 10 minutes
         closeModal("before-lecture-modal");
         // Student will be blocked by next modal dialog
