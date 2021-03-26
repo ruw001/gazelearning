@@ -102,8 +102,8 @@ app.post('/gazeData/teacher', express.json({ type: '*/*' }), async (req, res) =>
             fixationFlat = fixationFlat.flat();
             saccadeFlat = saccadeFlat.flat();
 
-            fixationX = fixationFlat.map(fixation => [fixation.x]);
-            fixationY = fixationFlat.map(fixation => [fixation.y]);
+            fixationX = fixationFlat.map(fixation => [fixation.x_per]);
+            fixationY = fixationFlat.map(fixation => [fixation.y_per]);
 
             console.log(`Fixations to cluster : ${fixationX.length}`);
 
@@ -177,7 +177,7 @@ registeredTrials.push(new Trial({
     title: 'Introduction in Linear Algebra',
     abstract: 'This lecture will briefly introduce some basic concepts in linear algebra, such as vector, matrix and rules of calculation.',
     instructor: 'David Liu',
-    time: (new Date('Wed Mar 17 2021 14:10:00 GMT+0800')).getTime(),
+    time: (new Date('Thu Mar 26 2021 22:00:00 GMT+0800')).getTime(),
     zoomid: '71123774899',
 }, {
     gazeinfo: true,

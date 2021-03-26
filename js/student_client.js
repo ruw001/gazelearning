@@ -204,7 +204,7 @@ async function update() {
         '/gazeData/sync',
         {
             stuNum: studentNumber,
-            fixations: fixations.map(fixation => fixation.toPercentage()),
+            fixations: fixations.map(fixation => fixation.data),
             saccades: saccades,
         },
         identity

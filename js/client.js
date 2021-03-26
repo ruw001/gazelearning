@@ -175,6 +175,7 @@ async function updateGazePoints(userInfo) {
         identity
     ).then(res => {console.log(res); return res;})
     .then(result => {
+        result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));
         console.log(result.result);
         let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
 
