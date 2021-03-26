@@ -1,14 +1,7 @@
 // import { ZoomMtg } from '@zoomus/websdk';
 
 // var ZoomMtg = require('@zoomus/websdk');
-var calibrated = false;
-var wg_started = false;
-var gc_started = false;
-// var heatmapInstance = null;
-var hm_left = 0;
-var hm_top = 0;
-let maxH = 0;
-let maxW = 0;
+document.addEventListener("DOMContentLoaded", () => openModal("before-lecture-modal"));
 
 window.onload = async function () {
 
@@ -91,176 +84,65 @@ window.onload = async function () {
 
 }
 
-function svgDisplay(event) {
-    let svg = document.querySelector("#plotting_svg");
-
-    event.target.value = svg.className === "invisible" ? "Show SVG" : "Hide SVG";
-    svg.classList.toggle("invisible");
-}
-
-async function changeGC() {
-    // change to enabled
-    if (document.getElementById("et2").checked) {
-        document.getElementById("et1").checked = false;
-        document.getElementById("webgazeropts").style.display = 'none';
-        if (wg_started) {
-            await webgazer.end();
-            // closeWebGazer();
-            wg_started = false;
-        }
-        document.getElementById("gazecloudopts").style.display = 'initial';
-        gc_started = true;
-        if (calibrated)
-            document.getElementById("gaze").style.display = 'block';
-
-    } else {
-        document.getElementById("gazecloudopts").style.display = 'none';
-        GazeCloudAPI.StopEyeTracking();
-        gc_started = false;
-        document.getElementById("gaze").style.display = 'none';
-    }
-}
-// document.getElementById('et2').onchange = function () { changeWG() };
-async function changeWG() {
-    if (document.getElementById("et1").checked) {
-        document.getElementById("et2").checked = false;
-        document.getElementById("gazecloudopts").style.display = 'none';
-        document.getElementById("gaze").style.display = 'none';
-        GazeCloudAPI.StopEyeTracking();
-        gc_started = false;
-        document.getElementById("webgazeropts").style.display = 'initial';
-    } else {
-        document.getElementById("webgazeropts").style.display = 'none';
-        if (wg_started) {
-            await webgazer.end();
-            // closeWebGazer();
-            wg_started = false;
-        }
-        document.getElementById("gaze").style.display = 'none';
-    }
-}
-
-function closeWebGazer() {
-    var webgazer_elems = ['webgazerFaceOverlay',
-        'webgazerFaceFeedbackBox',
-        'webgazerGazeDot',
-        'webgazerFaceOverlay',
-        'webgazerVideoCanvas'];
-    for (var i = 0; i < 5; ++i) {
-        try {
-            document.getElementById(webgazer_elems[i]).remove();
-        } catch (err) {
-            console.log('Error caught!', err);
-        }
-    }
-    // webgazer_elems.forEach(elem => document.getElementById(elem).remove());
-}
-
-
-async function beginWG() {
-    if (!wg_started) {
-        await webgazer.begin();
-        wg_started = true;
-        document.getElementById("gaze").style.display = 'block';
-    }
-}
-
-async function endWG() {
-    if (wg_started) {
-        await webgazer.end();
-        // closeWebGazer();
-        wg_started = false;
-    }
-}
-
-function findAbsolutePosition(htmlElement) {
-    var x = htmlElement.offsetLeft;
-    var y = htmlElement.offsetTop;
-    for (var x = 0, y = 0, el = htmlElement;
-        el != null;
-        el = el.offsetParent) {
-        x += el.offsetLeft;
-        y += el.offsetTop;
-    }
-    return {
-        "left": x,
-        "top": y
-    };
-}
-
 window.onbeforeunload = function () {
     webgazer.end();
     // closeWebGazer();
 }
 
-// Kalman Filter defaults to on. Can be toggled by user.
-window.applyKalmanFilter = true;
-
-// Set to true if you want to save the data even if you reload the page.
-window.saveDataAcrossSessions = true;
-
 // @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
 
 // Sync heatmap
-function getCookie(name) {
-    let matches = document.cookie.match(new RegExp(
-        "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
-    ));
-    return matches ? decodeURIComponent(matches[1]) : undefined;
-}
-
-let updateInterval = 5000;
 document.getElementById("sync").addEventListener(
     'click',
-    async () => {
-
-        // 2021.1.4 instead of canvas, the visualization is moved to SVG.
-        let containerRect = document.getElementById("container").getBoundingClientRect();
-        maxH = containerRect.height;
-        maxW = containerRect.width;
-
-        d3.select("#container").insert("svg", "iframe").attr("id", "plotting_svg");
-
-        let svg = d3.select("#plotting_svg")
-            // .style('left', xOffset)
-            // .style('top', yOffset)
-            .attr("width", maxW)
-            .attr("height", maxH)
-            .attr("font-family", "sans-serif");
-
-        svg.append("defs");
-        let gradient = d3.select("#plotting_svg")
-            .select("defs")
-            .append("linearGradient")
-            .attr("id", "arrowGradient");
-
-        gradient.append("stop")
-            .attr("offset", "5%")
-            .attr("stop-color", "white");
-
-        gradient.append("stop")
-            .attr("offset", "95%")
-            .attr("stop-color", "blue");
-
-
-        console.log('SVG set.');
-
-        console.log('Syncing...');
-        let userInfo = getCookie('userInfo');
-
-        if (!userInfo) throw Error('No user information. Please log in.');
-
-        userInfo = JSON.parse(userInfo);
-
-        let update = setInterval(async () => {
-            // error in updateGazePoints() is handled here
-            updateGazePoints(userInfo).catch(err => {
-                clearInterval(update);
-                console.log(err);
-            });
-        }, updateInterval);
-    }
+    sync
 );
+
+async function sync() {
+    // 2021.1.4 instead of canvas, the visualization is moved to SVG.
+    let containerRect = document.getElementById("container").getBoundingClientRect();
+    maxH = containerRect.height;
+    maxW = containerRect.width;
+
+    d3.select("#container").insert("svg", "iframe").attr("id", "plotting_svg");
+
+    let svg = d3.select("#plotting_svg")
+        // .style('left', xOffset)
+        // .style('top', yOffset)
+        .attr("width", maxW)
+        .attr("height", maxH)
+        .attr("font-family", "sans-serif");
+
+    svg.append("defs");
+    let gradient = d3.select("#plotting_svg")
+        .select("defs")
+        .append("linearGradient")
+        .attr("id", "arrowGradient");
+
+    gradient.append("stop")
+        .attr("offset", "5%")
+        .attr("stop-color", "white");
+
+    gradient.append("stop")
+        .attr("offset", "95%")
+        .attr("stop-color", "blue");
+
+    console.log('SVG set.');
+
+    console.log('Syncing...');
+    let userInfo = getCookie('userInfo');
+
+    if (!userInfo) throw Error('No user information. Please log in.');
+
+    userInfo = JSON.parse(userInfo);
+
+    let update = setInterval(async () => {
+        // error in updateGazePoints() is handled here
+        updateGazePoints(userInfo).catch(err => {
+            clearInterval(update);
+            console.log(err);
+        });
+    }, updateInterval*inferInterval);
+}
 
 async function signaling(endpoint, data, role) {
 // post...
@@ -293,6 +175,7 @@ async function updateGazePoints(userInfo) {
         identity
     ).then(res => {console.log(res); return res;})
     .then(result => {
+        result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));
         console.log(result.result);
         let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
 
@@ -305,6 +188,10 @@ async function updateGazePoints(userInfo) {
     });
     // error will be handled by parent function, because its async, error are returned in Promise
 }
+
+// ==============================================================
+// Socket.io timing control
+socket.on("teacher start", sync);
 
 // ==============================================================
 // LEGACY CODES

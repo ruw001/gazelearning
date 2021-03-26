@@ -41,7 +41,7 @@ const updateInterval = 5; // in second
 let userInfo;
 let cameraId;
 
-let detector = new EKDetector();
+let detector = (typeof EKDetector === 'function') ? new EKDetector() : undefined;
 
 let faceLostReported = false;
 let lastHiddenTimestamp;
@@ -377,3 +377,63 @@ function selectCamera() {
         console.log(err.name + ": " + err.message);
     });
 }
+
+// =====================Socket.io=====================
+// Socket connection to admin server
+const socket = io("/admin", {
+    autoConnect: false,
+});
+
+// SessionID should've been stored on index.html
+const sessionID = sessionStorage.getItem("sessionID");
+if (sessionID) {
+    socket.auth = { sessionID };
+    socket.connect();
+}
+
+socket.emit("ready");
+
+socket.on("delay", (delay) => {
+    // Change information on modal box
+    delay = delay / 1000; // in seconds
+    let seconds = Math.floor(delay) % 60;
+    delay = (delay - seconds) / 60; // in minutes
+    let minutes = Math.floor(delay) % 60;
+    delay = (delay - minutes) / 60; // in hours
+    let hours = Math.floor(delay);
+
+    if ( (hours === 0 && minutes <= 10) || (seconds < 0) || (minutes < 0) || (hours < 0) ) {
+        // Next lecture will start within 10 minutes
+        closeModal("before-lecture-modal");
+        // Student will be blocked by next modal dialog
+        if (document.getElementById("calibrateModal")) openModal("calibrateModal");
+    } else {
+        document.getElementById("countdown-description").innerText = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+        // Schedule removal of the modal box
+        let countdown = setInterval(() => {
+            [hours, minutes, seconds] = document.getElementById("countdown-description").innerText.split(':');
+            hours = +hours; minutes = +minutes; seconds = +seconds;
+
+            // countdown is over
+            if (hours === 0 && minutes === 10 && seconds === 0) {
+                clearInterval(countdown);
+                closeModal("before-lecture-modal");
+                // Student will be blocked by next modal dialog
+                if (document.getElementById("calibrateModal")) openModal("calibrateModal");
+            }
+
+            if (seconds === 0) {
+                seconds = 59;
+                if (minutes === 0 && hours > 0) {
+                    minutes = 59;
+                    hours = hours - 1;
+                } else {
+                    minutes = minutes - 1;
+                }
+            } else {
+                seconds = seconds - 1;
+            }
+            document.getElementById("countdown-description").innerText = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+        }, 1000);
+    }
+});

@@ -1,7 +1,7 @@
 // import { ZoomMtg } from '@zoomus/websdk';
 // var ZoomMtg = require('@zoomus/websdk');
 // ==============================================================
-document.addEventListener("DOMContentLoaded", () => openModal("calibrateModal"));
+document.addEventListener("DOMContentLoaded", () => openModal("before-lecture-modal"));
 document.addEventListener('visibilitychange', reportInattention)
 
 window.onload = async function () {
@@ -76,9 +76,10 @@ function systemStart(fastMode) {
         const camera = new Camera(videoElement, {
             onFrame: async () => {
                 if (collecting !== NOTCOLLECTING) {
+                    // make sure data collection starts first
                     await dataCollecting();
                 } else if (totalConfused === 0 && totalNeutral === 0) {
-
+                    // Collection is done. Do nothing.
                 }
             },
             width: 320,
@@ -87,15 +88,17 @@ function systemStart(fastMode) {
         });
         camera.start();
     }
+}
 
+socket.on("student start", () => {
     let infer = setInterval(() => {
         updateGazePoints()
-        .catch(err => {
-            clearInterval(infer);
-            console.log(err)
-        });
+            .catch(err => {
+                clearInterval(infer);
+                console.log(err)
+            });
     }, inferInterval);
-}
+});
 
 async function updateGazePoints() {
     // console.log(`identity ${identity}, studentNumber ${studentNumber}`) // debug line
@@ -112,19 +115,18 @@ async function updateGazePoints() {
 
 async function update() {
     // decide what to post, then post using function signaling()
-    let identity =  userInfo['identity']; //teacher(2) or student(1)
+    let identity = userInfo['identity']; //teacher(2) or student(1)
     let studentNumber = userInfo['number'];
 
     console.log('Updating student...');
-    // query()
-    // .then(() => {
+
     // Random test part
     // Math.random() returns a random number inclusive of 0, but not 1
     // only choose last two built-in gaze traces since they have timestamp information
-    // let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2) ) + 2;
+    // let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2)) + 2;
     // let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
     // let endTimestamp = beginTimestamp;
-    // while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval*1000) {
+    // while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval * 1000) {
     //     endTimestamp++;
     // }
     // timestamp_win = timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp);
@@ -132,81 +134,81 @@ async function update() {
     //     // confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
     //     confusion_win[i] = 'N/A';
     // }
-   // if (Math.random() > 0.5)  {
-    //   for (let i = 0; i < updateInterval; i++) {
-    //       confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
-    //   }
-  // }
-
+    // if (Math.random() > 0.5) {
+    //     for (let i = 0; i < updateInterval; i++) {
+    //         confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
+    //     }
+    // }
+    //
     // let samples = {
     //     x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
     //     y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
     //     t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
     // }
-        let samples = {
-            x: gazeX_win,
-            y: gazeY_win,
-            t: timestamp_win,
+
+    let samples = {
+        x: gazeX_win,
+        y: gazeY_win,
+        t: timestamp_win,
+    }
+
+    console.log(`Length of gaze ${gazeX_win.length}`);
+
+    let [fixations, saccades] = detector.detect(samples);
+
+    let any_confused = confusion_win.some((state) => state === 'Confused');
+    let all_noface = confusion_win.every((state) => state === 'N/A');
+
+    if (all_noface) {
+        if (!faceLostReported) {
+            // Do not keep notifying the student, just once.
+            faceLostReported = true;
+            new Audio('/media/audio/facelost.mp3').play().catch(err => console.log(err));
         }
+    } else if (faceLostReported) {
+        // Face is back, reset flag.
+        faceLostReported = false;
+    }
 
-        console.log(`Length of gaze ${gazeX_win.length}`);
-
-        let [fixations, saccades] = detector.detect(samples);
-
-        let any_confused = confusion_win.some((state) => state === 'Confused');
-        let all_noface = confusion_win.every((state) => state === 'N/A');
-
-        if (all_noface) {
-            if (!faceLostReported) {
-                // Do not keep notifying the student, just once.
-                faceLostReported = true;
-                new Audio('/media/audio/facelost.mp3').play().catch(err => console.log(err));
-            }
-        } else if (faceLostReported) {
-            // Face is back, reset flag.
-            faceLostReported = false;
-        }
-
-        let lastConfusedFixation = 0;
-        // Nested for loops for confusion/fixation binding
-        if (any_confused && fixations.length !== 0) {
-            for (const [i, state] of confusion_win.entries()) {
-                if (state === 'Confused') {
-                    let tConfusion = (i + 1)*inferInterval + timestamp_win[0];
-                    for (let fixation of fixations) {
-                        if (fixation.contain(tConfusion)) {
-                            fixation.incConfusionCount()
-                            lastConfusedFixation = fixations.indexOf(fixation);
-                        } else if (fixation.start >= tConfusion) {
-                            break;
-                        }
+    let lastConfusedFixation = 0;
+    // Nested for loops for confusion/fixation binding
+    if (any_confused && fixations.length !== 0) {
+        for (const [i, state] of confusion_win.entries()) {
+            if (state === 'Confused') {
+                let tConfusion = (i + 1) * inferInterval + timestamp_win[0];
+                for (let fixation of fixations) {
+                    if (fixation.contain(tConfusion)) {
+                        fixation.incConfusionCount()
+                        lastConfusedFixation = fixations.indexOf(fixation);
+                    } else if (fixation.start >= tConfusion) {
+                        break;
                     }
                 }
             }
         }
+    }
 
-        if (fixations[lastConfusedFixation].confusionCount > 0) {
-            console.log('draw box!')
-            showPromptBox(fixations[lastConfusedFixation], patch_w, patch_h);
-        } else {
-            showPromptBox(fixations[lastConfusedFixation], -1, -1); // -1 means to delete
-        }
+    if (fixations[lastConfusedFixation].confusionCount > 0) {
+        console.log('draw box!')
+        showPromptBox(fixations[lastConfusedFixation], patch_w, patch_h);
+    } else {
+        showPromptBox(fixations[lastConfusedFixation], -1, -1); // -1 means to delete
+    }
 
-        gazeX_win = [];
-        gazeY_win = [];
-        timestamp_win = [];
-        confusion_win = [];
+    gazeX_win = [];
+    gazeY_win = [];
+    timestamp_win = [];
+    confusion_win = [];
 
-        signaling(
-            '/gazeData/sync',
-            {
-                stuNum: studentNumber,
-                fixations: fixations,
-                saccades: saccades,
-            },
-            identity
-        );
-    // });
+    signaling(
+        '/gazeData/sync',
+        {
+            stuNum: studentNumber,
+            fixations: fixations.map(fixation => fixation.data),
+            saccades: saccades,
+        },
+        identity
+    );
 }
 
 async function signaling(endpoint, data, role) {
@@ -225,6 +227,7 @@ async function signaling(endpoint, data, role) {
 // ==============================================================
 // confusion detection functions
 async function query() {
+    // this function is not used
     let i;
     document.getElementById('plotting_svg').innerHTML = '';
     console.log(gaze_win);

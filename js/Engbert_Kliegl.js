@@ -52,6 +52,9 @@ function detectFixations(samples, lambda=6, smooth_coordinates=false, smooth_sac
     let [fixations, saccades] = aggregateFixations(samples);
 
     removeArtifacts(fixations);
+    // @TODO:
+    // 1. Filter our outliers
+    // 2. Change to 5-nearest-neighbor graph
 
     return [fixations, saccades];
 }
