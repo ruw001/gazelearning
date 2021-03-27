@@ -12,6 +12,7 @@ import logging
 from sklearn.datasets import make_circles
 from sklearn.neighbors import kneighbors_graph
 from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
 app = Flask(__name__)
 
@@ -28,8 +29,17 @@ def index():
 def spectral_clustering(fx, fy):
     dist = np.sqrt(np.power(fx.reshape(-1, 1) - fx.reshape(1, -1),
                             2) + np.power(fy.reshape(-1, 1) - fy.reshape(1, -1), 2))
-    sigma = 0.75
-    A = np.exp(-dist/(2*sigma**2))
+    # sigma = 0.75
+    # A = np.exp(-dist/(2*sigma**2))
+    # D_inv = np.diag(1/A.sum(axis=1))
+    # L = np.eye(A.shape[0]) - np.matmul(D_inv, A)  # L is laplacian
+
+    # create the graph laplacian
+    # A is the weight/affinity matrix
+
+    beta = 25
+    A = np.exp(-beta * dist / dist.std())
+    # A = kneighbors_graph(fixations, n_neighbors=5).toarray()
     D_inv = np.diag(1/A.sum(axis=1))
     L = np.eye(A.shape[0]) - np.matmul(D_inv, A)  # L is laplacian
 
@@ -42,27 +52,63 @@ def spectral_clustering(fx, fy):
 
     # use Fiedler value to find best cut to separate data
     # No more than half the points count classes
-    k = np.argmax(np.diff(vals[:vals.shape[0]//2])) + 1
+    k = np.argmax(np.diff(vals[:vals.shape[0]//2+1])) + 1
 
-    clusters = KMeans(n_clusters=k).fit(np.real(vecs[:, 0:3])).labels_
+    # print('max k', vals.shape[0]//2+1)
+    print('optimal K (Fiedler):', k)
 
-    print(clusters)
+    X = np.real(vecs[:, 0:3])
 
-    return list(clusters)
+    # if k < 2:
+    # labels = KMeans(n_clusters=k).fit(X).labels_
+    # return [int(c) for c in labels]
+
+    best_k = 0
+    best_cluster = []
+    best_sil = -1
+
+    max_k = X.shape[0]
+
+    points = np.stack([fx, fy], axis=-1)
+
+    print('max k', max_k)
+    for k in range(2, max_k):
+        # labels = KMeans(n_clusters=k).fit(X).labels_
+        labels = KMeans(n_clusters=k).fit(points).labels_
+        sil = silhouette_score(points, labels)
+        if sil >= best_sil:
+            best_sil = sil
+            best_k = k
+            best_cluster = labels
+        
+        print(k, sil, labels)
+    
+    print('sil best:', best_k, best_sil, best_cluster)
+
+    return [int(c) for c in best_cluster]
 
 @app.route('/clustering', methods=['POST'])
 def clustering_response():
     data = request.data  # .decode('utf-8')
     data = json.loads(data)
-    print(data)
     # print(data)
-    fx = np.array(data['x'])
-    fy = np.array(data['y'])
+    fx = []
+    fy = []
+
+    # print(data)
+
+    for d in data:
+        d = d['data']
+        fx.append(d['x_per'])
+        fy.append(d['y_per'])
+
+    fx = np.array(fx)
+    fy = np.array(fy)
 
     clusters = spectral_clustering(fx, fy)
     
     resp = flask.Response()
-    resp.set_data(json.dumps({'body': {'result': clusters}}))
+    resp.set_data(json.dumps({'result': clusters}))
     resp.headers['Access-Control-Allow-Origin'] = '*'
     resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     resp.headers["Access-Control-Allow-Headers"] = "x-api-key,Content-Type"
