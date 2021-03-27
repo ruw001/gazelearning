@@ -18,11 +18,13 @@ class Fixation{
             this.data.xmax_per = tf.max(this.data.xall).squeeze().dataSync()[0];
             this.data.xmin_per = tf.min(this.data.xall).squeeze().dataSync()[0];
             this.data.xmad_per = get_median(this.data.xall.sub(get_median(this.data.xall))).dataSync()[0];
+            this.data.xvar_per = tf.moments(this.data.xall).variance.sqrt().dataSync()[0];
 
             this.data.y_per = tf.mean(this.data.yall).squeeze().dataSync()[0];
             this.data.ymax_per = tf.max(this.data.yall).squeeze().dataSync()[0];
             this.data.ymin_per = tf.min(this.data.yall).squeeze().dataSync()[0];
             this.data.ymad_per = get_median(this.data.yall.sub(get_median(this.data.yall))).dataSync()[0];
+            this.data.yvar_per = tf.moments(this.data.yall).variance.sqrt().dataSync()[0];
 
             if (!(x_coords instanceof Array)) {
                 this.data.xall = this.data.xall.squeeze().dataSync()[0];
@@ -109,8 +111,9 @@ class Fixation{
     drawId(ctx, index, r=10, fontsize=16) {
         ctx.font = fontsize+'px serif';
         ctx.fillText(index, this.x+r, this.y+r);
-        console.log(this.x);
-        console.log(this.y);
+        // ctx.fillText(this.xvar.print() + ', ' + this.yvar.print(), this.x + 2*r, this.y + r);
+        // console.log(this.x);
+        // console.log(this.y);
     }
 
     drawRectArea(ctx, color='#0B5345') {

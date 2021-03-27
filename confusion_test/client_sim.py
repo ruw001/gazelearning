@@ -77,7 +77,7 @@ def sendRequest(pID):
         outfile.write(res + '\n')
 
 threaded = True
-num_threads = 5
+num_threads = 15
 if threaded:
     request_threads = []
     for i in range(num_threads):
