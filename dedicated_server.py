@@ -117,8 +117,8 @@ def teacher_post():
             for k,v in all_saccades.items():
                 for sac in v:
                     saccadeFlat.append(sac)
-            fixationX = np.array([fix['data']['x_per'] for fix in fixationFlat])
-            fixationY = np.array([fix['data']['y_per'] for fix in fixationFlat])
+            fixationX = np.array([fix['x_per'] for fix in fixationFlat])
+            fixationY = np.array([fix['y_per'] for fix in fixationFlat])
 
             print('Fixations to cluster: {}'.format(len(fixationX)))
 
