@@ -5,6 +5,14 @@ document.addEventListener("DOMContentLoaded", () => openModal("before-lecture-mo
 document.addEventListener('visibilitychange', reportInattention)
 
 window.onload = async function () {
+    // Fetch experiment setting
+    try {
+        await fetchSetting();
+    } catch (e) {
+        console.log('Failed to fetch experiment setting.');
+        console.log(e)
+    }
+
     //////set callbacks for GazeCloudAPI/////////
     GazeCloudAPI.OnCalibrationComplete = function () {
         console.log('gaze Calibration Complete');
@@ -12,7 +20,8 @@ window.onload = async function () {
         var pos = findAbsolutePosition(document.getElementById('container'));
         hm_left = pos.left;
         hm_top = pos.top;
-        openModal('initModal');
+        // [Adaptive] Follow openModal function to see how to adapt to different experiment settings
+        if (cogInfo) openModal('initModal');
     }
     GazeCloudAPI.OnCamDenied = function () { console.log('camera access denied') }
     GazeCloudAPI.OnError = function (msg) { console.log('err: ' + msg) }
@@ -58,6 +67,8 @@ window.onload = async function () {
     userInfo = JSON.parse(userInfo);
 
     selectCamera();
+
+    socket.emit("ready");
 }
 
 // @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
@@ -90,7 +101,10 @@ function systemStart(fastMode) {
     }
 }
 
+// [Entry 2] Lecture
 socket.on("student start", () => {
+    if ( !(gazeInfo || cogInfo) ) return; // Nothing happens
+
     let infer = setInterval(() => {
         updateGazePoints()
             .catch(err => {
@@ -101,7 +115,7 @@ socket.on("student start", () => {
 });
 
 async function updateGazePoints() {
-    // console.log(`identity ${identity}, studentNumber ${studentNumber}`) // debug line
+    // Facial expression collection is not finished yet
     if (totalConfused !== 0 || totalNeutral !== 0) return;
 
     stateInference().then(()=>{
@@ -120,40 +134,71 @@ async function update() {
 
     console.log('Updating student...');
 
-    // Random test part
-    // Math.random() returns a random number inclusive of 0, but not 1
-    // only choose last two built-in gaze traces since they have timestamp information
-    // let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2)) + 2;
-    // let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
-    // let endTimestamp = beginTimestamp;
-    // while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval * 1000) {
-    //     endTimestamp++;
-    // }
-    // timestamp_win = timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp);
-    // for (let i = 0; i < updateInterval; i++) {
-    //     // confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
-    //     confusion_win[i] = 'N/A';
-    // }
-    // if (Math.random() > 0.5) {
-    //     for (let i = 0; i < updateInterval; i++) {
-    //         confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
-    //     }
-    // }
-    //
-    // let samples = {
-    //     x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-    //     y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-    //     t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
-    // }
+    let samples;
+    if (RANDOM) {
+        // ==============================================================
+        // Random test part
+        // Math.random() returns a random number inclusive of 0, but not 1
+        // only choose last two built-in gaze traces since they have timestamp information
+        // ==============================================================
+        let randomGazeIndex = Math.floor(Math.random() * (GazeX.length - 2)) + 2;
+        let beginTimestamp = Math.floor(Math.random() * timestamp[randomGazeIndex].length * 0.75);
+        let endTimestamp = beginTimestamp;
+        while (timestamp[randomGazeIndex][endTimestamp] - timestamp[randomGazeIndex][beginTimestamp] < updateInterval * 1000) {
+            endTimestamp++;
+        }
+        timestamp_win = timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp);
+        for (let i = 0; i < updateInterval; i++) {
+            confusion_win[i] = 'N/A';
+        }
+        if (Math.random() > 0.5) {
+            for (let i = 0; i < updateInterval; i++) {
+                confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
+            }
+        }
 
-    let samples = {
-        x: gazeX_win,
-        y: gazeY_win,
-        t: timestamp_win,
+        samples = {
+            x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+            y: GazeY[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+            t: timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp),
+        };
+    } else {
+        samples = {
+            x: gazeX_win,
+            y: gazeY_win,
+            t: timestamp_win,
+        };
     }
 
     console.log(`Length of gaze ${gazeX_win.length}`);
 
+    let fixations = [],
+        saccades = [];
+    // [Adaptive]
+    if (gazeInfo) [fixations, saccades] = fixationConfusionBinding(samples);
+
+    signaling(
+        '/gazeData/sync',
+        {
+            stuNum: studentNumber,
+            fixations: fixations.length === 0 ? fixations : fixations.map(fixation => fixation.data),
+            saccades: saccades,
+            cognitive: {
+                confusion: confusion_win,
+                inattention: inattention_counter,
+            }
+        },
+        identity
+    );
+
+    gazeX_win = [];
+    gazeY_win = [];
+    timestamp_win = [];
+    confusion_win = [];
+    inattention_counter = 0;
+}
+
+function fixationConfusionBinding (samples) {
     let [fixations, saccades] = detector.detect(samples);
 
     let any_confused = confusion_win.some((state) => state === 'Confused');
@@ -195,20 +240,7 @@ async function update() {
         showPromptBox(fixations[lastConfusedFixation], -1, -1); // -1 means to delete
     }
 
-    gazeX_win = [];
-    gazeY_win = [];
-    timestamp_win = [];
-    confusion_win = [];
-
-    signaling(
-        '/gazeData/sync',
-        {
-            stuNum: studentNumber,
-            fixations: fixations.map(fixation => fixation.data),
-            saccades: saccades,
-        },
-        identity
-    );
+    return [fixations, saccades];
 }
 
 async function signaling(endpoint, data, role) {
@@ -473,7 +505,10 @@ function reportInattention() {
     if (document.visibilityState === 'hidden') {
         lastHiddenTimestamp = new Date().getTime();
         setTimeout(()=>{
-            if (lastHiddenTimestamp) new Audio('/media/audio/alert.mp3').play().catch(err => console.log(err));
+            if (lastHiddenTimestamp) {
+                inattention_counter++;
+                new Audio('/media/audio/alert.mp3').play().catch(err => console.log(err));
+            }
         }, updateInterval*inferInterval)
     } else if (document.visibilityState === 'visible') {
         lastHiddenTimestamp = 0;

@@ -19,49 +19,60 @@ let all_fixations = new Map();
 let all_saccades = new Map();
 let last_seen = {};
 
+// Deploy or test locally
+const DEPLOY = true;
+
 app.get('/',(req, res) => {
-    // When deployed on k8s
-    res.send(`<h1>Dedicated server is on.</h1>`);
-    // When testing locally
-    // res.sendFile(path.join(__dirname, 'index.html'));
+    if (DEPLOY) {
+        // When deployed on k8s
+        res.send(`<h1>Dedicated server is on.</h1>`);
+    } else {
+        // When testing locally
+        res.sendFile(path.join(__dirname, 'index.html'));
+    }
 })
 
 // ===================================
 // When testing locally
-// const multipart = require("connect-multiparty");
-// var fs = require('fs');
-//
-// const multipartyModdleware = multipart();
-// const FILEPATH = 'D:/gazelearning/confusion_test/data_temp';
-// // please change to local filepath where gaze/face will be stored
-//
-// app.use(express.static('./'));
-//
-// app.post('/users', multipartyModdleware, function (req, res, next) {
-//     let content = req.body;
-//     console.log(content);
-//
-//     if ( content['student-number'] && !fs.existsSync( path.join(FILEPATH, content['student-number'],'/gaze') ) ) {
-//         fs.mkdir(path.join(FILEPATH, content['student-number'],'/gaze'),
-//             { recursive: true },
-//             (err) => {
-//                 if (err) throw err;
-//             });
-//     }
-//
-//     res.cookie(
-//         'userInfo',
-//         JSON.stringify({'identity': content.identity,
-//             'number': content['student-number'] ? content['student-number'] : null,})
-//     );
-//
-//     res.format({'application/json': function(){
-//             res.send({ message: 'Cookie set.' });
-//         }
-//     });
-//
-//     res.send();
-// });
+if (!DEPLOY) {
+    const multipart = require("connect-multiparty");
+    const fs = require('fs');
+
+    const multipartyModdleware = multipart();
+    const FILEPATH = 'D:/gazelearning/confusion_test/data_temp';
+// please change to local filepath where gaze/face will be stored
+
+    app.use(express.static('./'));
+
+    app.post('/users', multipartyModdleware, function (req, res, next) {
+        let content = req.body;
+        console.log(content);
+
+        if (content['student-number'] && !fs.existsSync(path.join(FILEPATH, content['student-number'], '/gaze'))) {
+            fs.mkdir(path.join(FILEPATH, content['student-number'], '/gaze'),
+                {recursive: true},
+                (err) => {
+                    if (err) throw err;
+                });
+        }
+
+        res.cookie(
+            'userInfo',
+            JSON.stringify({
+                'identity': content.identity,
+                'number': content['student-number'] ? content['student-number'] : null,
+            })
+        );
+
+        res.format({
+            'application/json': function () {
+                res.send({message: 'Cookie set.'});
+            }
+        });
+
+        res.send();
+    });
+}
 
 // ===================================
 // Deployment code on k8s
@@ -177,7 +188,7 @@ registeredTrials.push(new Trial({
     title: 'Introduction in Linear Algebra',
     abstract: 'This lecture will briefly introduce some basic concepts in linear algebra, such as vector, matrix and rules of calculation.',
     instructor: 'David Liu',
-    time: (new Date('Thu Mar 26 2021 22:00:00 GMT+0800')).getTime(),
+    time: (new Date('Mon Mar 29 2021 22:00:00 GMT+0800')).getTime(),
     zoomid: '71123774899',
 }, {
     gazeinfo: true,
