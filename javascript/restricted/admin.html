@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin page of CogTeach</title>
+    <meta name="format-detection" content="telephone=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <!--  Socket.io  -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.1.1/socket.io.js"></script>
+    <!--  Bootstrap and related helpers  -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"
+            integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN"
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"
+            integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q"
+            crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"
+            integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl"
+            crossorigin="anonymous"></script>
+    <!--  Zoom and visualization  -->
+    <script src="../public/js/webgazer.js"></script>
+    <script src="https://unpkg.com/mathjs@8.0.1/lib/browser/math.js"></script>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script src="../public/js/gazeClass.js"></script>
+    <!--Custome styles-->
+    <style type="text/css">
+        img {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            margin-top: 5%;
+            width: 80%;
+        }
+
+        /*#container {*/
+        /*    margin-left: auto;*/
+        /*    margin-right: auto;*/
+        /*    width: 100%;*/
+        /*    height: 100%;*/
+        /*}*/
+
+        #websdk-iframe {
+            width: 100%;
+            height: 80%;
+            border: 1px;
+            border-color: red;
+            border-style: dashed;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            margin: 0;
+        }
+
+        #plotting_svg {
+            position: absolute;
+            z-index: 100;
+        }
+
+        .invisible {
+            visibility: hidden;
+        }
+    </style>
+
+</head>
+<body>
+
+<nav>
+    <div class="nav nav-tabs" id="nav-tab" role="tablist">
+        <a class="nav-item nav-link active" id="nav-home-tab" data-toggle="tab" href="#nav-info-hub" role="tab"
+           aria-controls="nav-home" aria-selected="true">Info Hub</a>
+        <a class="nav-item nav-link" id="nav-profile-tab" data-toggle="tab" href="#nav-zoom" role="tab"
+           aria-controls="nav-profile" aria-selected="false">Zoom</a>
+    </div>
+</nav>
+
+<div class="tab-content" id="nav-tabContent">
+    <div class="tab-pane fade show active" id="nav-info-hub" role="tabpanel" aria-labelledby="nav-home-tab">
+        <div class="card-columns">
+            <div class="card" id="post-card">
+                <div class="card-body">
+                    <h5 class="card-title">Post trial information</h5>
+                    <form>
+                        <div class="form-group">
+                            <label for="post-lecture-title">Lecture title</label>
+                            <input type="text" class="form-control" id="post-lecture-title">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="post-lecture-abstract">Lecture abstract</label>
+                            <textarea class="form-control" id="post-lecture-abstract" rows="3"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="post-lecture-instructor">Lecture instructor</label>
+                            <input type="text" class="form-control" id="post-lecture-instructor">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="post-lecture-time">Lecture time</label>
+                            <div class="form-row">
+                                <div class="col">
+                                    <input type="date" class="form-control" id="post-lecture-date">
+                                </div>
+                                <div class="col">
+                                    <input type="time" class="form-control" id="post-lecture-time">
+                                </div>
+                                <div class="col">
+                                    <select class="form-control" id="post-timezone">
+                                        <option value="-0700">PST</option>
+                                        <option value="-0600">MST</option>
+                                        <option value="-0500">CST</option>
+                                        <option value="-0400">EST</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="post-lecture-zoomid">Lecture Zoom ID</label>
+                            <input type="text" class="form-control" id="post-lecture-zoomid">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="post-lecture-title">Gaze information</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="gazeinfo" id="gazeinfo-true"
+                                       value="true">
+                                <label class="form-check-label" for="gazeinfo-true">On</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="gazeinfo" id="gazeinfo-false"
+                                       value="false">
+                                <label class="form-check-label" for="gazeinfo-false">Off</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="post-lecture-title">Cognitive information</label>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="coginfo" id="coginfo-true"
+                                       value="true">
+                                <label class="form-check-label" for="coginfo-true">On</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="coginfo" id="coginfo-false"
+                                       value="false">
+                                <label class="form-check-label" for="coginfo-false">Off</label>
+                            </div>
+                        </div>
+
+                        <button id="post-btn" class="btn btn-primary">Submit</button>
+                        <input type="button" id="clear-btn" class="btn btn-secondary" onclick="clearCard()"
+                               value="Clear">
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title" id="name-title">Participant List</h3>
+                </div>
+                <ul class="list-group list-group-flush" id="name-list">
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <h3 class="card-title" id="countdown-title">Next trial will start within:</h3>
+                    <p class="card-text" id="countdown-description"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="nav-zoom" role="tabpanel" aria-labelledby="nav-profile-tab">
+        <div id="container" ondblclick="e.preventDefault();">
+            <svg id="plotting_svg"></svg>
+            <!--<img src='regression.jpg'>-->
+        </div>
+    </div>
+</div>
+
+
+<script>
+    let allTrials;
+    const ADMIN = 3;
+
+    // =====================Socket.io=====================
+    // Socket connection to admin server
+    const socket = io("/admin", {
+        autoConnect: false,
+        auth: {
+            identity: ADMIN,
+            name: 'Administrator',
+        }
+    });
+
+    const sessionID = sessionStorage.getItem("sessionID");
+    if (sessionID) {
+        socket.auth = {sessionID}; // assignment are converted to object merge, do not overwrite
+    }
+    socket.connect();
+
+    socket.on('users', (users) => {
+        // Delete all existing list
+        let ul = document.getElementById("name-list");
+        ul.innerHTML = '';
+
+        // Add new user li
+        users.sort((a, b) => {
+            if (a.name !== b.name) {
+                if (a.name === 'Administrator') return -1;
+                if (b.name === 'Administrator') return 1;
+                if (a.name === 'Instructor') return -1;
+                if (b.name === 'Instructor') return 1;
+                return a.name.localeCompare(b.name);
+            } else {
+                return 0
+            }
+        });
+        for (let user of users) {
+            let new_li = document.createElement('li');
+            new_li.className = "list-group-item";
+            new_li.innerText = user.name;
+            ul.insertAdjacentElement('beforeend', new_li);
+        }
+    });
+
+    socket.on("session", ({sessionID, userID}) => {
+        // attach the session ID to the next reconnection attempts
+        socket.auth = {sessionID};
+        // store it in the sessionStorage
+        sessionStorage.setItem("sessionID", sessionID);
+        // save the ID of the user
+        socket.userID = userID;
+    });
+
+    // =====================HTTP====================
+    // HTTP functions
+
+    window.onload = function () {
+        fetch('/admin/trials')
+            .then(res => res.json())
+            .then(trials => {
+                allTrials = trials;
+                // Add trial description card
+                trials.forEach((trial, trialno) => {
+                    console.log(`#${trialno + 1} trial.`)
+                    document.getElementById("post-card").insertAdjacentHTML('beforebegin', trialCardTemplate(trialno, trial));
+                });
+
+                // Update countdown information
+                updateDelay();
+            });
+    }
+
+    let trialCardTemplate = function (trialno, info) {
+        return `<div class="card" id="card-${trialno}">
+                <div class="card-body">
+                    <h3 class="card-title" id="trial-title-${trialno}">Trial No.${trialno + 1}</h3>
+                    <h5 class="card-title" id="lecture-title-${trialno}">${info.lecture.title}</h5>
+                    <p class="card-text" id="lecture-abstract-${trialno}">${info.lecture.abstract}</p>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item" id="lecture-instructor-${trialno}"><b>Instructor</b>: ${info.lecture.instructor}</li>
+                    <li class="list-group-item" id="lecture-time-${trialno}"><b>Time</b>: ${new Date(info.lecture.time)}</li>
+                    <li class="list-group-item" id="lecture-zoomid-${trialno}"><b>Zoom ID</b>: ${info.lecture.zoomid}</li>
+                </ul>
+
+                <div class="card-body">
+                    <h5 class="card-title" id="setting-title-${trialno}">Experiment Setting</h5>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item" id="setting-gazeinfo-${trialno}">Gaze Info: ${info.setting.gazeinfo ? 'On' : 'Off'}</li>
+                    <li class="list-group-item" id="setting-coginfo-${trialno}">Cog Info: ${info.setting.coginfo ? 'On' : 'Off'}</li>
+                </ul>
+
+                <div class="card-footer">
+                    <button id="edit-btn-${trialno}" class="btn btn-secondary" onclick="switchCard(${trialno})">Edit</button>
+                    <button id="delete-btn-${trialno}" class="btn btn-danger" onclick="deleteCard(${trialno})">Delete</button>
+                </div>
+            </div>`
+    };
+
+    let trialEditTemplate = function (trialno, info) {
+        return `<div class="card-body">
+                <h5 class="card-title">Editing trial ${trialno} information</h5>
+
+                <label for="edit-lecture-title-${trialno}">Lecture title</label>
+                <input type="text" class="form-control" id="edit-lecture-title-${trialno}" value="${info.lecture.title}">
+
+                <label for="edit-lecture-abstract-${trialno}">Lecture abstract</label>
+                <textarea class="form-control" id="edit-lecture-abstract-${trialno}" rows="3">${info.lecture.abstract}</textarea>
+
+                <label for="edit-lecture-instructor-${trialno}">Lecture instructor</label>
+                <input type="text" class="form-control" id="edit-lecture-instructor-${trialno}" value="${info.lecture.instructor}">
+
+                <label for="edit-lecture-time-${trialno}">Lecture time</label>
+                <div class="row">
+                    <div class="col">
+                        <input type="date" class="form-control" id="edit-lecture-date-${trialno}">
+                    </div>
+                    <div class="col">
+                        <input type="time" class="form-control" id="edit-lecture-time-${trialno}">
+                    </div>
+                    <div class="col">
+                        <select class="form-control" id="edit-timezone-${trialno}">
+                            <option value="-0700">PST</option>
+                            <option value="-0600">MST</option>
+                            <option value="-0500">CST</option>
+                            <option value="-0400">EST</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label for="edit-lecture-zoomid-${trialno}">Lecture Zoom ID</label>
+                <input type="text" class="form-control" id="edit-lecture-zoomid-${trialno}" value="${info.lecture.zoomid}">
+
+                <label for="edit-lecture-title-${trialno}">Gaze information</label>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="gazeinfo" id="gazeinfo-true-${trialno}" value="true" ${info.setting.gazeinfo ? "checked" : ""}>
+                    <label class="form-check-label" for="gaze-info-true">On</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="gazeinfo" id="gazeinfo-false-${trialno}" value="false" ${info.setting.gazeinfo ? "" : "checked"}>
+                    <label class="form-check-label" for="gaze-info-false">Off</label>
+                </div>
+                <br>
+                <label for="edit-lecture-title-${trialno}">Cognitive information</label>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="coginfo" id="coginfo-true-${trialno}" value="true" ${info.setting.coginfo ? "checked" : ""}>
+                    <label class="form-check-label" for="cog-info-true">On</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="coginfo" id="coginfo-false-${trialno}" value="false" ${info.setting.coginfo ? "" : "checked"}>
+                    <label class="form-check-label" for="cog-info-false">Off</label>
+                </div>
+
+                <div class="card-footer">
+                    <button id="post-btn-${trialno}" class="btn btn-primary" onclick="updateCard(${trialno})">Submit</button>
+                    <button id="clear-btn-${trialno}" class="btn btn-secondary" onclick="resetCard(${trialno})">Cancel</button>
+                </div>
+            </div>`;
+    }
+
+    // =====Change card from display to editable form
+    function switchCard(trialno) {
+        // Retrieve information of instructor, Zoom ID and time from display card
+        let instructor = document.getElementById(`lecture-instructor-${trialno}`).innerText.split(' ');
+        instructor = instructor.slice(1, instructor.length).join(' ');
+        let zoomid = document.getElementById(`lecture-zoomid-${trialno}`).innerText.split(' ');
+        zoomid = +zoomid[zoomid.length - 1];
+        let lectureDate = new Date(document.getElementById(`lecture-time-${trialno}`).innerText);
+        console.log(lectureDate);
+
+        // Format edit template
+        document.getElementById(`card-${trialno}`).innerHTML = trialEditTemplate(
+            trialno,
+            {
+                lecture: {
+                    title: document.getElementById(`lecture-title-${trialno}`).innerText,
+                    abstract: document.getElementById(`lecture-abstract-${trialno}`).innerText,
+                    instructor,
+                    time: document.getElementById(`lecture-time-${trialno}`).innerText,
+                    zoomid,
+                },
+                setting: {
+                    gazeinfo: document.getElementById(`setting-gazeinfo-${trialno}`).innerText.indexOf('On') >= 0,
+                    coginfo: document.getElementById(`setting-coginfo-${trialno}`).innerText.indexOf('On') >= 0,
+                },
+            }
+        );
+
+        // Handling time
+        document.getElementById(`edit-lecture-date-${trialno}`).value = `${lectureDate.getFullYear()}-${
+            lectureDate.getMonth() + 1 < 10 ? '0' + (lectureDate.getMonth() + 1) : lectureDate.getMonth() + 1
+        }-${
+            lectureDate.getDate() < 10 ? '0' + lectureDate.getDate() : lectureDate.getDate()
+        }`;
+        document.getElementById(`edit-lecture-time-${trialno}`).value = `${
+            lectureDate.getHours() < 10 ? '0' + lectureDate.getHours() : lectureDate.getHours()
+        }:${
+            lectureDate.getMinutes() < 10 ? '0' + lectureDate.getMinutes() : lectureDate.getMinutes()
+        }`;
+        let offset = -lectureDate.getTimezoneOffset() / 60;
+        switch (offset) {
+            case 4:
+            case 5:
+            case 6:
+            case 7:
+                document.getElementById(`edit-timezone-${trialno}`).value = `-0${offset}00`;
+                break
+            default:
+                // Cause Dongyin is testing in China... Use PST as default
+                document.getElementById(`edit-timezone-${trialno}`).value = `-0800`;
+        }
+    }
+
+    function resetCard(trialno) {
+        document.getElementById(`card-${trialno}`).innerHTML = trialCardTemplate(trialno, allTrials[trialno]);
+    }
+
+    function clearCard() {
+        // Clear lecture related information
+        let fields = document.querySelectorAll('[id^="post-lecture"]');
+        fields.forEach((field) => {
+            if (field.tagName === "INPUT") {
+                field.value = '';
+            } else if (field.tagName === "TEXTAREA") {
+                field.value = '';
+            }
+        });
+        // Clear experiment information
+        if (document.getElementById("gazeinfo-true").checked) document.getElementById("gazeinfo-true").checked = false;
+        if (document.getElementById("gazeinfo-false").checked) document.getElementById("gazeinfo-false").checked = false;
+        if (document.getElementById("coginfo-true").checked) document.getElementById("coginfo-true").checked = false;
+        if (document.getElementById("coginfo-false").checked) document.getElementById("coginfo-false").checked = false;
+    }
+
+    // =====Communication with dedicated server
+    // {verb: add, lecture: lecture-info, setting: setting-info}
+    // {verb: delete, trialno: index}
+    // {verb: update, trialno: index, info: info}
+    function addCard(e) {
+        e.preventDefault(); // We will handle submit
+        let postBody = JSON.stringify({
+            verb: 'add',
+            lecture: {
+                title: document.getElementById(`post-lecture-title`).value,
+                abstract: document.getElementById(`post-lecture-abstract`).value,
+                instructor: document.getElementById(`post-lecture-instructor`).value,
+                time: (new Date([document.getElementById(`post-lecture-date`).value,
+                    document.getElementById(`post-lecture-time`).value,
+                    'GMT',
+                    document.getElementById(`post-timezone`).value].join(' '))).getTime(),
+                zoomid: +document.getElementById(`post-lecture-zoomid`).value,
+            },
+            setting: {
+                gazeinfo: document.getElementById(`gazeinfo-true`).checked,
+                coginfo: document.getElementById(`coginfo-true`).checked,
+            },
+        });
+        console.log(postBody);
+        fetch('/admin/trials', {
+            method: 'POST',
+            body: postBody,
+        }).then(response => {
+            if (response.ok) {
+                alert("User information posted.");
+                location.reload();
+            }
+        }).catch(err => {
+            console.error(err);
+        });
+    }
+
+    document.addEventListener("submit", addCard); // We will handle submit
+
+    function updateCard(trialno) {
+        let postBody = JSON.stringify({
+            verb: 'update',
+            trialno,
+            info: {
+                lecture: {
+                    title: document.getElementById(`edit-lecture-title-${trialno}`).value,
+                    abstract: document.getElementById(`edit-lecture-abstract-${trialno}`).value,
+                    instructor: document.getElementById(`edit-lecture-instructor-${trialno}`).value,
+                    time: (new Date([document.getElementById(`edit-lecture-date-${trialno}`).value,
+                        document.getElementById(`edit-lecture-time-${trialno}`).value,
+                        'GMT',
+                        document.getElementById(`edit-timezone-${trialno}`).value].join(' '))).getTime(),
+                    zoomid: document.getElementById(`edit-lecture-zoomid-${trialno}`).value,
+                },
+                setting: {
+                    gazeinfo: document.getElementById(`gazeinfo-true-${trialno}`).checked,
+                    coginfo: document.getElementById(`coginfo-true-${trialno}`).checked,
+                },
+            },
+        })
+        console.log(postBody);
+        fetch('/admin/trials', {
+            method: 'POST',
+            body: postBody,
+        }).then(response => {
+            if (response.ok) {
+                alert("User information updated.");
+                location.reload();
+            }
+        }).catch(err => {
+            console.error(err);
+        });
+    }
+
+    function deleteCard(trialno) {
+        fetch('/admin/trials', {
+            method: 'POST',
+            body: JSON.stringify({
+                verb: 'delete',
+                trialno,
+            }),
+        }).then(response => {
+            if (response.ok) {
+                alert("User information deleted.");
+                location.reload();
+            }
+        }).catch(err => {
+            console.error(err);
+        });
+    }
+
+    //=====Update information on countdown card
+    function updateDelay() {
+        if (allTrials.length === 0) {
+            document.getElementById("countdown-description").innerText = 'No trial is registered on server.'
+        } else {
+            let i = 0;
+            while (i < allTrials.length) {
+                const delay = allTrials[i].lecture.time - Date.now();
+                if (delay < 0) {
+                    ++i;
+                    continue;
+                } else {
+                    updateCountdown(delay);
+                    break;
+                }
+            }
+
+            if (i === allTrials.length) document.getElementById("countdown-description").innerText = 'All registered trials expired.'
+        }
+    }
+
+    function updateCountdown(delay) {
+        // Change information on modal box
+        delay = delay / 1000; // in seconds
+        let seconds = Math.floor(delay) % 60;
+        delay = (delay - seconds) / 60; // in minutes
+        let minutes = Math.floor(delay) % 60;
+        delay = (delay - minutes) / 60; // in hours
+        let hours = Math.floor(delay);
+
+        document.getElementById("countdown-description").innerText = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+        // Schedule removal of the modal box
+        let countdown = setInterval(() => {
+            [hours, minutes, seconds] = document.getElementById("countdown-description").innerText.split(':');
+            hours = +hours;
+            minutes = +minutes;
+            seconds = +seconds;
+
+            // countdown is over
+            if (hours === 0 && minutes === 10 && seconds === 0) {
+                clearInterval(countdown);
+                document.getElementById("countdown-description").innerText = 'Trial begins. Refresh page to update.';
+            }
+
+            if (seconds === 0) {
+                seconds = 59;
+                if (minutes === 0 && hours > 0) {
+                    minutes = 59;
+                    hours = hours - 1;
+                } else {
+                    minutes = minutes - 1;
+                }
+            } else {
+                seconds = seconds - 1;
+            }
+            document.getElementById("countdown-description").innerText = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
+        }, 1000);
+    }
+
+    // =====================Bootstrap navigation bar=====================
+    $('#nav-tab a').on('click', function (e) {
+        e.preventDefault();
+        $(this).tab('show');
+    })
+
+</script>
+
+<script src="../public/js/Zoom/tool.js"></script>
+<script src="../public/js/Zoom/embed.js"></script>
+
+<script>
+    const TEACHER = 2,
+        updateInterval = 5,
+        inferInterval = 1000;
+    let maxH,
+        maxW,
+        xOffset,
+        yOffset,
+        navbar_offset;
+
+    // Basically come from client.js, but have to make some modifications
+    async function sync() {
+        // 2021.1.4 instead of canvas, the visualization is moved to SVG.
+        let containerRect = document.getElementById("websdk-iframe").getBoundingClientRect();
+
+        maxH = containerRect.height;
+        maxW = containerRect.width;
+        xOffset = containerRect.left;
+        yOffset = containerRect.top;
+        navbar_offset = document.getElementById("nav-tab").getBoundingClientRect().height;
+
+        d3.select("#container").insert("svg", "iframe").attr("id", "plotting_svg");
+
+        let svg = d3.select("#plotting_svg")
+            .style('left', xOffset)
+            .style('top', yOffset)
+            .attr("width", maxW)
+            .attr("height", maxH)
+            .attr("font-family", "sans-serif");
+
+        svg.append("defs");
+        let gradient = d3.select("#plotting_svg")
+            .select("defs")
+            .append("linearGradient")
+            .attr("id", "arrowGradient");
+
+        gradient.append("stop")
+            .attr("offset", "5%")
+            .attr("stop-color", "white");
+
+        gradient.append("stop")
+            .attr("offset", "95%")
+            .attr("stop-color", "blue");
+
+        console.log('SVG set.');
+
+        console.log('Syncing...');
+        let userInfo = {identity: TEACHER, number: null};
+
+        let update = setInterval(async () => {
+            // error in updateGazePoints() is handled here
+            updateGazePoints(userInfo).catch(err => {
+                clearInterval(update);
+                console.log(err);
+            });
+        }, updateInterval * inferInterval);
+    }
+
+    async function signaling(endpoint, data, role) {
+        // post...
+        let headers = {'Content-Type': 'application/json'},
+            body = JSON.stringify({...data, role: role});
+
+        let res = await fetch(endpoint,
+            {method: 'POST', body, headers}
+        );
+
+        return res.json();
+        // error will be handled by parent function, because its async, error are returned in Promise
+    }
+
+    async function updateGazePoints(userInfo) {
+        // decide what to post, then post using function signaling()
+        let identity = userInfo['identity']; //teacher(2) or student(1)
+        let studentNumber = userInfo['number'];
+        // console.log(`identity ${identity}, studentNumber ${studentNumber}`) // debug line
+
+        // This script could only be accessed by teacher, so no more identity check
+        console.log('Updating teacher...')
+
+        signaling(
+            'gazeData/teacher',
+            {
+                stuNum: studentNumber,
+                pts: []
+            },
+            identity
+        ).then(res => {
+            console.log(res);
+            return res;
+        })
+            .then(result => {
+                console.log(result.result);
+
+                result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));
+                result.fixations.forEach(fixation => {
+                    fixation.y -= navbar_offset;
+                    fixation.ymin -= navbar_offset;
+                    fixation.ymax -= navbar_offset;
+                });
+                let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
+
+                console.log(AoIs);
+                console.log(TMatrix);
+
+                let animationTime = 1000; //ms
+                showAoI(AoIs, animationTime);
+                showTransition(AoIs, TMatrix, animationTime);
+            });
+        // error will be handled by parent function, because its async, error are returned in Promise
+    }
+
+    // ==============================================================
+    // Socket.io timing control
+    socket.on("teacher start", sync);
+</script>
+
+</body>
+</html>
