@@ -4,6 +4,13 @@
 document.addEventListener("DOMContentLoaded", () => openModal("before-lecture-modal"));
 
 window.onload = async function () {
+    // Fetch experiment setting
+    try {
+        await fetchSetting();
+    } catch (e) {
+        console.log('Failed to fetch experiment setting.');
+        console.log(e)
+    }
 
     //////set callbacks for GazeCloudAPI/////////
     GazeCloudAPI.OnCalibrationComplete = function () {
@@ -82,6 +89,8 @@ window.onload = async function () {
 
     // const zoomMeeting = document.getElementById("zmmtg-root");
 
+    socket.emit("ready");
+
 }
 
 window.onbeforeunload = function () {
@@ -91,7 +100,7 @@ window.onbeforeunload = function () {
 
 // @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
 
-// Sync heatmap
+// [Entry 2] Lecture
 document.getElementById("sync").addEventListener(
     'click',
     sync
@@ -175,16 +184,24 @@ async function updateGazePoints(userInfo) {
         identity
     ).then(res => {console.log(res); return res;})
     .then(result => {
-        result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));
-        console.log(result.result);
-        let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
+        // [Adaptive] Follow openModal function to see how to adapt to different experiment settings
+        if(gazeInfo) {
+            result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));
+            console.log(result.result);
+            let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
 
-        console.log(AoIs);
-        console.log(TMatrix);
+            console.log(AoIs);
+            console.log(TMatrix);
 
-        let animationTime = 1000; //ms
-        showAoI(AoIs, animationTime);
-        showTransition(AoIs, TMatrix, animationTime);
+            let animationTime = 1000; //ms
+            showAoI(AoIs, animationTime);
+            showTransition(AoIs, TMatrix, animationTime);
+        } else if (cogInfo) { // gazeInfo off, cogInfo on
+            // TODO: Show cognitive information only
+        } else { // no info post
+            // do nothing
+        }
+
     });
     // error will be handled by parent function, because its async, error are returned in Promise
 }

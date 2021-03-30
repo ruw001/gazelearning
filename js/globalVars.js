@@ -8,6 +8,11 @@ let maxH = 0;
 let maxW = 0;
 
 // ==============================================================
+// Global experiment setting
+let gazeInfo,
+    cogInfo;
+
+// ==============================================================
 // confusion detection variables
 let frameInterval,
     videoElement,
@@ -33,6 +38,7 @@ let gazeX_win = [];
 let gazeY_win = [];
 let timestamp_win = [];
 let confusion_win = [];
+let inattention_counter = 0;
 
 let secondCounter = 0;
 const inferInterval = 1000; // in micro-second
@@ -58,6 +64,8 @@ const TEACHER = 2;
 const COLLECTION = 0; // data collection state
 const INFERENCE = 1; // server should predict confusion status
 const INCREMENT = 2; // incremental data collection
+// Post random gaze or not
+const RANDOM = false;
 // ==============================================================
 // Built-in gaze data examples
 // Student(client side) randomly selects one to post every set interval (5s now?)
@@ -116,7 +124,7 @@ function openModal(modalId) {
 function closeModal(modalId) {
     // document.getElementById("backdrop").style.display = "none"
     document.getElementById(modalId).style.display = "none"
-    document.getElementById(modalId).className += document.getElementById("dataCollectModal").className.replace("show", "")
+    document.getElementById(modalId).className += document.getElementById(modalId).className.replace("show", "")
 }
 // Get the modal
 const modal = document.getElementById('dataCollectModal');
@@ -316,6 +324,19 @@ function getCookie(name) {
     return matches ? decodeURIComponent(matches[1]) : undefined;
 }
 
+// =====================Experiment Setting=====================
+// Retrieve setting from server
+async function fetchSetting() {
+    let res = await fetch('/admin/trial', {
+        method: 'GET',
+    });
+    let lectureInfo = await res.json();
+
+    gazeInfo = lectureInfo.setting.gazeinfo;
+    cogInfo = lectureInfo.setting.coginfo;
+    console.log(`Experiment setting fetched successfully. Gaze: ${gazeInfo ? 'On' : 'Off'}, Cog: ${cogInfo ? 'On' : 'Of'}.`);
+}
+
 // ==============================================================
 // Camera Selction
 // It seems that the user needs to first set the default camera in their browser first…
@@ -391,8 +412,7 @@ if (sessionID) {
     socket.connect();
 }
 
-socket.emit("ready");
-
+// [Entry 1] Pre-lecture
 socket.on("delay", (delay) => {
     // Change information on modal box
     delay = delay / 1000; // in seconds
@@ -406,7 +426,14 @@ socket.on("delay", (delay) => {
         // Next lecture will start within 10 minutes
         closeModal("before-lecture-modal");
         // Student will be blocked by next modal dialog
-        if (document.getElementById("calibrateModal")) openModal("calibrateModal");
+        // [Adaptive] Follow openModal function to see how to adapt to different experiment settings
+        if ( gazeInfo ) {
+            if (document.getElementById("calibrateModal")) openModal("calibrateModal");
+        } else if ( cogInfo ) { // gazeInfo off, cogInfo on
+            if (document.getElementById("initModal")) openModal('initModal');
+        } else { // no info post
+            // do nothing
+        }
     } else {
         document.getElementById("countdown-description").innerText = `${hours < 10 ? '0' + hours : hours}:${minutes < 10 ? '0' + minutes : minutes}:${seconds < 10 ? '0' + seconds : seconds}`;
         // Schedule removal of the modal box
