@@ -551,13 +551,13 @@
         let fixations_y = []
 
         fixations.forEach((fixation, id) => {
-            fixations_x.push(fixation.x_per);
-            fixations_y.push(fixation.y_per);
+            fixations_x.push(fixation.data.x_per);
+            fixations_y.push(fixation.data.y_per);
         })
         console.log('fx:', fixations_x.toString())
         console.log('fy:', fixations_y.toString())
 
-        console.log(JSON.stringify(fixations))//.map(fixation => fixation.toPercentage())));
+        // console.log(JSON.stringify(fixations))//.map(fixation => fixation.toPercentage())));
 
         // AoI and T-matrix
         let classes = await fetch('http://127.0.0.1:8000/clustering', {//'/gazeData/cluster', {
