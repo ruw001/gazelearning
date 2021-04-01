@@ -21,11 +21,11 @@ from threading import Thread
 import logging
 
 CNTR = 0
-TOTAL = 400
+TOTAL = 1000
 
 deployed = False
 
-FILEPATH = 'fileserver'
+FILEPATH = '/mnt/fileserver'
 
 POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
            158, 157, 173, 263, 249, 390, 373, 374, 380, 381, 382, 362,

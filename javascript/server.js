@@ -7,13 +7,13 @@ const cookieParser = require('cookie-parser');
 const { Resolver } = require('dns').promises;
 // var cors = require('cors')
 
-let PORT = process.env.PORT || 5000;
-let app = express();
+const PORT = process.env.PORT || 5000;
+const app = express();
 
 // To process login form
 const multipartyMiddleware = multipart();
 
-// const FILEPATH = 'D:/gazelearning/python/data_temp';
+// const FILEPATH = '/Users/hudongyin/Documents/Projects/gazelearning/python/data_temp';
 const FILEPATH = '/mnt/fileserver';
 
 // ===================================
@@ -28,7 +28,7 @@ const STUDENT = 1;
 const TEACHER = 2;
 
 let registeredStudents = new Map(); // Student Name => Student Number, which is the order of student
-fs.readFile("./users/registeredStudents.json", 'utf-8',(err, data) => {
+fs.readFile("./restricted/users/registeredStudents.json", 'utf-8',(err, data) => {
     if (err) throw err;
     let nameList = JSON.parse(data);
     nameList.forEach((item, index) => {
@@ -38,7 +38,7 @@ fs.readFile("./users/registeredStudents.json", 'utf-8',(err, data) => {
 
 // ===================================
 // Find dedicated service for instructor
-const dedicated_service_hostname ='dedicated-nodejs-nodeport-service.default.svc.cluster.local';
+const dedicated_service_hostname ='dedicated-python-nodeport-service.default.svc.cluster.local';
 let dedicated_service_address = undefined;
 const resolver = new Resolver();
 resolver.setServers(['10.52.0.10']); // Specify DNS server in the cluster.
@@ -58,13 +58,41 @@ server.listen(PORT, function () {
 // ===================================
 // App settings
 // app.use(cors())
-app.use(express.static('./'));
+let verifyStudent = verifyUser(STUDENT),
+    verifyTeacher = verifyUser(TEACHER);
 
-app.post('/users', multipartyMiddleware, function (req, res, next) {
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.post('/users', multipartyMiddleware, newUserLogin);
+
+app.get('/studentPage.html',
+    cookieParser(),
+    express.json({ type: '*/*' }),
+    verifyStudent,
+    (req, res) => { res.statusCode = 200; res.sendFile(path.join(__dirname, 'restricted', 'studentPage.html')); });
+
+app.get('/teacherPage.html',
+    cookieParser(),
+    express.json({ type: '*/*' }),
+    verifyTeacher,
+    (req, res) => { res.statusCode = 200; res.sendFile(path.join(__dirname, 'restricted', 'teacherPage.html')); });
+
+app.post('/gazeData/cluster', express.json(), clusteringTest);
+
+// Save and relay gaze data POSTed from students
+app.post('/gazeData/sync',
+    express.json({ type: '*/*' }),
+    saveGazePoints,
+    sendGazePoints,
+    receptionConfirm);
+
+function newUserLogin (req, res, next) {
+    // Creates user directory and generate cookie
     let content = req.body;
     console.log(content);
+    const identity = +content.identity;
 
-    if (+content.identity === STUDENT) {
+    if (identity === STUDENT) {
         // Check if the name is valid. All name will be converted to lower case at client side.
         if (!registeredStudents.has(content.name)) {
             let err = new Error('Student name not registered.');
@@ -94,68 +122,13 @@ app.post('/users', multipartyMiddleware, function (req, res, next) {
         'userInfo',
         JSON.stringify({
             'identity': content.identity,
-            'number': content.identity === STUDENT ? registeredStudents.get(content.name) : null,
-            'authcode': content.identity === STUDENT ? studentAuthHash : teacherAuthHash,
+            'number': identity === STUDENT ? registeredStudents.get(content.name) : null,
+            'authcode': identity === STUDENT ? studentAuthHash : teacherAuthHash,
         })
     );
 
     res.send({ message: 'Cookie set.' });
-});
-
-let verifyStudent = verifyUser(STUDENT),
-    verifyTeacher = verifyUser(TEACHER);
-app.get('/studentPage.html',
-    cookieParser(),
-    express.json({ type: '*/*' }),
-    verifyStudent,
-    (req, res) => { res.statusCode = 200; res.sendFile(path.join(__dirname, 'studentPage.html')); });
-app.get('/teacherPage.html',
-    cookieParser(),
-    express.json({ type: '*/*' }),
-    verifyTeacher,
-    (req, res) => { res.statusCode = 200; res.sendFile(path.join(__dirname, 'studentPage.html')); });
-
-app.post('/gazeData/cluster', express.json(), function (req, res, next) {
-    // Exist because fixationTest.html is using this endpoint
-    let fixations = req.body;
-    console.log(`Receive ${fixations.length} fixations at ${new Date()}`);
-
-    let fixationX = fixations.map(fixation => [fixation.x_per]);
-    let fixationY = fixations.map(fixation => [fixation.y_per]);
-
-    res.format({'application/json': function(){
-            res.send({ result: JSON.stringify(spectralCluster(fixationX, fixationY, 5)) });
-        }
-    });
-
-    res.send();
-});
-
-// Save and relay gaze data POSTed from students
-app.post('/gazeData/sync',
-    express.json({ type: '*/*' }),
-    saveGazePoints,
-    sendGazePoints,
-    async (req, res) => {
-        // let { , role, pts } = req.body;
-        let role = +req.body['role'];
-        console.log('==========================');
-        console.log(`Received POST from ${role === 1 ? 'student' : 'teacher'}`);
-
-        try {
-            // we have students posting gaze information
-            let stuNum = req.body['stuNum'];
-            console.log(`Student number : ${stuNum}`);
-
-            res.statusCode = 200;
-            res.send({
-                result: `Fixations and saccades are logged @ ${Date.now()}`,
-            });
-        } catch (e) {
-            console.error(e.message);
-            res.send({ error: e.message });
-        }
-});
+}
 
 function verifyUser(identity) {
     return function (req, res, next) {
@@ -170,7 +143,7 @@ function verifyUser(identity) {
         } else {
             const authHash = identity === STUDENT ? studentAuthHash : teacherAuthHash;
             if (parsedCookie.authcode !== authHash) {
-                let err = new Error('Please login first.');
+                let err = new Error(`${identity === STUDENT ? 'Student' : 'Instructor'} authentication code mismatch.`);
                 err.statusCode = 401;
                 return next(err);
             }
@@ -228,6 +201,27 @@ function sendGazePoints(req, res, next) {
     next()
 }
 
+async function receptionConfirm (req, res) {
+    // let { , role, pts } = req.body;
+    let role = +req.body['role'];
+    console.log('==========================');
+    console.log(`Received POST from ${role === 1 ? 'student' : 'teacher'}`);
+
+    try {
+        // we have students posting gaze information
+        let stuNum = req.body['stuNum'];
+        console.log(`Student number : ${stuNum}`);
+
+        res.statusCode = 200;
+        res.send({
+            result: `Fixations and saccades are logged @ ${Date.now()}`,
+        });
+    } catch (e) {
+        console.error(e.message);
+        res.send({ error: e.message });
+    }
+}
+
 // ===================================
 // Some code about spectral clustering
 // Now moved to python dedicated server.
@@ -235,6 +229,22 @@ function sendGazePoints(req, res, next) {
 
 const kmeans = require('ml-kmeans');
 const { Matrix, EigenvalueDecomposition } = require('ml-matrix');
+
+function clusteringTest (req, res, next) {
+    // Exist because fixationTest.html is using this endpoint
+    let fixations = req.body;
+    console.log(`Receive ${fixations.length} fixations at ${new Date()}`);
+
+    let fixationX = fixations.map(fixation => [fixation.x_per]);
+    let fixationY = fixations.map(fixation => [fixation.y_per]);
+
+    res.format({'application/json': function(){
+            res.send({ result: JSON.stringify(spectralCluster(fixationX, fixationY, 5)) });
+        }
+    });
+
+    res.send();
+}
 
 function spectralCluster(X, Y, repeat) {
     console.log(`inside spectral cluster, X : ${X.length}, Y : ${Y.length}, repeat : ${repeat}`)

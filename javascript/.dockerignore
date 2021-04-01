@@ -1,10 +1,3 @@
-../node_modules/
-.DS_Store/
-confusion_test/pupil_test/
-confusion_test/data*/
-.vscode/
-other stuff/
-test.html
-.idea/
-/javascript/public/media/audio/male.mp3
-/javascript/public/media/audio/beep.mp3
+node_modules/
+legacy/
+deployment.yaml

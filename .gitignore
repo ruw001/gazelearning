@@ -1,6 +1,6 @@
-node_modules
+javascript/node_modules
 .DS_Store
-package-lock.json
+javascript/package-lock.json
 # python/
 */data*/
 */*/data*/

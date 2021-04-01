@@ -18,8 +18,8 @@
     <script src="https://unpkg.com/mathjs@8.0.1/lib/browser/math.js"></script>
     <script src="https://d3js.org/d3.v6.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.1.1/socket.io.js"></script>
-    <script src="../public/js/gazeClass.js"></script>
-    <script src="../public/js/Engbert_Kliegl_math.js"></script>
+    <script src="js/gazeClass.js"></script>
+    <script src="js/Engbert_Kliegl_math.js"></script>
 
     <style type="text/css">
         body {
@@ -72,7 +72,7 @@
         <button id="gc_start" type="button" onclick="GazeCloudAPI.StartEyeTracking();">Start tracking</button>
         <button id="gc_stop" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
     </div>
-    <form id="webgazeropts" style='display:none' method="get" action="../public/calibration.html">
+    <form id="webgazeropts" style='display:none' method="get" action="calibration.html">
         <button id="cali" type="submit">Start calibrating</button>
         <button id="wg_start" type="button" onclick="beginWG()">Start tracking</button>
         <button id="wg_stop" type="button" onclick="endWG();">Stop tracking</button>
@@ -205,10 +205,10 @@
         <!-- <img src='regression.jpg'> -->
     </div>
 
-    <script src="../public/js/Zoom/tool.js"></script>
-    <script src="../public/js/Zoom/embed.js"></script>
-    <script src="../public/js/globalVars.js"></script>
-    <script src="../public/js/student_client.js"></script>
+    <script src="js/Zoom/tool.js"></script>
+    <script src="js/Zoom/embed.js"></script>
+    <script src="js/globalVars.js"></script>
+    <script src="js/student_client.js"></script>
 
 </body>
 

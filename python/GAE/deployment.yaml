@@ -2,14 +2,14 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: pythontest
-  name: pythontest
+    app: python
+  name: python
   namespace: default
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: pythontest
+      app: python
   strategy:
     rollingUpdate:
       maxSurge: 25%
@@ -18,7 +18,7 @@ spec:
   template:
     metadata:
       labels:
-        app: pythontest
+        app: python
     spec:
       containers:
         - image: gcr.io/cogteach-distributed/github_voivio_gazelearning/python
@@ -37,8 +37,8 @@ apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
 metadata:
   labels:
-    app: pythontest
-  name: pythontest-hpa-rpvo
+    app: python
+  name: python-hpa-rpvo
   namespace: default
 spec:
   maxReplicas: 5
@@ -51,7 +51,7 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: pythontest
+    name: python
 ---
 apiVersion: v1
 kind: Service
@@ -60,7 +60,7 @@ metadata:
   namespace: default
 spec:
   selector:
-    app: pythontest
+    app: python
   type: NodePort
   ports:
     - protocol: TCP
@@ -80,6 +80,6 @@ spec:
 #       protocol: TCP
 #       targetPort: 8000
 #   selector:
-#     app: pythontest
+#     app: python
 #   sessionAffinity: None
 #   type: NodePort

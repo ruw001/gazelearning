@@ -1,6 +1,7 @@
 // Require modules
 const express = require('express');
 const http = require('http');
+const path = require('path');
 
 // Settings
 const PORT = process.env.PORT || 5000;
@@ -28,7 +29,7 @@ app.get('/',(req, res) => {
         res.send(`<h1>Dedicated server is on.</h1>`);
     } else {
         // When testing locally
-        res.sendFile(path.join(__dirname, 'index.html'));
+        res.sendFile(path.join(__dirname, 'public', 'index.html'));
     }
 })
 
@@ -38,40 +39,67 @@ if (!DEPLOY) {
     const multipart = require("connect-multiparty");
     const fs = require('fs');
 
-    const multipartyModdleware = multipart();
-    const FILEPATH = 'D:/gazelearning/python/data_temp';
-// please change to local filepath where gaze/face will be stored
+    let registeredStudents = new Map(); // Student Name => Student Number, which is the order of student
+    fs.readFile("./restricted/users/registeredStudents.json", 'utf-8', (err, data) => {
+        if (err) throw err;
+        let nameList = JSON.parse(data);
+        nameList.forEach((item, index) => {
+            registeredStudents.set([item.firstName, item.lastName].join(' '), index);
+        });
+    });
 
-    app.use(express.static('./'));
+    const multipartyMiddleware = multipart();
+    const FILEPATH = '/Users/hudongyin/Documents/Projects/gazelearning/python/data_temp';
+    // please change to local filepath where gaze/face will be stored
+    const studentAuthHash = '264c8c381bf16c982a4e59b0dd4c6f7808c51a05f64c35db42cc78a2a72875bb';
+    const teacherAuthHash = '1057a9604e04b274da5a4de0c8f4b4868d9b230989f8c8c6a28221143cc5a755';
 
-    app.post('/users', multipartyModdleware, function (req, res, next) {
+    app.use(express.static(path.join(__dirname, 'public')));
+    app.post('/users', multipartyMiddleware, newUserLogin);
+
+    function newUserLogin(req, res, next) {
+        // Creates user directory and generate cookie
         let content = req.body;
         console.log(content);
+        const identity = +content.identity;
 
-        if (content['student-number'] && !fs.existsSync(path.join(FILEPATH, content['student-number'], '/gaze'))) {
-            fs.mkdir(path.join(FILEPATH, content['student-number'], '/gaze'),
-                {recursive: true},
-                (err) => {
-                    if (err) throw err;
-                });
+        if (identity === STUDENT) {
+            // Check if the name is valid. All name will be converted to lower case at client side.
+            if (!registeredStudents.has(content.name)) {
+                let err = new Error('Student name not registered.');
+                err.statusCode = 401;
+                return next(err);
+            }
+
+            const studentNumber = registeredStudents.get(content.name).toString();
+            if (!fs.existsSync(path.join(FILEPATH, studentNumber), '/gaze')) {
+                fs.mkdir(path.join(FILEPATH, studentNumber, '/gaze'),
+                    {recursive: true},
+                    (err) => {
+                        if (err) throw err;
+                    });
+            }
+        } else {
+            // Teacher
+            // Check if correct passcode is provided.
+            if (content.passcodeHash !== teacherPasscodeHash) {
+                let err = new Error('Wrong teacher passcode. Please retry.');
+                err.statusCode = 401;
+                return next(err);
+            }
         }
 
         res.cookie(
             'userInfo',
             JSON.stringify({
                 'identity': content.identity,
-                'number': content['student-number'] ? content['student-number'] : null,
+                'number': identity === STUDENT ? registeredStudents.get(content.name) : null,
+                'authcode': identity === STUDENT ? studentAuthHash : teacherAuthHash,
             })
         );
 
-        res.format({
-            'application/json': function () {
-                res.send({message: 'Cookie set.'});
-            }
-        });
-
-        res.send();
-    });
+        res.send({message: 'Cookie set.'});
+    }
 }
 
 // ===================================
@@ -167,7 +195,6 @@ setInterval(() => {
 // Some code about administration control (Information Hub)
 const crypto = require("crypto");
 const cookieParser = require('cookie-parser');
-const path = require('path');
 const passcodeHash = "f1318196aaf4c2fc35932ac09b63d6bbde01fde79c401870a8321b361a47b01d";
 let digestMessage = function (message) {return crypto.createHash("sha256").update(message.toString()).digest("hex")};
 let authHash = digestMessage( Date.now() );
@@ -188,34 +215,41 @@ registeredTrials.push(new Trial({
     title: 'Introduction in Linear Algebra',
     abstract: 'This lecture will briefly introduce some basic concepts in linear algebra, such as vector, matrix and rules of calculation.',
     instructor: 'David Liu',
-    time: (new Date('Mon Mar 29 2021 22:00:00 GMT+0800')).getTime(),
+    time: (new Date('Thu Apr 1 2021 01:00:00 GMT+0800')).getTime(),
     zoomid: '71123774899',
 }, {
     gazeinfo: true,
     coginfo: true,
 }));
 
-app.post('/admin', express.json({ type: '*/*' }), generateAuthCookie);
-app.get('/admin/trial',
+let adminRouter = express.Router();
+app.use('/admin', adminRouter);
+app.get('/admin.html',
+    cookieParser(),
+    express.json({type: '*/*'}),
+    verifyUser,
+    (req, res) => {
+        res.statusCode = 200;
+        res.sendFile(path.join(__dirname, 'restricted', 'admin.html'));
+    }
+);
+
+adminRouter.post('/', express.json({type: '*/*'}), generateAuthCookie);
+adminRouter.get('/trial',
     (req, res) => {
         res.statusCode = 200;
         // req.body.number specifies how many lecture information is required.
         res.send(registeredTrials[0]);
-});
-app.get('/admin/trials',
+    });
+adminRouter.get('/trials',
     (req, res) => {
         res.statusCode = 200;
         // req.body.number specifies how many lecture information is required.
         res.send(registeredTrials);
-});
-app.get('/admin.html',
+    });
+adminRouter.post('/trials',
     cookieParser(),
-    express.json({ type: '*/*' }),
-    verifyUser,
-    (req, res) => { res.statusCode = 200; res.sendFile(path.join(__dirname, 'admin.html')); });
-app.post('/admin/trials',
-    cookieParser(),
-    express.json({ type: '*/*' }),
+    express.json({type: '*/*'}),
     verifyUser,
     informationPost);
 
