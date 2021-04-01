@@ -23,7 +23,7 @@ let frameInterval,
     gazeX = 0,
     gazeY = 0;
 
-let total = 1000;
+let total = 400;
 let totalNeutral = total;
 let totalConfused = total;
 let collecting = 0;

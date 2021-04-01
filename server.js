@@ -78,6 +78,7 @@ app.post('/users', multipartyModdleware, function (req, res, next) {
                 { recursive: true },
                 (err) => {
                     if (err) throw err;
+                    // console.log(err)
                 });
     } 
 

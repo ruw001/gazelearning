@@ -151,7 +151,7 @@ class StatePredictor:
         self.clf = None
         self.pca = None
         self.username = usrname
-        self.retrain_interval = 1000 # TODO: incremental training!
+        self.retrain_interval = 200 # TODO: incremental training!
         self.dir = os.path.join(FILEPATH, str(self.username), 'face')
         self.deployed = deployed
         if not self.deployed:
@@ -160,6 +160,10 @@ class StatePredictor:
             elif os.path.exists(os.path.join(self.dir, 'pca.joblib')):
                 self.clf = load(os.path.join(self.dir, 'model_pca.joblib'))
                 self.pca = load(os.path.join(self.dir, 'pca.joblib'))
+
+    def incre_train(self, img, label):
+
+
 
     def addData(self, img, label, frameId, incre=False):
         global TOTAL, metricPool
@@ -175,12 +179,15 @@ class StatePredictor:
             cropped = getCrop(img, face_landmarks)
             img = cv2.cvtColor(cv2.resize(
                 cropped, (100, 50)), cv2.COLOR_BGR2GRAY)
-            cv2.imwrite(os.path.join(
-                self.dir, '{}_{}.jpg'.format(label, frameId)
-            ), img)
+            if not incre:
+                cv2.imwrite(os.path.join(
+                    self.dir, '{}_{}.jpg'.format(label, frameId)
+                ), img)
+            else:
+
 
         metricPool[self.username].inc_file()
-        if frameId == TOTAL // 2:
+        if frameId == TOTAL:
             # Receive first frame
             if label == 0:
                 metricPool[self.username].nc_file_first = time.time()
@@ -210,6 +217,8 @@ class StatePredictor:
                 self.inputs.append(np.reshape(img, (-1)))
                 self.labels.append(label)
             # TODO: svm incremental learning 
+            else:
+                self.clf.partial_fit
     
     def train(self, incre=False):
         inputs = []
@@ -311,14 +320,14 @@ def confusion_detection():
     print(username,
           'stage', stage,
           '{}:No.{}'.format(
-              'Confusion' if data['label'] else 'Neutral', TOTAL//2 + 1 - data['frameId']),
+              'Confusion' if data['label'] else 'Neutral', TOTAL + 1 - data['frameId']),
           time.time()
           )
     
     if stage == 0:
         metricPool[username].inc_req()
         modelPool[username].addData(img, data['label'], data['frameId'])
-        if data['frameId'] == TOTAL // 2:
+        if data['frameId'] == TOTAL:
             # Recieve first frame
             if data['label'] == 0:
                 metricPool[username].nc_req_first = time.time()
