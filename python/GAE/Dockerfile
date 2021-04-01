@@ -109,13 +109,13 @@ RUN apt-get update \
 
 # Copy the application's requirements.txt and run pip to install all
 # dependencies into the virtualenv.
-ADD ../requirements.txt /app/requirements.txt
+ADD requirements.txt /app/requirements.txt
 RUN /usr/local/bin/python -m pip install --upgrade pip\
    && pip install -r /app/requirements.txt \
    && pip cache purge
 
 # Add the application source code.
-ADD .. /app
+ADD . /app
 
 # Run a WSGI server to serve the application. gunicorn must be declared as
 # a dependency in requirements.txt.
