@@ -387,15 +387,15 @@
         }`;
         let offset = -lectureDate.getTimezoneOffset() / 60;
         switch (offset) {
-            case 4:
-            case 5:
-            case 6:
-            case 7:
+            case -4:
+            case -5:
+            case -6:
+            case -7:
                 document.getElementById(`edit-timezone-${trialno}`).value = `-0${offset}00`;
-                break
+                break;
             default:
                 // Cause Dongyin is testing in China... Use PST as default
-                document.getElementById(`edit-timezone-${trialno}`).value = `-0800`;
+                document.getElementById(`edit-timezone-${trialno}`).value = `-0700`;
         }
     }
 
@@ -671,8 +671,7 @@
         ).then(res => {
             console.log(res);
             return res;
-        })
-            .then(result => {
+        }).then(result => {
                 console.log(result.result);
 
                 result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));

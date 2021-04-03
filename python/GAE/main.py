@@ -21,7 +21,7 @@ from threading import Thread
 import logging
 
 CNTR = 0
-TOTAL = 1000
+TOTAL = 400
 
 deployed = False
 
