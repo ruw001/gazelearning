@@ -177,6 +177,8 @@ async function update() {
     // [Adaptive]
     if (gazeInfo) [fixations, saccades] = fixationConfusionBinding(samples);
 
+    console.log('Fixations');
+    console.log(fixations);
     signaling(
         '/gazeData/sync',
         {

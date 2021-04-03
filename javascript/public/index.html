@@ -197,7 +197,7 @@
             socket.auth = { sessionID };
         }
         socket.connect();
-        console.log(socket)
+        console.log(socket);
 
         socket.on("session", ({ sessionID, userID }) => {
             // attach the session ID to the next reconnection attempts
@@ -206,8 +206,12 @@
             sessionStorage.setItem("sessionID", sessionID);
             // save the ID of the user
             socket.userID = userID;
+            // Session information is stored. Noe post form data.
+            postUserForm(e);
         });
+    });
 
+    async function postUserForm (e) {
         // =====Post form data
         let formData = new FormData(e.target);
 
@@ -256,7 +260,7 @@
             console.log('Handling err')
             console.log(err);
         });
-    });
+    }
 
     async function digestMessage(message) {
         const msgUint8 = new TextEncoder().encode(message);                           // encode as (utf-8) Uint8Array
