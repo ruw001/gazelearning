@@ -51,11 +51,22 @@ if (!DEPLOY) {
     const multipartyMiddleware = multipart();
     const FILEPATH = '/Users/hudongyin/Documents/Projects/gazelearning/python/data_temp';
     // please change to local filepath where gaze/face will be stored
+    const teacherPasscodeHash = 'a5ec177fcb171aee626a6c5785c7274693a6a35a8adeae663a9746177ed9ddac';
     const studentAuthHash = '264c8c381bf16c982a4e59b0dd4c6f7808c51a05f64c35db42cc78a2a72875bb';
     const teacherAuthHash = '1057a9604e04b274da5a4de0c8f4b4868d9b230989f8c8c6a28221143cc5a755';
 
     app.use(express.static(path.join(__dirname, 'public')));
     app.post('/users', multipartyMiddleware, newUserLogin);
+    app.get('/studentPage.html',
+        (req, res) => {
+            res.statusCode = 200;
+            res.sendFile(path.join(__dirname, 'restricted', 'studentPage.html'));
+        });
+    app.get('/teacherPage.html',
+        (req, res) => {
+            res.statusCode = 200;
+            res.sendFile(path.join(__dirname, 'restricted', 'teacherPage.html'));
+        });
 
     function newUserLogin(req, res, next) {
         // Creates user directory and generate cookie
@@ -100,110 +111,116 @@ if (!DEPLOY) {
 
         res.send({message: 'Cookie set.'});
     }
-}
 
-// ===================================
-// Deployment code on k8s
 
-app.get('/gazeData/teacher', (req, res) => {
-    res.send(`<h1>Dedicated server, page /gazeData/teacher</h1>`);
-})
+    // ===================================
+    // Deployment code on k8s. Responsible for spectral clustering.
+    // Now moved to python dedicated server.
+    // ===================================
+    app.get('/gazeData/teacher', (req, res) => {
+        res.send(`<h1>Dedicated server, page /gazeData/teacher</h1>`);
+    })
 
-app.post('/gazeData/teacher', express.json({ type: '*/*' }), async (req, res) => {
-    // let { , role, pts } = req.body;
-    let role = +req.body['role'];
-    console.log('==========================');
-    console.log(`Received POST from ${role === 1 ? 'student' : 'teacher'}`);
+    app.post('/gazeData/teacher', express.json({type: '*/*'}), async (req, res) => {
+        // let { , role, pts } = req.body;
+        let role = +req.body['role'];
+        console.log('==========================');
+        console.log(`Received POST from ${role === STUDENT ? 'student' : 'teacher'}`);
 
-    try {
-        // teacher(2) or student(1)
-        if (role === TEACHER) {
-            // we have teacher request syncing
+        try {
+            // teacher(2) or student(1)
+            if (role === TEACHER) {
+                // we have teacher request syncing
 
-            let fixationX = [];
-            let fixationY = [];
+                let fixationX = [];
+                let fixationY = [];
 
-            let fixationFlat = [];
-            let saccadeFlat = [];
+                let fixationFlat = [];
+                let saccadeFlat = [];
 
-            all_fixations.forEach(fixations => {
-                fixationFlat.push(
-                    fixations
-                );
-            });
+                all_fixations.forEach(fixations => {
+                    fixationFlat.push(
+                        fixations
+                    );
+                });
 
-            all_saccades.forEach(saccades => {
-                saccadeFlat.push(
-                    saccades
-                );
-            });
+                all_saccades.forEach(saccades => {
+                    saccadeFlat.push(
+                        saccades
+                    );
+                });
 
-            fixationFlat = fixationFlat.flat();
-            saccadeFlat = saccadeFlat.flat();
+                fixationFlat = fixationFlat.flat();
+                saccadeFlat = saccadeFlat.flat();
 
-            fixationX = fixationFlat.map(fixation => [fixation.x_per]);
-            fixationY = fixationFlat.map(fixation => [fixation.y_per]);
+                fixationX = fixationFlat.map(fixation => [fixation.x_per]);
+                fixationY = fixationFlat.map(fixation => [fixation.y_per]);
 
-            console.log(`Fixations to cluster : ${fixationX.length}`);
+                console.log(`Fixations to cluster : ${fixationX.length}`);
 
-            res.statusCode = 200;
-            res.format({'application/json': function(){
-                    res.send({
-                        fixations: fixationFlat,
-                        saccades: saccadeFlat,
-                        result: spectralCluster(fixationX, fixationY, 5),
-                    });
-                }
-            });
+                res.statusCode = 200;
+                res.format({
+                    'application/json': function () {
+                        res.send({
+                            fixations: fixationFlat,
+                            saccades: saccadeFlat,
+                            result: spectralCluster(fixationX, fixationY, 5),
+                        });
+                    }
+                });
 
-            res.send();
-        } else {
-            // we have students posting gaze information
-            let stuNum = req.body['stuNum'];
-            console.log(`Student number : ${stuNum}`);
+                res.send();
+            } else {
+                // we have students posting gaze information
+                let stuNum = req.body['stuNum'];
+                console.log(`Student number : ${stuNum}`);
 
-            all_fixations.set(stuNum, req.body['fixations']);
-            all_saccades.set(stuNum, req.body['saccades']);
+                all_fixations.set(stuNum, req.body['fixations']);
+                all_saccades.set(stuNum, req.body['saccades']);
 
-            console.log(`Receive ${all_fixations.get(stuNum).length} fixations at ${new Date()}`);
+                console.log(`Receive ${all_fixations.get(stuNum).length} fixations at ${new Date()}`);
 
-            res.statusCode = 200;
-            res.send({
-                result: `Fixations and saccades are logged @ ${Date.now()}`,
-            });
+                res.statusCode = 200;
+                res.send({
+                    result: `Fixations and saccades are logged @ ${Date.now()}`,
+                });
 
-            last_seen[stuNum] = Date.now();
-        }
-    } catch (e) {
-        console.error(e.message);
-        res.send({ error: e.message });
-    }
-});
-
-setInterval(() => {
-    let now = Date.now();
-    Object.entries(last_seen).forEach(([name, ts]) => {
-        if ((now - ts) > 5000) {
-            // console.log(`${name} lost connection. remove!`);
-            all_fixations.delete(name);
-            all_saccades.delete(name);
+                last_seen[stuNum] = Date.now();
+            }
+        } catch (e) {
+            console.error(e.message);
+            res.send({error: e.message});
         }
     });
-}, 5000);
+
+    setInterval(() => {
+        let now = Date.now();
+        Object.entries(last_seen).forEach(([name, ts]) => {
+            if ((now - ts) > 5000) {
+                // console.log(`${name} lost connection. remove!`);
+                all_fixations.delete(name);
+                all_saccades.delete(name);
+            }
+        });
+    }, 5000);
+}
 
 // ===================================
 // Some code about administration control (Information Hub)
 const crypto = require("crypto");
 const cookieParser = require('cookie-parser');
 const passcodeHash = "f1318196aaf4c2fc35932ac09b63d6bbde01fde79c401870a8321b361a47b01d";
-let digestMessage = function (message) {return crypto.createHash("sha256").update(message.toString()).digest("hex")};
-let authHash = digestMessage( Date.now() );
+let digestMessage = function (message) {
+    return crypto.createHash("sha256").update(message.toString()).digest("hex")
+};
+let authHash = digestMessage(Date.now());
 
 class Trial {
     constructor(lecture, setting) {
         this.lecture = lecture;
         this.setting = setting === undefined ? {gazeinfo: true, coginfo: true} : setting;
     }
+
     updateInfo(info) {
         this.lecture = info.lecture;
         this.setting = info.setting;
@@ -215,7 +232,7 @@ registeredTrials.push(new Trial({
     title: 'Introduction in Linear Algebra',
     abstract: 'This lecture will briefly introduce some basic concepts in linear algebra, such as vector, matrix and rules of calculation.',
     instructor: 'David Liu',
-    time: (new Date('Thu Apr 1 2021 01:00:00 GMT+0800')).getTime(),
+    time: (new Date('Mon Apr 5 2021 13:00:00 GMT+0800')).getTime(),
     zoomid: '71123774899',
 }, {
     gazeinfo: true,
@@ -261,7 +278,7 @@ function generateAuthCookie(req, res) {
         res.send('Wrong message.')
     } else {
         // Passcode match. Generate authorization cookie.
-        authHash = digestMessage( Date.now() );
+        authHash = digestMessage(Date.now());
 
         res.statusCode = 200;
         res.cookie('userInfo',
@@ -278,7 +295,7 @@ function verifyUser(req, res, next) {
         // Hash of passcode does not pass.
         let parsedCookie = JSON.parse(req.cookies['userInfo']);
 
-        if ( !parsedCookie || parsedCookie.authcode !== authHash ) {
+        if (!parsedCookie || parsedCookie.authcode !== authHash) {
             let err = new Error('Please login as admin first.');
             err.statusCode = 401;
             next(err);
@@ -304,20 +321,20 @@ function informationPost(req, res) {
             registeredTrials.sort((a, b) => a.lecture.time - b.lecture.time);
             res.statusCode = 202;
             res.send('Add new trial successfully.');
-            console.log('Add new trial successfully. There are '+registeredTrials.length+' registered trials.');
+            console.log('Add new trial successfully. There are ' + registeredTrials.length + ' registered trials.');
             console.log(req.body.lecture, req.body.setting);
             break
         case 'delete':
             registeredTrials.splice(req.body.trialno, 1); // from index req.body.trialno remove 1 element
             res.statusCode = 202;
             res.send('Delete specified trial successfully.');
-            console.log('Delete specified trial successfully. There are '+registeredTrials.length+' registered trials.');
+            console.log('Delete specified trial successfully. There are ' + registeredTrials.length + ' registered trials.');
             break
         case 'update':
             registeredTrials[req.body.trialno].updateInfo(req.body.info);
             res.statusCode = 202;
             res.send('Update specified trial successfully.');
-            console.log('Update specified trial successfully. There are '+registeredTrials.length+' registered trials.');
+            console.log('Update specified trial successfully. There are ' + registeredTrials.length + ' registered trials.');
             console.log(req.body.info);
             break
         default:
@@ -329,14 +346,19 @@ function informationPost(req, res) {
 // ===================================
 // Some code about administration control (Timing control)
 
-const options = { /* ... */ };
+const options = { /* ... */};
 const io = require('socket.io')(server, options);
 
 /* abstract */
 class SessionStore {
-    findSession(id) {}
-    saveSession(id, session) {}
-    findAllSessions() {}
+    findSession(id) {
+    }
+
+    saveSession(id, session) {
+    }
+
+    findAllSessions() {
+    }
 }
 
 class InMemorySessionStore extends SessionStore {
@@ -357,6 +379,7 @@ class InMemorySessionStore extends SessionStore {
         return [...this.sessions.values()];
     }
 }
+
 let sessionStore = new InMemorySessionStore();
 
 const randomId = () => crypto.randomBytes(8).toString("hex");
@@ -391,8 +414,8 @@ adminNamespace.use((socket, next) => {
     console.log('New socket.')
     console.log(`socket.handshake.auth.name: ${socket.handshake.auth.name}`);
     console.log(`socket.handshake.auth.identity: ${socket.handshake.auth.identity}`);
-    console.log(`socket.name ${socket.name}`);
-    console.log(`socket.identity ${socket.identity}`);
+    console.log(`socket.name: ${socket.name}`);
+    console.log(`socket.identity: ${socket.identity}`);
 
     next();
 })
@@ -450,14 +473,14 @@ adminNamespace.on("connection", socket => {
             let startInstructorEvent = setTimeout(() => {
                 adminNamespace.to("teacher").to("admin").emit("teacher start");
                 console.log('teacher start is sent to teacher and administrator');
-            }, delay+2*1000); // delay 2 seconds then students
+            }, delay + 2 * 1000); // delay 2 seconds then students
 
             // Unregister trial
             let unregisterEvent = setTimeout(() => {
                 registeredTrials.shift();
                 console.log('============================');
                 console.log('Trial is removed.');
-            }, delay+30*60*1000);
+            }, delay + 30 * 60 * 1000);
         }
     });
 
@@ -480,6 +503,8 @@ adminNamespace.on("connection", socket => {
 
 // ===================================
 // Some code about spectral clustering
+// Now moved to python dedicated server.
+// ===================================
 
 const kmeans = require('ml-kmeans');
 const { Matrix, EigenvalueDecomposition } = require('ml-matrix');

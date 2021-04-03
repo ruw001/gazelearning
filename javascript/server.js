@@ -89,6 +89,7 @@ app.post('/gazeData/sync',
 function newUserLogin (req, res, next) {
     // Creates user directory and generate cookie
     let content = req.body;
+    console.log('============================')
     console.log(content);
     const identity = +content.identity;
 
@@ -132,15 +133,12 @@ function newUserLogin (req, res, next) {
 
 function verifyUser(identity) {
     return function (req, res, next) {
-        console.log('Verifying')
-        // Hash of passcode does not pass.
-        let parsedCookie = JSON.parse(req.cookies['userInfo']);
-
-        if ( !parsedCookie ) {
+        if ( !req.cookies['userInfo'] ) { // Cookie is not set.
             let err = new Error('Please login first.');
             err.statusCode = 401;
             return next(err);
-        } else {
+        } else { // Hash of passcode does not pass.
+            let parsedCookie = JSON.parse(req.cookies['userInfo']);
             const authHash = identity === STUDENT ? studentAuthHash : teacherAuthHash;
             if (parsedCookie.authcode !== authHash) {
                 let err = new Error(`${identity === STUDENT ? 'Student' : 'Instructor'} authentication code mismatch.`);
