@@ -162,7 +162,7 @@ class StatePredictor:
                 self.pca = load(os.path.join(self.dir, 'pca.joblib'))
 
     def incre_train(self, img, label):
-
+        pass
 
 
     def addData(self, img, label, frameId, incre=False):
@@ -184,6 +184,9 @@ class StatePredictor:
                     self.dir, '{}_{}.jpg'.format(label, frameId)
                 ), img)
             else:
+                # incre_train()
+                
+                pass
 
 
         metricPool[self.username].inc_file()
