@@ -1,5 +1,5 @@
 // Require modules
-import {errorHandler} from "./errorHandler";
+const {errorHandler} = require("./errorHandler");
 
 const express = require('express');
 const http = require('http');

@@ -17,10 +17,6 @@ const errorPage = (code, message) => `<head>
 </body>
 `;
 
-function errorHandler(err, req, res, next) {
+exports.errorHandler = function (err, req, res, next) {
     res.status(err.statusCode).send(errorPage(err.statusCode, err.message));
-}
-
-export {
-    errorHandler,
 }

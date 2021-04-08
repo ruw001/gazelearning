@@ -1,4 +1,4 @@
-import {errorHandler} from "./errorHandler";
+const {errorHandler} = require("./errorHandler");
 
 let express = require('express');
 const path = require('path');

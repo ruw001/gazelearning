@@ -312,15 +312,16 @@
         let alert = document.getElementById("top-alert");
         alertLevel = ['alert', '-', alertLevel ? alertLevel : 'danger'].join('');
         alert.innerText = message;
+
+        if (!alert.classList.contains(alertLevel)) {
+            // Current level class is not added
+            let anotherLevel = alertLevel === 'danger' ? ['alert', '-', 'success'].join('') : ['alert', '-', 'danger'].join('');
+            // Add new class and remove old class
+            alert.classList.add(alertLevel);
+            alert.classList.remove(anotherLevel);
+        }
+
         if (alert.hidden) {
-            if (!alert.classList.contains(alertLevel)) {
-                // Current level class is not added
-                let anotherLevel = alertLevel === 'danger' ? ['alert', '-', 'success'].join('') : ['alert', '-', 'danger'].join('');
-                // Add new class and remove old class
-                alert.classList.add(['alert', '-', alertLevel].join(''));
-                alert.classList.remove(anotherLevel);
-            }
-            // Show the alert
             alert.hidden = false;
         }
     }
