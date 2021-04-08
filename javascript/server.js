@@ -1,3 +1,5 @@
+import {errorHandler} from "./errorHandler";
+
 let express = require('express');
 const path = require('path');
 let fs = require('fs');
@@ -26,7 +28,7 @@ let teacherAuthHash = digestMessage( 'teacher' );
 // identity of user
 const STUDENT = 1;
 const TEACHER = 2;
-
+// Read registered student name list
 let registeredStudents = new Map(); // Student Name => Student Number, which is the order of student
 fs.readFile("./restricted/users/registeredStudents.json", 'utf-8',(err, data) => {
     if (err) throw err;
@@ -86,7 +88,10 @@ app.post('/gazeData/sync',
     sendGazePoints,
     receptionConfirm);
 
-function newUserLogin (req, res, next) {
+// Error handling
+app.use(errorHandler);
+
+function newUserLogin(req, res, next) {
     // Creates user directory and generate cookie
     let content = req.body;
     console.log('============================')
@@ -128,12 +133,12 @@ function newUserLogin (req, res, next) {
         })
     );
 
-    res.send({ message: 'Cookie set.' });
+    res.send({message: 'Cookie set.'});
 }
 
 function verifyUser(identity) {
     return function (req, res, next) {
-        if ( !req.cookies['userInfo'] ) { // Cookie is not set.
+        if (!req.cookies['userInfo']) { // Cookie is not set.
             let err = new Error('Please login first.');
             err.statusCode = 401;
             return next(err);
@@ -159,7 +164,7 @@ function saveGazePoints(req, res, next) {
             `/${req.body['stuNum']}`,
             '/gaze',
             `/${new Date().getTime()}.json`
-    ));
+        ));
     writableStream.write(JSON.stringify(req.body));
 
     // req is a ended stream.Readable. readable.readableEnded=true;
@@ -168,7 +173,7 @@ function saveGazePoints(req, res, next) {
 
 function sendGazePoints(req, res, next) {
     // Send gaze data to instructor
-    const endpoint = 'http://'+dedicated_service_address+'/gazeData/teacher';
+    const endpoint = 'http://' + dedicated_service_address + '/gazeData/teacher';
 
     const req_instructor = http.request(endpoint,
         {
@@ -199,7 +204,7 @@ function sendGazePoints(req, res, next) {
     next()
 }
 
-async function receptionConfirm (req, res) {
+async function receptionConfirm(req, res) {
     // let { , role, pts } = req.body;
     let role = +req.body['role'];
     console.log('==========================');
@@ -216,7 +221,7 @@ async function receptionConfirm (req, res) {
         });
     } catch (e) {
         console.error(e.message);
-        res.send({ error: e.message });
+        res.send({error: e.message});
     }
 }
 

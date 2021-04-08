@@ -1,4 +1,6 @@
 // Require modules
+import {errorHandler} from "./errorHandler";
+
 const express = require('express');
 const http = require('http');
 const path = require('path');
@@ -37,7 +39,11 @@ app.get('/',(req, res) => {
 // When testing locally
 if (!DEPLOY) {
     const multipart = require("connect-multiparty");
+    const multipartyMiddleware = multipart();
     const fs = require('fs');
+
+    const FILEPATH = '/Users/hudongyin/Documents/Projects/gazelearning/python/data_temp';
+    // please change to local filepath where gaze/face will be stored
 
     let registeredStudents = new Map(); // Student Name => Student Number, which is the order of student
     fs.readFile("./restricted/users/registeredStudents.json", 'utf-8', (err, data) => {
@@ -48,9 +54,6 @@ if (!DEPLOY) {
         });
     });
 
-    const multipartyMiddleware = multipart();
-    const FILEPATH = '/Users/hudongyin/Documents/Projects/gazelearning/python/data_temp';
-    // please change to local filepath where gaze/face will be stored
     const teacherPasscodeHash = 'a5ec177fcb171aee626a6c5785c7274693a6a35a8adeae663a9746177ed9ddac';
     const studentAuthHash = '264c8c381bf16c982a4e59b0dd4c6f7808c51a05f64c35db42cc78a2a72875bb';
     const teacherAuthHash = '1057a9604e04b274da5a4de0c8f4b4868d9b230989f8c8c6a28221143cc5a755';
@@ -270,6 +273,9 @@ adminRouter.post('/trials',
     verifyUser,
     informationPost);
 
+// Error handling
+app.use(errorHandler);
+
 function generateAuthCookie(req, res) {
     // Generate authorization cookie.
     if (req.body.passcode !== passcodeHash) {
@@ -278,8 +284,6 @@ function generateAuthCookie(req, res) {
         res.send('Wrong message.')
     } else {
         // Passcode match. Generate authorization cookie.
-        authHash = digestMessage(Date.now());
-
         res.statusCode = 200;
         res.cookie('userInfo',
             JSON.stringify({
@@ -381,6 +385,7 @@ class InMemorySessionStore extends SessionStore {
 }
 
 let sessionStore = new InMemorySessionStore();
+let unregisterEvent = undefined;
 
 const randomId = () => crypto.randomBytes(8).toString("hex");
 
@@ -448,9 +453,6 @@ adminNamespace.on("connection", socket => {
 
     socket.on("ready", () => {
         // event ready comes from the teacherPage/studentPage.
-        // when the students/instructor logs in, the server will "start" to schedule the start event
-        // If the instructor receives "teacher start" event, it is similar to click on sync button;
-        // If the student receives "student start" event, it will start to infer every inferInterval;
         // "delay" event is used to block students/teacher from accessing the next procedure.
 
         // Some possible bugs:
@@ -458,9 +460,22 @@ adminNamespace.on("connection", socket => {
         // 2. When to remove past course?
 
         let delay = registeredTrials[0].lecture.time - Date.now();
-        if (delay) {
-            // Emit "delay" event
-            adminNamespace.to("student").to("teacher").to("admin").emit("delay", delay);
+        if (delay !== undefined) {
+            // Assert if delay exists. Emit "delay" event
+            socket.emit("delay", delay);
+        }
+    });
+
+    socket.on("schedule", () => {
+        // This will be initiated from instructor (precisely client.js).
+        // If the instructor receives "teacher start" event, it is similar to click on sync button;
+        // If the student receives "student start" event, it will start to infer every inferInterval;
+
+        let delay = registeredTrials[0].lecture.time - Date.now();
+
+        if (delay > 0 && ( unregisterEvent === undefined || unregisterEvent._idleTimeout < 0 )) {
+            // unregisterEvent === undefined : server just initialized
+            // unregisterEvent._idleTimeout < 0 : last timed-out function is executed
 
             // Schedule "student start" event for students
             let startStudentEvent = setTimeout(() => {
@@ -476,7 +491,7 @@ adminNamespace.on("connection", socket => {
             }, delay + 2 * 1000); // delay 2 seconds then students
 
             // Unregister trial
-            let unregisterEvent = setTimeout(() => {
+            unregisterEvent = setTimeout(() => {
                 registeredTrials.shift();
                 console.log('============================');
                 console.log('Trial is removed.');

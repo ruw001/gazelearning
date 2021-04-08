@@ -146,6 +146,11 @@
             zoomid: 'Unknown',
         }
     }
+    const successPost = "User information posted successfully. Waiting for redirect...";
+    const studentLoginFail = "You are not registered. Please check you name spell or contact us via contact@cogteach.com.";
+    const teacherLoginFail = "Wrong passcode. Please retry.";
+    const adminLoginFail = "Wrong passcode for admin login. Please retry.";
+    const closeTime = 5000; //ms
 
     // Get latest lecture information
     window.onload = function () {
@@ -182,8 +187,49 @@
         // document.getElementById("devbtn").innerText = 'Submitting'
         // document.getElementById("devbtn").disabled = true;
 
+        // =====Post form data
+        let formData = new FormData(e.target);
+
+        if (document.getElementById('identity-0').checked) { // Student
+            formData.set('name', [formData.get('first-name').toLowerCase(), formData.get('last-name').toLowerCase()].join(' '));
+            formData.delete('first-name');
+            formData.delete('last-name');
+        } else { // Teacher
+            formData.set('passcodeHash', await digestMessage(formData.get('passcode')));
+            formData.delete('passcode');
+        }
+
+        for (let [key, val] of formData.entries()) {
+            console.log(`${key} : ${val}`);
+        }
+
+        fetch('/users', {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                showAlert(successPost, 'success');
+                connectSocket();
+            } else {
+                // =====Enable buttons
+                document.getElementById("submitbtn").innerText = "Submit";
+                document.getElementById("submitbtn").disabled = false;
+                // document.getElementById("devbtn").innerText = 'Submitting'
+                // document.getElementById("devbtn").disabled = true;
+
+                if (document.getElementById('identity-0').checked) {
+                    showAlert(studentLoginFail)
+                } else {
+                    showAlert(teacherLoginFail);
+                    closeAlert(closeTime);
+                }
+            }
+        });
+    });
+
+    function connectSocket() {
         // =====Socket connection to admin server
-        const socket = io("/admin", {
+        const socket = io("https://cogteach.com/admin", {
             autoConnect: false,
             auth: {
                 identity: document.getElementById("identity-0").checked ? 1 : 2,
@@ -206,59 +252,12 @@
             sessionStorage.setItem("sessionID", sessionID);
             // save the ID of the user
             socket.userID = userID;
-            // Session information is stored. Noe post form data.
-            postUserForm(e);
-        });
-    });
-
-    async function postUserForm (e) {
-        // =====Post form data
-        let formData = new FormData(e.target);
-
-        if (document.getElementById('identity-0').checked) { // Student
-            formData.set('name', [formData.get('first-name').toLowerCase(), formData.get('last-name').toLowerCase()].join(' '));
-            formData.delete('first-name');
-            formData.delete('last-name');
-        } else { // Teacher
-            formData.set('passcodeHash', await digestMessage(formData.get('passcode')));
-            formData.delete('passcode');
-        }
-
-        for (let [key, val] of formData.entries()) {
-            console.log(`${key} : ${val}`);
-        }
-
-        fetch('/users', {
-            method: 'POST',
-            body: formData
-        }).then(response => {
-            if (response.ok) {
-                console.log("User information posted.");
-                if (!document.getElementById("top-alert").hidden) document.getElementById("top-alert").hidden = true;
-                if (document.getElementById('identity-0').checked) {
-                    window.open('studentPage.html', '_self');
-                } else {
-                    window.open('teacherPage.html', '_self');
-                }
+            // Session information is stored. Now redirect to new pages.
+            if (document.getElementById('identity-0').checked) {
+                window.open('studentPage.html', '_self');
             } else {
-                // =====Enable buttons
-                document.getElementById("submitbtn").innerText = "Submit";
-                document.getElementById("submitbtn").disabled = false;
-                // document.getElementById("devbtn").innerText = 'Submitting'
-                // document.getElementById("devbtn").disabled = true;
-
-                if (document.getElementById('identity-0').checked) {
-                    document.getElementById("top-alert").innerText = "You are not registered. Please check you name spell or contact us via contact@cogteach.com.";
-                    document.getElementById("top-alert").hidden = false;
-                } else {
-                    document.getElementById("top-alert").innerText = "Wrong passcode. Please retry.";
-                    document.getElementById("top-alert").hidden = false;
-                    setTimeout(() => {document.getElementById("top-alert").hidden = true}, 5000);
-                }
+                window.open('teacherPage.html', '_self');
             }
-        }).catch(err => {
-            console.log('Handling err')
-            console.log(err);
         });
     }
 
@@ -300,15 +299,34 @@
                 window.open('admin.html', '_self');
             } else {
                 // Alert user since wrong passcode is entered.
-                document.getElementById("top-alert").innerText = "Wrong passcode for admin login. Please retry.";
-                if (document.getElementById("top-alert").hidden) {
-                    document.getElementById("top-alert").hidden = false;
-                    setTimeout(() => {document.getElementById("top-alert").hidden = true}, 5000);
-                }
+                showAlert(adminLoginFail);
+                closeAlert(closeTime);
             }
         }).catch(e => {
             console.log(e);
         })
+    }
+
+    function showAlert (message, alertLevel) {
+        // alertLevel = 'danger'/'success'
+        let alert = document.getElementById("top-alert");
+        alertLevel = ['alert', '-', alertLevel ? alertLevel : 'danger'].join('');
+        alert.innerText = message;
+        if (alert.hidden) {
+            if (!alert.classList.contains(alertLevel)) {
+                // Current level class is not added
+                let anotherLevel = alertLevel === 'danger' ? ['alert', '-', 'success'].join('') : ['alert', '-', 'danger'].join('');
+                // Add new class and remove old class
+                alert.classList.add(['alert', '-', alertLevel].join(''));
+                alert.classList.remove(anotherLevel);
+            }
+            // Show the alert
+            alert.hidden = false;
+        }
+    }
+
+    function closeAlert(delay) {
+        setTimeout(() => {document.getElementById("top-alert").hidden = true}, delay);
     }
 
 </script>
