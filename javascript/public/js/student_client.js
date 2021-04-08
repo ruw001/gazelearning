@@ -507,12 +507,14 @@ function reportInattention() {
     if (document.visibilityState === 'hidden') {
         lastHiddenTimestamp = new Date().getTime();
         setTimeout(()=>{
-            if (lastHiddenTimestamp) {
+            if (lastHiddenTimestamp && !hiddenReported) {
+                hiddenReported = true;
                 inattention_counter++;
                 new Audio('/media/audio/alert.mp3').play().catch(err => console.log(err));
             }
         }, updateInterval*inferInterval)
     } else if (document.visibilityState === 'visible') {
         lastHiddenTimestamp = 0;
+        hiddenReported = false;
     }
 }

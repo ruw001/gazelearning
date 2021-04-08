@@ -51,6 +51,7 @@ let detector = (typeof EKDetector === 'function') ? new EKDetector() : undefined
 
 let faceLostReported = false;
 let lastHiddenTimestamp;
+let hiddenReported = false;
 // ==============================================================
 // constant definition (for better code comprehension)
 // possible states of variable collecting
