@@ -90,6 +90,7 @@ window.onload = async function () {
     // const zoomMeeting = document.getElementById("zmmtg-root");
 
     socket.emit("ready");
+    socket.emit("schedule"); // Schedule start events and when to unregister lecture.
 
 }
 
