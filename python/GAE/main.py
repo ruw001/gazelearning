@@ -21,11 +21,12 @@ from threading import Thread
 import logging
 
 CNTR = 0
-TOTAL = 400
+TOTAL = 500
 
 deployed = False
 
-FILEPATH = '/mnt/fileserver'
+# FILEPATH = '/mnt/fileserver'
+FILEPATH = 'fileserver'
 
 POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
            158, 157, 173, 263, 249, 390, 373, 374, 380, 381, 382, 362,
@@ -35,7 +36,7 @@ POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
 if not deployed:
     if not os.path.exists(FILEPATH):
         # os.rmdir(FILEPATH)
-        os.mkdir(FILEPATH)
+        os.makedirs(FILEPATH)
         print('folder {} not find, have created one.'.format(FILEPATH))
 
 modelPool = {}
@@ -154,12 +155,14 @@ class StatePredictor:
         self.retrain_interval = 200 # TODO: incremental training!
         self.dir = os.path.join(FILEPATH, str(self.username), 'face')
         self.deployed = deployed
+        self.trained = False
         if not self.deployed:
             if not os.path.exists(self.dir):
                 os.makedirs(self.dir)
             elif os.path.exists(os.path.join(self.dir, 'pca.joblib')):
                 self.clf = load(os.path.join(self.dir, 'model_pca.joblib'))
                 self.pca = load(os.path.join(self.dir, 'pca.joblib'))
+                self.trained = True
 
     def incre_train(self, img, label):
         pass
@@ -167,6 +170,8 @@ class StatePredictor:
 
     def addData(self, img, label, frameId, incre=False):
         global TOTAL, metricPool
+        if self.trained and not incre:
+            print('Ignore...')
         # Save collected image.
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img.flags.writeable = False

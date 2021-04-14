@@ -66,7 +66,7 @@ def spectral_clustering(fx, fy):
     k = np.argmax(np.diff(vals[:vals.shape[0]//2+1])) + 1
 
     # print('max k', vals.shape[0]//2+1)
-    print('optimal K (Fiedler):', k)
+    app.logger.info('optimal K (Fiedler):', k)
 
     X = np.real(vecs[:, 0:3])
 
@@ -78,7 +78,7 @@ def spectral_clustering(fx, fy):
 
     points = np.stack([fx, fy], axis=-1)
 
-    print('max k', max_k)
+    app.logger.info('max k', max_k)
     for k in range(2, max_k):
         # labels = KMeans(n_clusters=k).fit(X).labels_
         labels = KMeans(n_clusters=k).fit(points).labels_
@@ -87,10 +87,9 @@ def spectral_clustering(fx, fy):
             best_sil = sil
             best_k = k
             best_cluster = labels
+        # print(k, sil, labels)
 
-        print(k, sil, labels)
-
-    print('sil best:', best_k, best_sil, best_cluster)
+    app.logger.info('sil best:', best_k, best_sil, best_cluster)
 
     return [int(c) for c in best_cluster]
 
@@ -99,8 +98,9 @@ def teacher_post():
     data = request.data  # .decode('utf-8')
     body = json.loads(data)
     role = int(body['role'])
-    print('==============================')
-    print('Received POST from {}'.format('student' if role == 1 else 'teacher'))
+    app.logger.info('==============================')
+    app.logger.info('Received POST from {}'.format(
+        'student' if role == 1 else 'teacher'))
 
     try:
         if role == TEACHER:
@@ -120,7 +120,7 @@ def teacher_post():
             fixationX = np.array([fix['x_per'] for fix in fixationFlat])
             fixationY = np.array([fix['y_per'] for fix in fixationFlat])
 
-            print('Fixations to cluster: {}'.format(len(fixationX)))
+            app.logger.info('Fixations to cluster: {}'.format(len(fixationX)))
 
             resp = flask.Response()
             resp.set_data(json.dumps(
@@ -137,12 +137,12 @@ def teacher_post():
             return resp
         else:
             stuNum = int(body['role'])
-            print('Student number : {}'.format(stuNum))
+            app.logger.info('Student number : {}'.format(stuNum))
 
             all_fixations[stuNum] = body['fixations']
             all_saccades[stuNum] = body['saccades']
 
-            print('Receive {} fixations at {}'.format(
+            app.logger.info('Receive {} fixations at {}'.format(
                 len(all_fixations), time.time()))
 
             resp = flask.Response()
@@ -158,7 +158,7 @@ def teacher_post():
             resp.headers['Content-Type'] = 'application/json'
             return resp
     except Exception as e:
-        print('ERROR:', e)
+        app.logger.info('ERROR:', e)
         resp = flask.Response()
         resp.set_data(json.dumps(
             {
@@ -174,7 +174,7 @@ def teacher_post():
 
 @tl.job(interval=timedelta(seconds=5))
 def remove_obs_entries():
-    print('here!', time.time())
+    # print('here!', time.time())
     for name, ts in last_seen.items():
         if time.time() - ts > 5:
             del all_fixations[name]
