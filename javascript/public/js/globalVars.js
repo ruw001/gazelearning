@@ -424,7 +424,7 @@ socket.on("delay", (delay) => {
     let hours = Math.floor(delay);
 
     if ( (hours === 0 && minutes <= 10) || (seconds < 0) || (minutes < 0) || (hours < 0) ) {
-        // Next lecture will start within 10 minutes
+        // Next lecture will start within 10 minutes OR delay is smaller than 0 (late student)
         closeModal("before-lecture-modal");
         // Student will be blocked by next modal dialog
         // [Adaptive] Follow openModal function to see how to adapt to different experiment settings

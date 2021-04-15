@@ -62,6 +62,7 @@ server.listen(PORT, function () {
 // app.use(cors())
 let verifyStudent = verifyUser(STUDENT),
     verifyTeacher = verifyUser(TEACHER);
+let ts = new Date();
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -105,10 +106,14 @@ function newUserLogin(req, res, next) {
             err.statusCode = 401;
             return next(err);
         }
-
+        // Update ts if day has changed
+        const loginTimestamp = new Date();
+        if (loginTimestamp.getDay() !== ts.getDay()) ts = loginTimestamp;
+        // Make new directory day by day
         const studentNumber = registeredStudents.get(content.name).toString();
-        if (!fs.existsSync(path.join(FILEPATH, studentNumber), '/gaze')) {
-            fs.mkdir(path.join(FILEPATH, studentNumber, '/gaze'),
+        const infoDatePath = path.join(FILEPATH, studentNumber, 'info');
+        if (!fs.existsSync(infoDatePath)) {
+            fs.mkdir(infoDatePath,
                 {recursive: true},
                 (err) => {
                     if (err) throw err;
@@ -157,15 +162,17 @@ function verifyUser(identity) {
 }
 
 function saveGazePoints(req, res, next) {
-    // Save gaze data from student
+    // Save gaze data and cog data from student
+    let filename = `${ts.getFullYear()}-${ts.getMonth() + 1}-${ts.getDate()}`;
 
     const writableStream = fs.createWriteStream(
         path.join(FILEPATH,
-            `/${req.body['stuNum']}`,
-            '/gaze',
-            `/${new Date().getTime()}.json`
-        ));
-    writableStream.write(JSON.stringify(req.body));
+            `${req.body['stuNum']}`,
+            'info',
+            `${filename}.json`
+        ), {flags: 'a'});
+    // ',' (comma) is the delimiter
+    writableStream.write(JSON.stringify(req.body)+',');
 
     // req is a ended stream.Readable. readable.readableEnded=true;
     next();

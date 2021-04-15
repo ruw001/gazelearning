@@ -209,7 +209,10 @@
         let ul = document.getElementById("name-list");
         ul.innerHTML = '';
 
-        // Add new user li
+        // Sort usernames by dictionary order
+        console.log('USERS:');
+        console.log(users);
+        users = users.filter( user => Boolean(user.name) ); // Filter out users whose undefined
         users.sort((a, b) => {
             if (a.name !== b.name) {
                 if (a.name === 'Administrator') return -1;
@@ -221,8 +224,11 @@
                 return 0
             }
         });
+
+        // Add new user li
         for (let user of users) {
             let new_li = document.createElement('li');
+            new_li.id = user.userID;
             new_li.className = "list-group-item";
             new_li.innerText = user.name;
             ul.insertAdjacentElement('beforeend', new_li);
@@ -236,6 +242,11 @@
         sessionStorage.setItem("sessionID", sessionID);
         // save the ID of the user
         socket.userID = userID;
+    });
+
+    socket.on("user disconnected", (userID) => {
+        let li = document.getElementById(userID);
+        if (li) li.remove();
     });
 
     // =====================HTTP====================

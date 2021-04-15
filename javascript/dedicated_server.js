@@ -462,6 +462,7 @@ adminNamespace.on("connection", socket => {
         let delay = registeredTrials[0].lecture.time - Date.now();
         if (delay !== undefined) {
             // Assert if delay exists. Emit "delay" event
+            // This will allow late students to attend the lecture
             socket.emit("delay", delay);
         }
     });
@@ -503,8 +504,8 @@ adminNamespace.on("connection", socket => {
         const matchingSockets = await adminNamespace.in(socket.userID).allSockets();
         const isDisconnected = matchingSockets.size === 0;
         if (isDisconnected) {
-            // notify other users
-            socket.broadcast.emit("user disconnected", socket.userID);
+            // notify instructor and admin
+            socket.to("teacher").to("admin").emit("user disconnected", socket.userID);
             // update the connection status of the session
             sessionStore.saveSession(socket.sessionID, {
                 userID: socket.userID,
