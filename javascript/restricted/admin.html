@@ -246,7 +246,10 @@
 
     socket.on("user disconnected", (userID) => {
         let li = document.getElementById(userID);
-        if (li) li.remove();
+        if (li) {
+            console.log(`User ${li.innerText} has disconnected from the server.`);
+            li.remove();
+        }
     });
 
     // =====================HTTP====================
@@ -396,13 +399,13 @@
         }:${
             lectureDate.getMinutes() < 10 ? '0' + lectureDate.getMinutes() : lectureDate.getMinutes()
         }`;
-        let offset = -lectureDate.getTimezoneOffset() / 60;
+        let offset = -lectureDate.getTimezoneOffset() / 60; // -7 for PDT.
         switch (offset) {
             case -4:
             case -5:
             case -6:
             case -7:
-                document.getElementById(`edit-timezone-${trialno}`).value = `-0${offset}00`;
+                document.getElementById(`edit-timezone-${trialno}`).value = `-0${-offset}00`;
                 break;
             default:
                 // Cause Dongyin is testing in China... Use PST as default
