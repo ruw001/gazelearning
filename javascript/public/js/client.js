@@ -102,6 +102,11 @@ window.onbeforeunload = function () {
 // @string.Format("https://zoom.us/wc/{0}/join?prefer=0&un={1}", ViewBag.Id, System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes("Name Test")))
 
 // [Entry 2] Lecture
+socket.on("teacher start", ()=>{
+    if ( !(gazeInfo || cogInfo) ) return; // Nothing happens
+    sync();
+});
+
 document.getElementById("sync").addEventListener(
     'click',
     sync
@@ -114,6 +119,7 @@ async function sync() {
     maxW = containerRect.width;
 
     d3.select("#container").insert("svg", "iframe").attr("id", "plotting_svg");
+    d3.select("#container").insert("svg", "iframe").attr("id", "cognitive_svg");
 
     let svg = d3.select("#plotting_svg")
         // .style('left', xOffset)
@@ -121,28 +127,31 @@ async function sync() {
         .attr("width", maxW)
         .attr("height", maxH)
         .attr("font-family", "sans-serif");
-
-    svg.append("defs");
-    let gradient = d3.select("#plotting_svg")
-        .select("defs")
-        .append("linearGradient")
-        .attr("id", "arrowGradient");
-
-    gradient.append("stop")
-        .attr("offset", "5%")
-        .attr("stop-color", "white");
-
-    gradient.append("stop")
-        .attr("offset", "95%")
-        .attr("stop-color", "blue");
-
     console.log('SVG set.');
+
+    cog_width = 0.5*maxW;
+    cog_height = 0.1*maxH;
+    // Map percentage to coordinate
+    x = d3.scaleLinear()
+        .domain([0, 1])
+        .range([margin.left, cog_width - margin.right]);
+    y = d3.scaleBand()
+        .domain(["Knowledge", "Attention"])
+        .range([margin.top, cog_height - margin.bottom])
+        .padding(0.1);
+
+    let cog_svg = d3.select("#cognitive_svg")
+        // .style('left', xOffset)
+        // .style('top', yOffset)
+        .attr("width", cog_width)
+        .attr("height", cog_height);
+    cog_svg.append("g").call(xAxis);
+    cog_svg.append("g").call(yAxis);
+    console.log('Cognitive SVG set.');
 
     console.log('Syncing...');
     let userInfo = getCookie('userInfo');
-
     if (!userInfo) throw Error('No user information. Please log in.');
-
     userInfo = JSON.parse(userInfo);
 
     let update = setInterval(async () => {
@@ -185,20 +194,47 @@ async function updateGazePoints(userInfo) {
         identity
     ).then(res => {console.log(res); return res;})
     .then(result => {
+        let animationTime = 1000; //ms
+        let confusionRate = 0, inattentionRate = 0, total = result.cognitives.length;
+
         // [Adaptive] Follow openModal function to see how to adapt to different experiment settings
+        // AoI visualization
         if(gazeInfo) {
             result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));
             console.log(result.result);
             let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
 
+            let confusedStudents = new Set();
+            AoIs.forEach((AoI) => {
+                for (let stuNum of AoI.confusedStudents) {
+                    if (confusedStudents.has(stuNum)) continue;
+                    confusedStudents.add(stuNum);
+                }
+            });
+            confusionRate = confusedStudents.size;
+
             console.log(AoIs);
             console.log(TMatrix);
 
-            let animationTime = 1000; //ms
             showAoI(AoIs, animationTime);
             showTransition(AoIs, TMatrix, animationTime);
-        } else if (cogInfo) { // gazeInfo off, cogInfo on
-            // TODO: Show cognitive information only
+        }
+
+        // Cognitive bar chart
+        if (cogInfo) { // gazeInfo off/on, cogInfo on
+            // Show global cognitive information.
+            result.cognitives.forEach((cogInfo) => {
+                // cogInfo {stuNum: number, confusion: string[], inattention: number}
+                if (cogInfo.inattention > 0) ++inattentionRate;
+                if (!gazeInfo) {
+                    if (cogInfo.confusion.some((state) => state === 'Confused')) ++confusionRate;
+                }
+            })
+
+            confusionRate = confusionRate/total;
+            inattentionRate = inattentionRate/total;
+
+            showCognitive([confusionRate, inattentionRate], animationTime);
         } else { // no info post
             // do nothing
         }
@@ -208,8 +244,86 @@ async function updateGazePoints(userInfo) {
 }
 
 // ==============================================================
-// Socket.io timing control
-socket.on("teacher start", sync);
+// Visualization helper functions
+
+// Plot axis of the figure
+function xAxis (g) {
+    return g.attr("transform", `translate(0,${margin.top})`)
+        .call(d3.axisTop(x).ticks(4, "%").tickSizeOuter(0))
+        .call(g => g.select(".domain").remove()) // Remove horizontal line
+        .call(g => g.append("text")
+            .attr("x", cog_width - margin.right - 40)
+            .attr("fill", "currentColor")
+            .text('Rate (%)'))
+}
+function yAxis (g){
+    return g.attr("transform", `translate(${margin.left},0)`)
+        .call(d3.axisLeft(y).ticks(2))
+        .call(g => g.select(".domain").remove()) // Remove horizontal line
+        .call(g => g.selectAll(".tick line")
+            .call(line => line.remove())
+        ); // remove tick line
+}
+
+function showCognitive(cogInfo, animationTime) {
+    let t = d3.transition()
+        .duration(animationTime);
+    const textWidth = 45, textHeight = 14, opacity = 0.7;
+    const colorDict = {
+        'safe': "#06d6a0",
+        'warning':"#ffd166",
+        'danger':"#ef476f",
+    };
+
+    let gSelection = d3.select("#cognitive_svg")
+        .selectAll("g.bar")
+        .data(cogInfo.map((val, ord) => {
+            return {val, ord}
+        }))
+        .join("g")
+        .classed("bar", true);
+
+    gSelection.selectAll("rect")
+        .data(d => [d])
+        .join(
+            enter => enter.append("rect")
+                .attr("x", d => x(0))
+                .attr("y", d => d.ord === 0 ? y("Knowledge") : y("Attention"))
+                .attr("height", d => y.bandwidth())
+                .attr("fill", d => {
+                    if (d.val < 1/3) return colorDict["safe"];
+                    else if (d.val < 2/3) return colorDict["warning"];
+                    else return colorDict["danger"];
+                })
+                .attr("opacity", opacity),
+            update => update,
+            exit => exit.call(g => g.remove())
+        )
+        .call(rect => rect.transition(t)
+            .attr("width", d => x(1-d.val) - x(0))
+            .attr("fill", d => {
+                if (d.val < 1/3) return colorDict["safe"];
+                else if (d.val < 2/3) return colorDict["warning"];
+                else return colorDict["danger"];
+            })
+        );
+
+    gSelection.selectAll("text")
+        .data(d => [d])
+        .join(
+            enter => enter.append("text")
+                .attr("x", d => x(1-d.val) + ( x(1-d.val) > x(0) + textWidth ?  -textWidth : textWidth ))
+                .attr("y", d => (d.ord === 0 ? y("Knowledge") : y("Attention")) + textHeight)
+                .attr("stroke", "black")
+                .attr("fill", "none"),
+            update => update,
+            exit => exit.call(g => g.remove())
+        )
+        .call(rect => rect.transition(t)
+            .attr("x", d => x(1-d.val) + (x(1-d.val) > x(0) + textWidth ?  -textWidth : 1))
+            .text(d => d3.format('.1%')(1-d.val))
+        );
+}
 
 // ==============================================================
 // LEGACY CODES
@@ -249,6 +363,20 @@ function PlotGaze(GazeData) {
         if (gaze.style.display === 'none')
             gaze.style.display = 'block';
     }
+}
+
+function defineGradient () {
+    svg.append("defs");
+    let gradient = d3.select("#plotting_svg")
+        .select("defs")
+        .append("linearGradient")
+        .attr("id", "arrowGradient");
+    gradient.append("stop")
+        .attr("offset", "5%")
+        .attr("stop-color", "white");
+    gradient.append("stop")
+        .attr("offset", "95%")
+        .attr("stop-color", "blue");
 }
 
 // From heatmapTest

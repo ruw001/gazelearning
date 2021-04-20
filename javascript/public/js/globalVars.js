@@ -8,6 +8,15 @@ let maxH = 0;
 let maxW = 0;
 
 // ==============================================================
+// Visualization helper functions
+// Margin of the visualization figure
+const margin = {top: 20, right: 30, bottom: 30, left: 100};
+let cog_width;
+let cog_height;
+let x;
+let y;
+
+// ==============================================================
 // Global experiment setting
 let gazeInfo,
     cogInfo;

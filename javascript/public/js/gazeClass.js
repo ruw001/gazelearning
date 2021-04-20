@@ -63,14 +63,19 @@ class Fixation{
 
         // Bind confusion detection with fixation
         this.data.confusionCount = 0;
+        this.data.stuNum = typeof userInfo === "undefined" ? undefined : userInfo['number'] ;
     }
 
     static fromFixationData(fixationData) {
+        let fixation;
         if (typeof(tf) !== "undefined") {
-            return new this(tf.tensor1d(fixationData.xall), tf.tensor1d(fixationData.yall), fixationData.start, fixationData.end);
+            fixation = new this(tf.tensor1d(fixationData.xall), tf.tensor1d(fixationData.yall), fixationData.start, fixationData.end)
         } else {
-            return new this(fixationData.xall, fixationData.yall, fixationData.start, fixationData.end);
+            fixation = new this(fixationData.xall, fixationData.yall, fixationData.start, fixationData.end);
         }
+        fixation.data.confusionCount = fixationData.confusionCount;
+        fixation.data.stuNum = fixationData.stuNum;
+        return fixation;
     }
 
     // Getters. Cater for visualization need. This is user-dependent.
@@ -215,12 +220,21 @@ class AoI{
             'danger':"#ef476f",
         };
 
-        this.status = fixations.reduce(
-            (confusionCountSum, fixation) => confusionCountSum + fixation.data.confusionCount,
-            0
-        );
-
+        this.status = 0; // Updated below, sum of confusionCount
         this.percentage = fixations.length / nFixations;
+        this.confusedStudents = new Set(); // Updated below. Students fell confused in this AoI.
+        this.students = new Set(); // Updated below. Students in this AoI.
+
+        fixations.forEach((fixation) => {
+            if ( !this.students.has(fixation.data.stuNum) ) {
+                this.students.add(fixation.data.stuNum);
+            }
+
+            if (!this.confusedStudents.has(fixation.data.stuNum) && fixation.data.confusionCount > 0) {
+                this.confusedStudents.add(fixation.data.stuNum);
+            }
+            this.status += fixation.data.confusionCount;
+        });
 
         let min = null;
         this.fixations.forEach((fixation)=>{
@@ -272,30 +286,12 @@ class AoI{
             return fixation.duration + sum
         }, 0);
     }
-    
+
     getStatus() {
-
-        // if (this.status !== undefined) return this.status;
-        //
-        // let randNum = Math.random();
-
-        // if (randNum < 0.33) {
-        //     this.status = "safe";
-        // } else if (randNum < 0.66) {
-        //     this.status = "warning";
-        // } else {
-        //     this.status = "danger";
-        // }
-        // return this.status
-
-        switch (this.status) {
-            case 0:
-                return "safe";
-            case 1:
-                return "warning";
-            default:
-                return "danger";
-        }
+        let confusedRate = this.confusedStudents.size / this.students.size;
+        if (confusedRate < 1/3) return "safe";
+        else if (confusedRate < 2/3) return "warning";
+        else return "danger";
     }
 
     draw(ctx, status) {
@@ -434,7 +430,10 @@ function showAoI(AoIs, animationTime) {
                 update => update.text(d => "#Confusion : "+d.status),
                 exit => exit.remove() // should never be called? remove of <g> should have handled this.
             )
-            .call(s => s.each( function (d) {console.log(this.getBBox()); return d.bbox = this.getBBox();} ))
+            .call(s => s.each(function (d) {
+                // console.log(this.getBBox());
+                return d.bbox = this.getBBox();
+            }))
             .transition(t)
             .attr("x", d => d.xmin) // update rects in selection "update"
             .attr("y", d => d.ymin);
@@ -460,6 +459,19 @@ function showAoI(AoIs, animationTime) {
 }
 
 function showTransition(AoIs, TMatrix, animationTime) {
+    let nTransition = d3.sum(d3.merge(TMatrix));
+
+    let gSelection = d3.select("#plotting_svg")
+        .selectAll("g.transition")
+        .data(TMatrix)
+        .join("g")
+        .classed("transition", true);
+
+    if (TMatrix.length === 1 || nTransition === 0) {
+        gSelection.selectAll("path").data([]).exit(g=>g.remove());
+        return;
+    } // No transition
+
     let t = d3.transition()
             .duration(animationTime);
     let theta = 30;
@@ -470,19 +482,11 @@ function showTransition(AoIs, TMatrix, animationTime) {
     let AoIX = [];
     let AoIY = [];
 
-    let nTransition = d3.sum(d3.merge(TMatrix));
-
     AoIs.forEach((AoI)=>{
         AoIX[AoI.id] = ( (AoI.xmin + AoI.xmax) / 2 );
         AoIY[AoI.id] = ( (AoI.ymin + AoI.ymax) / 2 ) + 1;
         // for transition calculation, otherwise initial arrow state calculation will thrwo error
     });
-
-    let gSelection = d3.select("#plotting_svg")
-                    .selectAll("g.transition")
-                    .data(TMatrix)
-                    .join("g")
-                    .classed("transition", true);
 
     gSelection.selectAll("path")
         .data( (d, i) => {
