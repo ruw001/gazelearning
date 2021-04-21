@@ -27,6 +27,8 @@ let total = 500;
 let totalNeutral = total;
 let totalConfused = total;
 let collecting = 0;
+let model_ver = 0;
+let reporting = false;
 
 // var fastMode = false;
 

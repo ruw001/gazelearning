@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
+from sklearn.linear_model import SGDClassifier
 import time
 import argparse
 import flask
@@ -23,7 +24,7 @@ import logging
 CNTR = 0
 TOTAL = 500
 
-deployed = False
+# deployed = False
 
 # FILEPATH = '/mnt/fileserver'
 FILEPATH = 'fileserver'
@@ -33,11 +34,10 @@ POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
            466, 388, 387, 386, 385, 384, 398, 46, 53, 52, 65, 55, 70, 63, 105,
            66, 107, 276, 283, 282, 295, 285, 300, 293, 334, 296, 336]
 
-if not deployed:
-    if not os.path.exists(FILEPATH):
-        # os.rmdir(FILEPATH)
-        os.makedirs(FILEPATH)
-        print('folder {} not find, have created one.'.format(FILEPATH))
+if not os.path.exists(FILEPATH):
+    # os.rmdir(FILEPATH)
+    os.makedirs(FILEPATH)
+    print('folder {} not find, have created one.'.format(FILEPATH))
 
 modelPool = {}
 metricPool = {}
@@ -142,7 +142,7 @@ class Metric:
 
 class StatePredictor:
 
-    def __init__(self, usrname, deployed):
+    def __init__(self, usrname):
         global FILEPATH
         self.facemesh = mp.solutions.face_mesh.FaceMesh(
             max_num_faces=1,
@@ -154,21 +154,51 @@ class StatePredictor:
         self.username = usrname
         self.retrain_interval = 200 # TODO: incremental training!
         self.dir = os.path.join(FILEPATH, str(self.username), 'face')
-        self.deployed = deployed
         self.trained = False
-        if not self.deployed:
-            if not os.path.exists(self.dir):
-                os.makedirs(self.dir)
-            elif os.path.exists(os.path.join(self.dir, 'pca.joblib')):
-                self.clf = load(os.path.join(self.dir, 'model_pca.joblib'))
-                self.pca = load(os.path.join(self.dir, 'pca.joblib'))
+        self.model_ver = 0
+        if not os.path.exists(self.dir):
+            os.makedirs(self.dir)
+        else:
+            modelfiles = [f for f in os.listdir(self.dir) if '.joblib' in f]
+            if len(modelfiles) == 2:
+                pca_path = [f for f in modelfiles if f[:3] == 'pca'][0]
+                model_path = [f for f in modelfiles if f[:3] == 'mod'][0]
+                # self.model_ver = pca_path.split('.')[1]
+                self.clf = load(os.path.join(self.dir, model_path))
+                self.pca = load(os.path.join(self.dir, pca_path))
+                os.rename(os.path.join(self.dir, model_path),
+                          os.path.join(self.dir, 'model_pca.0.joblib'))
+                os.rename(os.path.join(self.dir, model_path),
+                          os.path.join(self.dir, 'pca.0.joblib'))
                 self.trained = True
 
-    def incre_train(self, img, label):
-        pass
+    def incre_train(self, img, label, ver):
+        # load latest model
+        # if the model is up-to-date, ver should be exactly model_ver + 1,
+        # otherwise, we should load latest model (ver - 1) before incremental training.
+        # Also remove old models before updating to new ones.
+        old_model_path = 'model_pca.{}.joblib'.format(ver - 1)
+        old_pca_path = 'pca.{}.joblib'.format(ver - 1)
+        if ver > self.model_ver + 1:
+            self.clf = load(os.path.join(self.dir, old_model_path))
+            self.pca = load(os.path.join(self.dir, old_pca_path))
+        os.remove(os.path.join(self.dir, old_model_path))
+        os.remove(os.path.join(self.dir, old_pca_path))
+
+        # train one step
+        gt_input = np.reshape(img, (1,-1))
+        gt_input = self.pca.transform(gt_input)
+        gt_label = np.array([str(label)])
+        self.clf = self.clf.partial_fit(gt_input, gt_label)
+
+        self.model_ver = ver
+
+        dump(self.clf, os.path.join(
+            self.dir, 'model_pca.{}.joblib'.format(self.model_ver)))
+        dump(self.pca, os.path.join(self.dir, 'pca.{}.joblib'.format(self.model_ver)))
 
 
-    def addData(self, img, label, frameId, incre=False):
+    def addData(self, img, label, frameId, incre=False, ver=0):
         global TOTAL, metricPool
         if self.trained and not incre:
             print('Ignore...')
@@ -189,9 +219,7 @@ class StatePredictor:
                     self.dir, '{}_{}.jpg'.format(label, frameId)
                 ), img)
             else:
-                # incre_train()
-                
-                pass
+                self.incre_train(img, label, ver)
 
 
         metricPool[self.username].inc_file()
@@ -208,27 +236,9 @@ class StatePredictor:
                 metricPool[self.username].nc_file_last = time.time()
             else:
                 metricPool[self.username].c_file_last = time.time()
-            
-    def _addData(self, img, label, incre=False):
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img.flags.writeable = False
-        results = self.facemesh.process(img)
-        img.flags.writeable = True
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-        if results.multi_face_landmarks:
-            face_landmarks = results.multi_face_landmarks[0]
-            # print(matrix)
-            cropped = getCrop(img, face_landmarks)
-            img = cv2.cvtColor(cv2.resize(
-                cropped, (100, 50)), cv2.COLOR_BGR2GRAY)
-            if not incre:
-                self.inputs.append(np.reshape(img, (-1)))
-                self.labels.append(label)
-            # TODO: svm incremental learning 
-            else:
-                self.clf.partial_fit
+        
     
-    def train(self, incre=False):
+    def train(self):
         inputs = []
         labels = []
         img_list = [f for f in os.listdir(self.dir) if '.jpg' in f]
@@ -254,28 +264,38 @@ class StatePredictor:
             time.time() - t0))
 
         t0 = time.time()
-        self.clf = SVC()
+        # self.clf = SVC()
+        self.clf = SGDClassifier()
         print(X_train_pca.shape)
         self.clf = self.clf.fit(X_train_pca, labels)
-        print('SVM train done in {}s'.format(time.time() - t0))
+        print('SGDClassifier train done in {}s'.format(time.time() - t0))
 
-        if not self.deployed:
-            dump(self.clf, os.path.join(self.dir, 'model_pca.joblib'))
-            dump(self.pca, os.path.join(self.dir, 'pca.joblib'))
+        dump(self.clf, os.path.join(self.dir, 'model_pca.0.joblib'))
+        dump(self.pca, os.path.join(self.dir, 'pca.0.joblib'))
     
     def threaded_train(self):
         Thread(target=self.train(), args=(self, )).start()
         print('Threaded Training Started!!!')
         return 
 
-    def confusionDetection(self, img):
+    def confusionDetection(self, img, ver):
         if self.clf is None:
             print('HERE looking for models...')
-            if os.path.exists(os.path.join(self.dir, 'pca.joblib')):
-                self.clf = load(os.path.join(self.dir, 'model_pca.joblib'))
-                self.pca = load(os.path.join(self.dir, 'pca.joblib'))
+            if os.path.exists(os.path.join(self.dir, 'pca.{}.joblib'.format(ver))):
+                self.clf = load(os.path.join(
+                    self.dir, 'model_pca.{}.joblib'.format(ver)))
+                self.pca = load(os.path.join(
+                    self.dir, 'pca.{}.joblib'.format(ver)))
+                self.model_ver = ver
             else:
                 return 'training'
+        else:
+            if self.model_ver != ver:
+                self.clf = load(os.path.join(
+                    self.dir, 'model_pca.{}.joblib'.format(ver)))
+                self.pca = load(os.path.join(
+                    self.dir, 'pca.{}.joblib'.format(ver)))
+                self.model_ver = ver
         tag = ['Neutral', 'Confused']
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img.flags.writeable = False
@@ -311,7 +331,7 @@ def index():
 
 @app.route('/detection', methods=['POST'])
 def confusion_detection():
-    global CNTR, TOTAL, FILEPATH, deployed
+    global CNTR, TOTAL, FILEPATH
     data = request.data #.decode('utf-8')
     data = json.loads(data)
     # print(data)
@@ -320,17 +340,19 @@ def confusion_detection():
     img = cv2.imdecode(im_arr, flags=cv2.IMREAD_COLOR)
     stage = data['stage']
     username = data['username']
+    ver = data['ver']
     if username not in modelPool:
         metricPool[username] = Metric()
-        modelPool[username] = StatePredictor(username, deployed)
+        modelPool[username] = StatePredictor(username)
 
     result = 'success'
-    print(username,
-          'stage', stage,
-          '{}:No.{}'.format(
-              'Confusion' if data['label'] else 'Neutral', TOTAL + 1 - data['frameId']),
-          time.time()
-          )
+    if stage == 0:
+        print(username,
+            'stage', stage,
+            '{}:No.{}'.format(
+                'Confusion' if data['label'] else 'Neutral', TOTAL + 1 - data['frameId']),
+            time.time()
+            )
     
     if stage == 0:
         metricPool[username].inc_req()
@@ -350,10 +372,10 @@ def confusion_detection():
             else:
                 metricPool[username].c_req_last = time.time()
     elif stage == 1:
-        result = modelPool[username].confusionDetection(img)
+        result = modelPool[username].confusionDetection(img, ver)
     else:
         modelPool[username].addData(
-            img, data['label'], data['frameId'], incre=True)
+            img, data['label'], data['frameId'], incre=True, ver=ver)
     try:
         pass
     except Exception as e:

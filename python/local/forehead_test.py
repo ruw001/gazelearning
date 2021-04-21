@@ -194,10 +194,11 @@ def facemesh_online_exp(retrain, model_dir):
             print('Thanks :)')
             return
         count = 0
-        total = 1200
+        total = 400
         inputs = []
         labels = []
     collect = 0 # 0: neutral, 1: confused
+    print('here!!')
     while cap.isOpened():
         success, image = cap.read()
         if not success:
