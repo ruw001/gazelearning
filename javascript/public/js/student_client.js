@@ -188,7 +188,7 @@ async function update() {
     console.log('Fixations');
     console.log(fixations);
     signaling(
-        RANDOM ? '/gazeData/sync' : '/gazeData/teacher',
+        RANDOM ? '/gazeData/teacher' : '/gazeData/sync',
         {
             stuNum: studentNumber,
             fixations: fixations.length === 0 ? fixations : fixations.map(fixation => fixation.data),

@@ -123,6 +123,7 @@ def teacher_post():
             for k,v in all_cognitive.items():
                 indexed_cog = {'stuNum': k}
                 cognitiveFlat.append(indexed_cog.update(v))
+            app.logger.info('cognitiveFlat : {}'.format(cognitiveFlat))
 
             fixationX = np.array([fix['x_per'] for fix in fixationFlat])
             fixationY = np.array([fix['y_per'] for fix in fixationFlat])
