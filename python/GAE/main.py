@@ -26,8 +26,8 @@ TOTAL = 500
 
 # deployed = False
 
-# FILEPATH = '/mnt/fileserver'
-FILEPATH = 'fileserver'
+FILEPATH = '/mnt/fileserver'
+# FILEPATH = 'fileserver'
 
 POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
            158, 157, 173, 263, 249, 390, 373, 374, 380, 381, 382, 362,
@@ -191,6 +191,8 @@ class StatePredictor:
         gt_label = np.array([str(label)])
         self.clf = self.clf.partial_fit(gt_input, gt_label)
 
+        print('model updated: {} -> {}'.format(self.model_ver, ver))
+
         self.model_ver = ver
 
         dump(self.clf, os.path.join(
@@ -245,9 +247,8 @@ class StatePredictor:
         for f in img_list:
             label, _ = f.split('_')
             img = cv2.imread(os.path.join(self.dir, f), cv2.IMREAD_GRAYSCALE)
-            if not incre:
-                inputs.append(np.reshape(img, (-1)))
-                labels.append(label)
+            inputs.append(np.reshape(img, (-1)))
+            labels.append(label)
 
         inputs = np.array(inputs)
         labels = np.array(labels)
@@ -346,38 +347,37 @@ def confusion_detection():
         modelPool[username] = StatePredictor(username)
 
     result = 'success'
-    if stage == 0:
-        print(username,
-            'stage', stage,
-            '{}:No.{}'.format(
-                'Confusion' if data['label'] else 'Neutral', TOTAL + 1 - data['frameId']),
-            time.time()
-            )
     
-    if stage == 0:
-        metricPool[username].inc_req()
-        modelPool[username].addData(img, data['label'], data['frameId'])
-        if data['frameId'] == TOTAL:
-            # Recieve first frame
-            if data['label'] == 0:
-                metricPool[username].nc_req_first = time.time()
-            else:
-                metricPool[username].c_req_first = time.time()
-        elif data['frameId'] == 1:
-            # Recieve last frame
-            if data['label'] == 0:
-                metricPool[username].nc_req_last = time.time()
-                # here train the classifier at the last frame of NC collecting stage
-                modelPool[username].threaded_train()
-            else:
-                metricPool[username].c_req_last = time.time()
-    elif stage == 1:
-        result = modelPool[username].confusionDetection(img, ver)
-    else:
-        modelPool[username].addData(
-            img, data['label'], data['frameId'], incre=True, ver=ver)
     try:
-        pass
+        if stage == 0:
+            print(username,
+                'stage', stage,
+                '{}:No.{}'.format(
+                    'Confusion' if data['label'] else 'Neutral', TOTAL + 1 - data['frameId']),
+                time.time()
+                )
+            metricPool[username].inc_req()
+            modelPool[username].addData(img, data['label'], data['frameId'])
+            print('after add data')
+            if data['frameId'] == TOTAL:
+                # Recieve first frame
+                if data['label'] == 0:
+                    metricPool[username].nc_req_first = time.time()
+                else:
+                    metricPool[username].c_req_first = time.time()
+            elif data['frameId'] == 1:
+                # Recieve last frame
+                if data['label'] == 0:
+                    metricPool[username].nc_req_last = time.time()
+                    # here train the classifier at the last frame of NC collecting stage
+                    modelPool[username].threaded_train()
+                else:
+                    metricPool[username].c_req_last = time.time()
+        elif stage == 1:
+            result = modelPool[username].confusionDetection(img, ver)
+        else:
+            modelPool[username].addData(
+                img, data['label'], data['frameId'], incre=True, ver=ver)
     except Exception as e:
         result = 'ERROR'
         logging.error('ERROR:{}'.format(e))
