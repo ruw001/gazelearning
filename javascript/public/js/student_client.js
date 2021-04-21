@@ -82,7 +82,7 @@ function systemStart(fastMode) {
     } else {
         collecting = CONFUSED; // start with collecting confused expressions
     }
-    var last_infer_ts = Date.now();
+    // var last_infer_ts = Date.now();
     if (navigator.mediaDevices.enumerateDevices) {
         const camera = new Camera(videoElement, {
             onFrame: async () => {
@@ -91,9 +91,10 @@ function systemStart(fastMode) {
                     await dataCollecting();
                 } else if (totalConfused === 0 && totalNeutral === 0) {
                     // Collection is done. Do nothing.
-                    if (Date.now() - last_infer_ts >= 2500) {
-                        stateInference();
-                    }
+                    // if (Date.now() - last_infer_ts >= 2500) {
+                    //     stateInference();
+                    //     last_infer_ts = Date.now()
+                    // }
 
                 }
             },
@@ -444,24 +445,24 @@ async function reportState(stage, label) {
         img: base64ImageData, 
         stage: stage, 
         label: label, 
-        username: 1,
+        // username: 1,
         ver: ver,
-        //username: userInfo['number'],
+        username: userInfo['number'],
         frameId: label ? totalConfused : totalNeutral,
     };
     let result = null;
     try {
         if (stage === COLLECTION) {
-            fetch('http://127.0.0.1:8000/detection', { // 172.20.16.10
-                // fetch('/detection', {
+            // fetch('http://127.0.0.1:8000/detection', { // 172.20.16.10
+            fetch('/detection', {
                 method: 'POST',
                 body: JSON.stringify(data),
                 referrerPolicy: "origin",
             })
         } else {
             reporting = true;
-            await fetch('http://127.0.0.1:8000/detection', { // 172.20.16.10
-                // fetch('/detection', {
+            // await fetch('http://127.0.0.1:8000/detection', { // 172.20.16.10
+            await fetch('/detection', {
                 method: 'POST',
                 body: JSON.stringify(data),
                 referrerPolicy: "origin",
