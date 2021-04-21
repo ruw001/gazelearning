@@ -82,7 +82,7 @@ function systemStart(fastMode) {
     } else {
         collecting = CONFUSED; // start with collecting confused expressions
     }
-
+    // var last_infer_ts = Date.now();
     if (navigator.mediaDevices.enumerateDevices) {
         const camera = new Camera(videoElement, {
             onFrame: async () => {
@@ -91,6 +91,11 @@ function systemStart(fastMode) {
                     await dataCollecting();
                 } else if (totalConfused === 0 && totalNeutral === 0) {
                     // Collection is done. Do nothing.
+                    // if (Date.now() - last_infer_ts >= 2500) {
+                    //     stateInference();
+                    //     last_infer_ts = Date.now()
+                    // }
+
                 }
             },
             width: 320,
@@ -430,29 +435,50 @@ async function reportState(stage, label) {
     if (stage === COLLECTION) {
         // During collection stage, collected data will be shown in modal dialogue.
         collectCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+    } else if (reporting) {
+        return null
     }
     canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
     let base64ImageData = canvasElement.toDataURL();
+    let ver = 0;
+    if (stage === INFERENCE) {
+        ver = model_ver;
+    } else if (stage === INCREMENT) {
+        ver = ++model_ver;
+    }
     let data = {
         img: base64ImageData, 
         stage: stage, 
         label: label, 
+        // username: 1,
+        ver: ver,
         username: userInfo['number'],
         frameId: label ? totalConfused : totalNeutral,
     };
     let result = null;
     try {
-        // await fetch('http://127.0.0.1:8000/detection', { // 172.20.16.10
-        fetch('/detection', {
-            method: 'POST',
-            body: JSON.stringify(data),
-            referrerPolicy: "origin",
-        }).then(
-            response => response.json()
-        ).then(data => {
-            console.log(data)
-            result = data.body.result;
-        })
+        if (stage === COLLECTION) {
+            // fetch('http://127.0.0.1:8000/detection', { // 172.20.16.10
+            fetch('/detection', {
+                method: 'POST',
+                body: JSON.stringify(data),
+                referrerPolicy: "origin",
+            })
+        } else {
+            reporting = true;
+            // await fetch('http://127.0.0.1:8000/detection', { // 172.20.16.10
+            await fetch('/detection', {
+                method: 'POST',
+                body: JSON.stringify(data),
+                referrerPolicy: "origin",
+            }).then(
+                response => response.json()
+            ).then(data => {
+                console.log(data)
+                result = data.body.result;
+            })
+            reporting = false;
+        }
     } catch (err) {
         console.log('ERROR:', err);
     }

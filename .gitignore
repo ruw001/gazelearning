@@ -11,3 +11,5 @@ javascript/public/test.html
 *.pem
 */__pycache__/
 */*/__pycache__/
+fileserver/
+*/fileserver/

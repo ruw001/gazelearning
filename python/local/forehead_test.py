@@ -11,6 +11,7 @@ from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import SGDClassifier
 from sklearn.svm import SVC
 import time
 
@@ -193,10 +194,11 @@ def facemesh_online_exp(retrain, model_dir):
             print('Thanks :)')
             return
         count = 0
-        total = 1200
+        total = 400
         inputs = []
         labels = []
     collect = 0 # 0: neutral, 1: confused
+    print('here!!')
     while cap.isOpened():
         success, image = cap.read()
         if not success:
@@ -205,7 +207,7 @@ def facemesh_online_exp(retrain, model_dir):
         # the BGR image to RGB.
         image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
         image = cv2.resize(image, (640, 360))
-        # print(image.shape)
+        # print(image.shape)        
         # To improve performance, optionally mark the image as not writeable to
         # pass by reference.
         image.flags.writeable = False
@@ -249,14 +251,14 @@ def facemesh_online_exp(retrain, model_dir):
                         print('PCA transform done in {}s'.format(time.time() - t0))
 
                         t0 = time.time()
-                        clf = SVC()
+                        # clf = SVC()
+                        clf = SGDClassifier()
                         print(X_train_pca.shape)
                         clf = clf.fit(X_train_pca, labels)
                         print('SVM train done in {}s'.format(time.time() - t0))
 
                         dump(clf, os.path.join(model_dir, 'model_pca.joblib'))
                         dump(pca, os.path.join(model_dir, 'pca.joblib'))
-
 
             else: 
                 feature = np.reshape(img, (1, -1))
@@ -356,6 +358,7 @@ def findKeypoints():
 # findKeypoints()
 
 
-facemesh_online_exp(False, 'dataset_rw/evening_models1208')
+# facemesh_online_exp(False, 'dataset_rw/evening_models1208')
 # facemesh_online_exp(False, 'dataset_rw/evening_models')
 # classify('dataset_dyh/crop', 'dataset_rw')
+facemesh_online_exp(True, 'data/')
