@@ -20,6 +20,7 @@ const STUDENT = 1;
 const TEACHER = 2;
 let all_fixations = new Map();
 let all_saccades = new Map();
+let all_cognitive = new Map();
 let last_seen = {};
 
 // Deploy or test locally
@@ -140,6 +141,7 @@ if (!DEPLOY) {
 
                 let fixationFlat = [];
                 let saccadeFlat = [];
+                let cognitiveFlat = [];
 
                 all_fixations.forEach(fixations => {
                     fixationFlat.push(
@@ -152,6 +154,11 @@ if (!DEPLOY) {
                         saccades
                     );
                 });
+
+                for (let [stuNum, cognitive] of all_cognitive.entries()) {
+                    console.log({stuNum, ...cognitive})
+                    cognitiveFlat.push({stuNum, ...cognitive});
+                }
 
                 fixationFlat = fixationFlat.flat();
                 saccadeFlat = saccadeFlat.flat();
@@ -167,6 +174,7 @@ if (!DEPLOY) {
                         res.send({
                             fixations: fixationFlat,
                             saccades: saccadeFlat,
+                            cognitives: cognitiveFlat,
                             result: spectralCluster(fixationX, fixationY, 5),
                         });
                     }
@@ -180,6 +188,7 @@ if (!DEPLOY) {
 
                 all_fixations.set(stuNum, req.body['fixations']);
                 all_saccades.set(stuNum, req.body['saccades']);
+                all_cognitive.set(stuNum, req.body['cognitive']);
 
                 console.log(`Receive ${all_fixations.get(stuNum).length} fixations at ${new Date()}`);
 
@@ -462,6 +471,7 @@ adminNamespace.on("connection", socket => {
         let delay = registeredTrials[0].lecture.time - Date.now();
         if (delay !== undefined) {
             // Assert if delay exists. Emit "delay" event
+            // This will allow late students to attend the lecture
             socket.emit("delay", delay);
         }
     });
@@ -503,8 +513,8 @@ adminNamespace.on("connection", socket => {
         const matchingSockets = await adminNamespace.in(socket.userID).allSockets();
         const isDisconnected = matchingSockets.size === 0;
         if (isDisconnected) {
-            // notify other users
-            socket.broadcast.emit("user disconnected", socket.userID);
+            // notify instructor and admin
+            socket.to("teacher").to("admin").emit("user disconnected", socket.userID);
             // update the connection status of the session
             sessionStore.saveSession(socket.sessionID, {
                 userID: socket.userID,

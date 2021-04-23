@@ -153,14 +153,17 @@ async function update() {
             endTimestamp++;
         }
         timestamp_win = timestamp[randomGazeIndex].slice(beginTimestamp, endTimestamp);
+
         for (let i = 0; i < updateInterval; i++) {
             confusion_win[i] = 'N/A';
         }
-        if (Math.random() > 0.5) {
+        if (Math.random() > 0.3) {
             for (let i = 0; i < updateInterval; i++) {
                 confusion_win[i] = Math.random() > 0.5 ? "Confused" : "Neutral";
             }
         }
+
+        inattention_counter = Math.random() > 0.5 ? 1 : 0;
 
         samples = {
             x: GazeX[randomGazeIndex].slice(beginTimestamp, endTimestamp),
@@ -185,7 +188,7 @@ async function update() {
     console.log('Fixations');
     console.log(fixations);
     signaling(
-        '/gazeData/sync',
+        RANDOM ? '/gazeData/teacher' : '/gazeData/sync',
         {
             stuNum: studentNumber,
             fixations: fixations.length === 0 ? fixations : fixations.map(fixation => fixation.data),
@@ -239,6 +242,8 @@ function fixationConfusionBinding (samples) {
             }
         }
     }
+
+    // fixations.forEach((fixation, i) => console.log(`#${i+1}:${fixation.data.start} - ${fixation.data.end}, contains ${fixation.data.confusionCount}`))
 
     if (fixations[lastConfusedFixation].confusionCount > 0) {
         console.log('draw box!')

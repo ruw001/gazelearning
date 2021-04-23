@@ -6,7 +6,7 @@ javascript/package-lock.json
 */*/data*/
 .vscode/
 other stuff/
-test.html
+javascript/public/test.html
 .idea/
 *.pem
 */__pycache__/

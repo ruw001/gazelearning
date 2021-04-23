@@ -26,6 +26,7 @@ STUDENT = 1
 TEACHER = 2
 all_fixations = {}
 all_saccades = {}
+all_cognitive = {}
 last_seen = {}
 tl = Timeloop()
 
@@ -109,6 +110,7 @@ def teacher_post():
 
             fixationFlat = []
             saccadeFlat = []
+            cognitiveFlat = []
 
             for k,v in all_fixations.items():
                 for fix in v:
@@ -117,6 +119,12 @@ def teacher_post():
             for k,v in all_saccades.items():
                 for sac in v:
                     saccadeFlat.append(sac)
+
+            for k,v in all_cognitive.items():
+                indexed_cog = {'stuNum': k}
+                cognitiveFlat.append(indexed_cog.update(v))
+            app.logger.info('cognitiveFlat : {}'.format(cognitiveFlat))
+
             fixationX = np.array([fix['x_per'] for fix in fixationFlat])
             fixationY = np.array([fix['y_per'] for fix in fixationFlat])
 
@@ -127,6 +135,7 @@ def teacher_post():
                 {
                     'fixations': fixationFlat,
                     'saccades': saccadeFlat,
+                    'cognitives': cognitiveFlat,
                     'result': spectral_clustering(fixationX, fixationY)
                 }
             ))
@@ -141,6 +150,7 @@ def teacher_post():
 
             all_fixations[stuNum] = body['fixations']
             all_saccades[stuNum] = body['saccades']
+            all_cognitive[stuNum] = body['cognitive']
 
             app.logger.info('Receive {} fixations at {}'.format(
                 len(all_fixations), time.time()))
