@@ -20,9 +20,11 @@ import flask
 from flask import Flask, redirect, render_template, request
 from threading import Thread
 import logging
+import re
+import shutil
 
 CNTR = 0
-TOTAL = 500
+TOTAL = 1000
 
 # deployed = False
 
@@ -156,32 +158,52 @@ class StatePredictor:
         self.dir = os.path.join(FILEPATH, str(self.username), 'face')
         self.trained = False
         self.model_ver = 0
+        # currently we make sure old images and models are removed before each lecture
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
         else:
             modelfiles = [f for f in os.listdir(self.dir) if '.joblib' in f]
-            if len(modelfiles) == 2:
-                pca_path = [f for f in modelfiles if f[:3] == 'pca'][0]
-                model_path = [f for f in modelfiles if f[:3] == 'mod'][0]
-                # self.model_ver = pca_path.split('.')[1]
+            # find pca:
+            pca_suspects = [f for f in modelfiles if re.search(
+                "^pca.\d+.joblib", f) is not None]
+            # find model_pca:
+            model_suspects = [f for f in modelfiles if re.search(
+                "^model_pca.\d+.joblib", f) is not None]
+
+            if len(pca_suspects) == 1 and len(model_suspects) == 1:
+                pca_path = pca_suspects[0]
+                model_path = model_suspects[0]
                 self.clf = load(os.path.join(self.dir, model_path))
                 self.pca = load(os.path.join(self.dir, pca_path))
-                os.rename(os.path.join(self.dir, model_path),
-                          os.path.join(self.dir, 'model_pca.0.joblib'))
-                os.rename(os.path.join(self.dir, model_path),
-                          os.path.join(self.dir, 'pca.0.joblib'))
+                self.model_ver = int(pca_path.split('.')[1])
                 self.trained = True
+    
+    def model_reset(self):
+        shutil.rmtree(self.dir)
+        os.makedirs(self.dir)
+        self.trained = False
+        self.model_ver = 0
+        self.pca = None
+        self.clf = None
 
     def incre_train(self, img, label, ver):
+        if not self.trained:
+            return 
         # load latest model
         # if the model is up-to-date, ver should be exactly model_ver + 1,
         # otherwise, we should load latest model (ver - 1) before incremental training.
         # Also remove old models before updating to new ones.
         old_model_path = 'model_pca.{}.joblib'.format(ver - 1)
         old_pca_path = 'pca.{}.joblib'.format(ver - 1)
-        if ver > self.model_ver + 1:
+        if not os.path.exists(os.path.join(self.dir, old_model_path)) or \
+            not os.path.exists(os.path.join(self.dir, old_pca_path)):
+            return
+        self.trained = True
+
+        if ver > self.model_ver + 1 or self.clf is None:
             self.clf = load(os.path.join(self.dir, old_model_path))
             self.pca = load(os.path.join(self.dir, old_pca_path))
+            
         os.remove(os.path.join(self.dir, old_model_path))
         os.remove(os.path.join(self.dir, old_pca_path))
 
@@ -202,8 +224,8 @@ class StatePredictor:
 
     def addData(self, img, label, frameId, incre=False, ver=0):
         global TOTAL, metricPool
-        if self.trained and not incre:
-            print('Ignore...')
+        # if self.trained and not incre:
+        #     print('Ignore...')
         # Save collected image.
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img.flags.writeable = False
@@ -256,7 +278,7 @@ class StatePredictor:
         t0 = time.time()
         n_component = 150
         self.pca = PCA(n_component, svd_solver='auto',
-                  whiten=True).fit(inputs)
+                whiten=True).fit(inputs)
         print('PCA fit done in {}s'.format(time.time() - t0))
 
         t0 = time.time()
@@ -273,6 +295,8 @@ class StatePredictor:
 
         dump(self.clf, os.path.join(self.dir, 'model_pca.0.joblib'))
         dump(self.pca, os.path.join(self.dir, 'pca.0.joblib'))
+
+        self.trained = True
     
     def threaded_train(self):
         Thread(target=self.train(), args=(self, )).start()
@@ -280,23 +304,20 @@ class StatePredictor:
         return 
 
     def confusionDetection(self, img, ver):
-        if self.clf is None:
-            print('HERE looking for models...')
-            if os.path.exists(os.path.join(self.dir, 'pca.{}.joblib'.format(ver))):
-                self.clf = load(os.path.join(
-                    self.dir, 'model_pca.{}.joblib'.format(ver)))
-                self.pca = load(os.path.join(
-                    self.dir, 'pca.{}.joblib'.format(ver)))
-                self.model_ver = ver
-            else:
-                return 'training'
-        else:
-            if self.model_ver != ver:
-                self.clf = load(os.path.join(
-                    self.dir, 'model_pca.{}.joblib'.format(ver)))
-                self.pca = load(os.path.join(
-                    self.dir, 'pca.{}.joblib'.format(ver)))
-                self.model_ver = ver
+        if not self.trained:
+            return 'training'
+        model_path = 'model_pca.{}.joblib'.format(ver)
+        pca_path = 'pca.{}.joblib'.format(ver)
+        if not os.path.exists(os.path.join(self.dir, model_path)) or not \
+            os.path.exists(os.path.join(self.dir, pca_path)):
+            return 'training'
+        self.trained = True
+
+        if self.clf is None or self.model_ver != ver:
+            self.clf = load(os.path.join(self.dir, model_path))
+            self.pca = load(os.path.join(self.dir, pca_path))
+            self.model_ver = ver
+
         tag = ['Neutral', 'Confused']
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img.flags.writeable = False
@@ -323,7 +344,8 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET'])
 def index():
-    """ The home page has a list of prior translations and a form to
+    """ 
+        The home page has a list of prior translations and a form to
         ask for a new translation.
     """
 
@@ -364,6 +386,7 @@ def confusion_detection():
                 if data['label'] == 0:
                     metricPool[username].nc_req_first = time.time()
                 else:
+                    modelPool[username].model_reset()
                     metricPool[username].c_req_first = time.time()
             elif data['frameId'] == 1:
                 # Recieve last frame
