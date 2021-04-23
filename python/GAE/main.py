@@ -21,9 +21,10 @@ from flask import Flask, redirect, render_template, request
 from threading import Thread
 import logging
 import re
+import shutil
 
 CNTR = 0
-TOTAL = 500
+TOTAL = 1000
 
 # deployed = False
 
@@ -176,6 +177,14 @@ class StatePredictor:
                 self.pca = load(os.path.join(self.dir, pca_path))
                 self.model_ver = int(pca_path.split('.')[1])
                 self.trained = True
+    
+    def model_reset(self):
+        shutil.rmtree(self.dir)
+        os.makedirs(self.dir)
+        self.trained = False
+        self.model_ver = 0
+        self.pca = None
+        self.clf = None
 
     def incre_train(self, img, label, ver):
         if not self.trained:
@@ -377,6 +386,7 @@ def confusion_detection():
                 if data['label'] == 0:
                     metricPool[username].nc_req_first = time.time()
                 else:
+                    modelPool[username].model_reset()
                     metricPool[username].c_req_first = time.time()
             elif data['frameId'] == 1:
                 # Recieve last frame
