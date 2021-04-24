@@ -214,6 +214,8 @@ async function update() {
 }
 
 function fixationConfusionBinding (samples) {
+    if (samples.x.length === 0) return [[], []];
+
     let [fixations, saccades] = detector.detect(samples);
 
     let any_confused = confusion_win.some((state) => state === 'Confused');
