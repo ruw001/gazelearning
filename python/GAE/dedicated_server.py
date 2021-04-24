@@ -124,7 +124,7 @@ def teacher_post():
                     saccadeFlat.append(sac)
 
             for k,v in all_cognitive.items():
-                app.looger.debug('{} : {}'.format(k, v))
+                app.logger.debug('{} : {}'.format(k, v))
                 indexed_cog = {'stuNum': k}
                 cognitiveFlat.append(indexed_cog.update(v))
             app.logger.debug('cognitiveFlat : {}'.format(cognitiveFlat))
