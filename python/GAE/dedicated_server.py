@@ -124,14 +124,15 @@ def teacher_post():
                     saccadeFlat.append(sac)
 
             for k,v in all_cognitive.items():
+                app.looger.debug('{} : {}'.format(k, v))
                 indexed_cog = {'stuNum': k}
                 cognitiveFlat.append(indexed_cog.update(v))
-            app.logger.debug('cognitiveFlat : {}', cognitiveFlat)
+            app.logger.debug('cognitiveFlat : {}'.format(cognitiveFlat))
 
             fixationX = np.array([fix['x_per'] for fix in fixationFlat])
             fixationY = np.array([fix['y_per'] for fix in fixationFlat])
 
-            app.logger.debug('Fixations to cluster: {}', len(fixationX))
+            app.logger.debug('Fixations to cluster: {}'.format(len(fixationX)))
 
             resp = flask.Response()
             resp.set_data(json.dumps(
