@@ -124,9 +124,9 @@ def teacher_post():
                     saccadeFlat.append(sac)
 
             for k,v in all_cognitive.items():
-                app.logger.debug('{} : {}'.format(k, v))
                 indexed_cog = {'stuNum': k}
-                cognitiveFlat.append(indexed_cog.update(v))
+                indexed_cog.update(v)
+                cognitiveFlat.append(indexed_cog)
             app.logger.debug('cognitiveFlat : {}'.format(cognitiveFlat))
 
             fixationX = np.array([fix['x_per'] for fix in fixationFlat])
