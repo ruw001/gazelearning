@@ -187,6 +187,11 @@ async function update() {
 
     console.log('Fixations');
     console.log(fixations);
+    console.log('Cognitive information')
+    console.log({
+        confusion: confusion_win,
+        inattention: inattention_counter,
+    });
     signaling(
         RANDOM ? '/gazeData/teacher' : '/gazeData/sync',
         {

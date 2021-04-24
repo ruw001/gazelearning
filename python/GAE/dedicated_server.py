@@ -37,7 +37,7 @@ def index():
         ask for a new translation.
     """
 
-    return '< h1 > Dedicated server (python) is on. < /h1 >'
+    return '<h1> Dedicated server (python) is on. </h1>'
 
 
 @app.route('/gazeData/teacher', methods=['GET'])
@@ -123,12 +123,12 @@ def teacher_post():
             for k,v in all_cognitive.items():
                 indexed_cog = {'stuNum': k}
                 cognitiveFlat.append(indexed_cog.update(v))
-            app.logger.info('cognitiveFlat : {}'.format(cognitiveFlat))
+            app.logger.debug('cognitiveFlat : {}', cognitiveFlat)
 
             fixationX = np.array([fix['x_per'] for fix in fixationFlat])
             fixationY = np.array([fix['y_per'] for fix in fixationFlat])
 
-            app.logger.info('Fixations to cluster: {}'.format(len(fixationX)))
+            app.logger.debug('Fixations to cluster: {}', len(fixationX))
 
             resp = flask.Response()
             resp.set_data(json.dumps(
@@ -168,7 +168,7 @@ def teacher_post():
             resp.headers['Content-Type'] = 'application/json'
             return resp
     except Exception as e:
-        app.logger.info('ERROR:', e)
+        app.logger.error(e)
         resp = flask.Response()
         resp.set_data(json.dumps(
             {
