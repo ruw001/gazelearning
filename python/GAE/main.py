@@ -188,17 +188,16 @@ class StatePredictor:
 
     def incre_train(self, img, label, ver):
         if not self.trained:
-            return 
-        # load latest model
-        # if the model is up-to-date, ver should be exactly model_ver + 1,
-        # otherwise, we should load latest model (ver - 1) before incremental training.
-        # Also remove old models before updating to new ones.
-        old_model_path = 'model_pca.{}.joblib'.format(ver - 1)
-        old_pca_path = 'pca.{}.joblib'.format(ver - 1)
-        if not os.path.exists(os.path.join(self.dir, old_model_path)) or \
-            not os.path.exists(os.path.join(self.dir, old_pca_path)):
-            return
-        self.trained = True
+            # load latest model
+            # if the model is up-to-date, ver should be exactly model_ver + 1,
+            # otherwise, we should load latest model (ver - 1) before incremental training.
+            # Also remove old models before updating to new ones.
+            old_model_path = 'model_pca.{}.joblib'.format(ver - 1)
+            old_pca_path = 'pca.{}.joblib'.format(ver - 1)
+            if not os.path.exists(os.path.join(self.dir, old_model_path)) or \
+                not os.path.exists(os.path.join(self.dir, old_pca_path)):
+                return
+            self.trained = True
 
         if ver > self.model_ver + 1 or self.clf is None:
             self.clf = load(os.path.join(self.dir, old_model_path))
@@ -305,13 +304,13 @@ class StatePredictor:
 
     def confusionDetection(self, img, ver):
         if not self.trained:
-            return 'training'
-        model_path = 'model_pca.{}.joblib'.format(ver)
-        pca_path = 'pca.{}.joblib'.format(ver)
-        if not os.path.exists(os.path.join(self.dir, model_path)) or not \
-            os.path.exists(os.path.join(self.dir, pca_path)):
-            return 'training'
-        self.trained = True
+            # return 'training'
+            model_path = 'model_pca.{}.joblib'.format(ver)
+            pca_path = 'pca.{}.joblib'.format(ver)
+            if not os.path.exists(os.path.join(self.dir, model_path)) or not \
+                os.path.exists(os.path.join(self.dir, pca_path)):
+                return 'training'
+            self.trained = True
 
         if self.clf is None or self.model_ver != ver:
             self.clf = load(os.path.join(self.dir, model_path))
