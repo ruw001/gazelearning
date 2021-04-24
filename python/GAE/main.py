@@ -187,13 +187,13 @@ class StatePredictor:
         self.clf = None
 
     def incre_train(self, img, label, ver):
+        old_model_path = 'model_pca.{}.joblib'.format(ver - 1)
+        old_pca_path = 'pca.{}.joblib'.format(ver - 1)
         if not self.trained:
             # load latest model
             # if the model is up-to-date, ver should be exactly model_ver + 1,
             # otherwise, we should load latest model (ver - 1) before incremental training.
             # Also remove old models before updating to new ones.
-            old_model_path = 'model_pca.{}.joblib'.format(ver - 1)
-            old_pca_path = 'pca.{}.joblib'.format(ver - 1)
             if not os.path.exists(os.path.join(self.dir, old_model_path)) or \
                 not os.path.exists(os.path.join(self.dir, old_pca_path)):
                 return
@@ -303,10 +303,10 @@ class StatePredictor:
         return 
 
     def confusionDetection(self, img, ver):
+        model_path = 'model_pca.{}.joblib'.format(ver)
+        pca_path = 'pca.{}.joblib'.format(ver)
         if not self.trained:
             # return 'training'
-            model_path = 'model_pca.{}.joblib'.format(ver)
-            pca_path = 'pca.{}.joblib'.format(ver)
             if not os.path.exists(os.path.join(self.dir, model_path)) or not \
                 os.path.exists(os.path.join(self.dir, pca_path)):
                 return 'training'
