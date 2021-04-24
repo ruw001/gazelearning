@@ -8,8 +8,7 @@ window.onload = async function () {
     try {
         await fetchSetting();
     } catch (e) {
-        console.log('Failed to fetch experiment setting.');
-        console.log(e)
+        console.error('Failed to fetch experiment setting: %s', e);
     }
 
     //////set callbacks for GazeCloudAPI/////////
@@ -20,8 +19,8 @@ window.onload = async function () {
         hm_left = pos.left;
         hm_top = pos.top;
     }
-    GazeCloudAPI.OnCamDenied = function () { console.log('camera  access denied') }
-    GazeCloudAPI.OnError = function (msg) { console.log('err: ' + msg) }
+    GazeCloudAPI.OnCamDenied = function () { console.error('camera access denied') }
+    GazeCloudAPI.OnError = function (msg) { console.error('err: %s', msg) }
     GazeCloudAPI.UseClickRecalibration = true;
     GazeCloudAPI.OnResult = PlotGaze;
 
@@ -67,7 +66,7 @@ window.onload = async function () {
             try {
                 heatmapInstance.addData(dataPoint);
             } catch (err) {
-                console.log('Error caught!', err);
+                console.error('Error caught! %s', err);
             }
 
             // console.log(xprediction, yprediction);
@@ -158,7 +157,7 @@ async function sync() {
         // error in updateGazePoints() is handled here
         updateGazePoints(userInfo).catch(err => {
             clearInterval(update);
-            console.log(err);
+            console.error(err);
         });
     }, updateInterval*inferInterval);
 }
@@ -200,24 +199,29 @@ async function updateGazePoints(userInfo) {
         // [Adaptive] Follow openModal function to see how to adapt to different experiment settings
         // AoI visualization
         if(gazeInfo) {
-            result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));
-            console.log(result.result);
-            let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
 
-            let confusedStudents = new Set();
-            AoIs.forEach((AoI) => {
-                for (let stuNum of AoI.confusedStudents) {
-                    if (confusedStudents.has(stuNum)) continue;
-                    confusedStudents.add(stuNum);
-                }
-            });
-            confusionRate = confusedStudents.size;
+            if (result.fixations.length === 0) {
+                console.warn('No fixation is received from server.');
+            } else {
+                console.debug(result.result);
+                result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));
+                let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
 
-            console.log(AoIs);
-            console.log(TMatrix);
+                let confusedStudents = new Set();
+                AoIs.forEach((AoI) => {
+                    for (let stuNum of AoI.confusedStudents) {
+                        if (confusedStudents.has(stuNum)) continue;
+                        confusedStudents.add(stuNum);
+                    }
+                });
+                confusionRate = confusedStudents.size;
 
-            showAoI(AoIs, animationTime);
-            showTransition(AoIs, TMatrix, animationTime);
+                console.debug(AoIs);
+                console.debug(TMatrix);
+
+                showAoI(AoIs, animationTime);
+                showTransition(AoIs, TMatrix, animationTime);
+            }
         }
 
         // Cognitive bar chart

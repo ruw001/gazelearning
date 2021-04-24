@@ -46,6 +46,8 @@ def teacher_get():
 
 
 def spectral_clustering(fx, fy):
+    if (fx.shape[0] == 0) return []
+
     dist = np.sqrt(np.power(fx.reshape(-1, 1) - fx.reshape(1, -1),
                             2) + np.power(fy.reshape(-1, 1) - fy.reshape(1, -1), 2))
 
