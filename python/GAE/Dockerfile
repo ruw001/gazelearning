@@ -120,6 +120,7 @@ ADD . /app
 # Run a WSGI server to serve the application. gunicorn must be declared as
 # a dependency in requirements.txt.
 WORKDIR /app
+#CMD []
 CMD [ "/bin/bash", "-c", "gunicorn -c gunicorn.config.py main:app"]
 # 2021.4.1 Python server is responsible for both confusion detection (distributed) and clustering (single server)
 

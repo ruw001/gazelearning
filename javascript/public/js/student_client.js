@@ -187,6 +187,11 @@ async function update() {
 
     console.log('Fixations');
     console.log(fixations);
+    console.log('Cognitive information')
+    console.log({
+        confusion: confusion_win,
+        inattention: inattention_counter,
+    });
     signaling(
         RANDOM ? '/gazeData/teacher' : '/gazeData/sync',
         {
@@ -209,6 +214,8 @@ async function update() {
 }
 
 function fixationConfusionBinding (samples) {
+    if (samples.x.length === 0) return [[], []];
+
     let [fixations, saccades] = detector.detect(samples);
 
     let any_confused = confusion_win.some((state) => state === 'Confused');
