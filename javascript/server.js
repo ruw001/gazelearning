@@ -1,4 +1,4 @@
-const {errorHandler, getLogFilename} = require("./errorHandler");
+const {errorHandler} = require("./errorHandler");
 
 let express = require('express');
 const path = require('path');
@@ -16,7 +16,8 @@ const app = express();
 const multipartyMiddleware = multipart();
 
 // const FILEPATH = '/Users/hudongyin/Documents/Projects/gazelearning/python/data_temp';
-const FILEPATH = '/mnt/fileserver';
+const FILEPATH = 'D:\\mnt\\fileserver'
+// const FILEPATH = '/mnt/fileserver';
 
 // Logger initialization
 const logger = winston.createLogger({
@@ -246,6 +247,38 @@ async function receptionConfirm(req, res) {
         logger.error(e.message);
         res.send({error: e.message});
     }
+}
+
+function getLogFilename(servername) {
+    const dedicated = servername.toLowerCase().indexOf('d') >= 0;
+    console.log({dedicated})
+
+    const today = new Date();
+    const logpath = path.join(FILEPATH, 'logs', `${today.getFullYear()}-${today.getMonth() + 1 < 10 ? '0' + (today.getMonth() + 1) : today.getMonth() + 1}-${today.getDate() < 10 ? '0' + today.getDate() : today.getDate()}`);
+    let count = 0;
+
+    if (!fs.existsSync(logpath)) {
+        fs.mkdir(logpath,
+            {recursive: true},
+            (err) => {
+                if (err) throw err;
+            });
+    } else {
+        fs.readdirSync(logpath).forEach(file => {
+            // is js log file?
+            if (file.endsWith('log') && file.toLowerCase().indexOf('js') >= 0) {
+                if (dedicated) {
+                    // filename contains d from dedicated
+                    if (file.toLowerCase().indexOf('d') >= 0) ++count;
+                } else {
+                    // filename does not contain d
+                    if (file.toLowerCase().indexOf('d') < 0) ++count;
+                }
+            }
+        });
+    }
+
+    return path.join(logpath, `${dedicated ? 'dedicated-' : ''}js-${count}.log`);
 }
 
 // ===================================

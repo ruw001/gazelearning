@@ -29,9 +29,9 @@ TOTAL = 400
 
 # deployed = False
 
-FILEPATH = '/mnt/fileserver'
+# FILEPATH = '/mnt/fileserver'
+FILEPATH = '/mnt/d/mnt/fileserver'
 # FILEPATH = 'fileserver'
-FILEHANDLER = getFileHandler()
 
 POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
            158, 157, 173, 263, 249, 390, 373, 374, 380, 381, 382, 362,
@@ -146,7 +146,7 @@ class Metric:
 
 class StatePredictor:
 
-    def __init__(self, usrname):
+    def __init__(self, usrname, logger):
         global FILEPATH
         self.facemesh = mp.solutions.face_mesh.FaceMesh(
             max_num_faces=1,
@@ -160,7 +160,8 @@ class StatePredictor:
         self.dir = os.path.join(FILEPATH, str(self.username), 'face')
         self.trained = False
         self.model_ver = 0
-        self.logger = init_logger('server.py.state-predictor')
+        # Same logger as gunicorn
+        self.logger = logger
         # currently we make sure old images and models are removed before each lecture
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
@@ -368,7 +369,7 @@ def confusion_detection():
     ver = data['ver']
     if username not in modelPool:
         metricPool[username] = Metric()
-        modelPool[username] = StatePredictor(username)
+        modelPool[username] = StatePredictor(username, app.logger)
 
     result = 'success'
     
@@ -414,41 +415,9 @@ def confusion_detection():
     resp.headers['Content-Type'] = 'application/json'
     return resp
 
-def init_logger(loggername):
-    global FILEHANDLER
-    # Refined logging
-    # create logger with name=loggername
-    logger = logging.getLogger(loggername)
-    logger.setLevel(logging.INFO)
-    # create console handler with a log level as DEBUG
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    # create file handler which logs even debug messages
-    fh = FILEHANDLER
-    # create formatter and add it to the handlers
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    ch.setFormatter(formatter)
-    # add the handlers to the logger
-    logger.addHandler(fh)
-    logger.addHandler(ch)
-    return logger
-
-def getFileHandler():
-    count = 0
-    today = date.today()
-    logpath = os.path.join(FILEPATH, 'logs', str(today))
-    if not os.path.exists(logpath):
-        os.makedirs(logpath)
-    else :
-        for filename in os.listdir(logpath):
-            if ('py' in filename and 'd' not in filename):
-                count += 1
-    fh = logging.FileHandler(os.path.join(logpath, 'py-{}.log'.format(count)))
-    fh.setLevel(logging.DEBUG)
-    return fh
-
 if __name__ == '__main__':
+    # This part of code will NOT be executed since we are using gunicorn.
+
     # parser = argparse.ArgumentParser()
     # parser.add_argument("-p", "--portid", type=int, default=0,
     #                     help="port id")
@@ -456,9 +425,6 @@ if __name__ == '__main__':
 
     # PORT = 8000 + args.portid
     PORT = 8000
-
-    app.logger.addHandler(FILEHANDLER)
-
     # This is used when running locally only. When deploying to Google App
     # Engine, a webserver process such as Gunicorn will serve the app. This
     # can be configured by adding an `entrypoint` to app.yaml.
@@ -467,3 +433,8 @@ if __name__ == '__main__':
     # http://flask.pocoo.org/docs/1.0/quickstart/#static-files. Once deployed,
     # App Engine itself will serve those files as configured in app.yaml.
     app.run(host='0.0.0.0', port=PORT, debug=True, threaded=True)
+else:
+    # use same log handlers as in gunicorn logger
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)

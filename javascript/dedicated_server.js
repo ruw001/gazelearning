@@ -1,7 +1,8 @@
 // Require modules
-const {errorHandler, getLogFilename} = require("./errorHandler");
+const {errorHandler} = require("./errorHandler");
 
 const express = require('express');
+const winston = require('winston');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
@@ -12,13 +13,14 @@ const PORT = process.env.PORT || 5000;
 // Definition of constants
 const STUDENT = 1;
 const TEACHER = 2;
-const FILEPATH = '/mnt/fileserver';
+// const FILEPATH = '/mnt/fileserver';
+const FILEPATH = 'D:\\mnt\\fileserver'
 const stuedntsFilename = path.join(FILEPATH, 'registeredInfo', 'registeredStudents.json');
 const trialsFilename = path.join(FILEPATH, 'registeredInfo', 'registeredTrials.json');
 const logger = winston.createLogger({
     transports: [
         new winston.transports.Console(),
-        new winston.transports.File({ filename: getLogFilename('server') })
+        new winston.transports.File({ filename: getLogFilename('dedicated') })
     ]
 });
 
@@ -36,11 +38,11 @@ let all_cognitive = new Map();
 let last_seen = {};
 
 // Deploy or test locally
-const DEPLOY = true;
+const DEPLOY = false;
 
 // Graceful shotdowns
 function terminationHandle(signal) {
-    logger.info(`Dedicated servre received a ${signal} signal`);
+    logger.info(`Dedicated server received a ${signal} signal`);
 
     // Close opened registeredTrials.json file
 
@@ -271,7 +273,7 @@ class Trial {
 
 // ===Initialization
 let registeredTrials = [];
-// Read registered lecture infomation list
+// Read registered lecture information list
 fs.readFile(trialsFilename, 'utf-8', (err, data) => {
     if (err) throw err;
     let lectureList = JSON.parse(data);
@@ -391,6 +393,37 @@ function informationPost(req, res) {
         if (err) throw err;
         logger.info('The trials has been saved to file!');
     })
+}
+
+function getLogFilename(servername) {
+    const dedicated = servername.toLowerCase().indexOf('d') >= 0;
+
+    const today = new Date();
+    const logpath = path.join(FILEPATH, 'logs', `${today.getFullYear()}-${today.getMonth() + 1 < 10 ? '0' + (today.getMonth() + 1) : today.getMonth() + 1}-${today.getDate() < 10 ? '0' + today.getDate() : today.getDate()}`);
+    let count = 0;
+
+    if (!fs.existsSync(logpath)) {
+        fs.mkdir(logpath,
+            {recursive: true},
+            (err) => {
+                if (err) throw err;
+            });
+    } else {
+        fs.readdirSync(logpath).forEach(file => {
+            // is js log file?
+            if (file.endsWith('log') && file.toLowerCase().indexOf('js') >= 0) {
+                if (dedicated) {
+                    // filename contains d from dedicated
+                    if (file.toLowerCase().indexOf('d') >= 0) ++count;
+                } else {
+                    // filename does not contain d
+                    if (file.toLowerCase().indexOf('d') < 0) ++count;
+                }
+            }
+        });
+    }
+
+    return path.join(logpath, `${dedicated ? 'dedicated-' : ''}js-${count}.log`);
 }
 
 // ===================================

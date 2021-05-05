@@ -24,7 +24,8 @@ app = Flask(__name__)
 
 STUDENT = 1
 TEACHER = 2
-FILEPATH = '/mnt/fileserver'
+# FILEPATH = '/mnt/fileserver'
+FILEPATH = '/mnt/d/mnt/fileserver'
 all_fixations = {}
 all_saccades = {}
 all_cognitive = {}
@@ -37,7 +38,7 @@ def index():
     """ The home page has a list of prior translations and a form to
         ask for a new translation.
     """
-
+    app.logger.info('GET at /')
     return '<h1> Dedicated server (python) is on. </h1>'
 
 
@@ -197,7 +198,7 @@ def remove_obs_entries():
 
 def getFileHandler():
     count = 0
-    today = date.today()
+    today = datetime.date.today()
     logpath = os.path.join(FILEPATH, 'logs', str(today))
     if not os.path.exists(logpath):
         os.makedirs(logpath)
@@ -205,14 +206,17 @@ def getFileHandler():
         for filename in os.listdir(logpath):
             if ('py' in filename and 'd' in filename):
                 count += 1
+
     fh = logging.FileHandler(os.path.join(logpath, 'dedicated-py-{}.log'.format(count)))
     fh.setLevel(logging.DEBUG)
+    fh.setFormatter( logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s',
+                                        '%Y-%m-%d %H:%M:%S') )
     return fh
 
 if __name__ == '__main__':
 
     PORT = 9000
-
+    # Refined logging
     app.logger.addHandler(getFileHandler())
     # This is used when running locally only. When deploying to Google App
     # Engine, a webserver process such as Gunicorn will serve the app. This
