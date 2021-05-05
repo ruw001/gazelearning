@@ -32,7 +32,7 @@ let frameInterval,
     gazeX = 0,
     gazeY = 0;
 
-const total = 1000;
+const total = 400;
 let totalNeutral = total;
 let totalConfused = total;
 let collecting = 0;
@@ -210,7 +210,7 @@ function closeWebGazer() {
         try {
             document.getElementById(webgazer_elems[i]).remove();
         } catch (err) {
-            console.log('Error caught!', err);
+            console.error('Error caught!', err);
         }
     }
     // webgazer_elems.forEach(elem => document.getElementById(elem).remove());
@@ -407,7 +407,7 @@ function selectCamera() {
         }
     })
     .catch(function (err) {
-        console.log(err.name + ": " + err.message);
+        console.error(err.name + ": " + err.message);
     });
 }
 

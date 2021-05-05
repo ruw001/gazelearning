@@ -6,11 +6,11 @@ document.addEventListener('visibilitychange', reportInattention)
 
 window.onload = async function () {
     // Fetch experiment setting
+    console.log('========== Preparing ==========');
     try {
         await fetchSetting();
     } catch (e) {
-        console.log('Failed to fetch experiment setting.');
-        console.log(e)
+        console.error('Failed to fetch experiment setting.');
     }
 
     //////set callbacks for GazeCloudAPI/////////
@@ -110,6 +110,7 @@ function systemStart(fastMode) {
 socket.on("student start", () => {
     if ( !(gazeInfo || cogInfo) ) return; // Nothing happens
 
+    console.log('========== Synchronizing ==========');
     let infer = setInterval(() => {
         updateGazePoints()
             .catch(err => {
@@ -125,7 +126,7 @@ async function updateGazePoints() {
 
     stateInference().then(()=>{
         if (secondCounter % updateInterval === 0) {
-            console.log(`Second Counter ${secondCounter}`)
+            console.log(`[#${secondCounter/updateInterval+1} update - ${Math.floor(secondCounter/60)} min ${secondCounter%60} sec]`)
             update();
         }
     });
@@ -136,8 +137,6 @@ async function update() {
     // decide what to post, then post using function signaling()
     let identity = userInfo['identity']; //teacher(2) or student(1)
     let studentNumber = userInfo['number'];
-
-    console.log('Updating student...');
 
     let samples;
     if (RANDOM) {
@@ -178,13 +177,13 @@ async function update() {
         };
     }
 
-    console.log(`Length of gaze ${gazeX_win.length}`);
-
     let fixations = [],
         saccades = [];
-    // [Adaptive]
+    // [Adaptive] Binding confusion with fixations
     if (gazeInfo) [fixations, saccades] = fixationConfusionBinding(samples);
 
+    // Logging info to be posted
+    console.log(`Length of gaze ${gazeX_win.length}`);
     console.log('Fixations');
     console.log(fixations);
     console.log('Cognitive information')
@@ -192,6 +191,7 @@ async function update() {
         confusion: confusion_win,
         inattention: inattention_counter,
     });
+
     signaling(
         RANDOM ? '/gazeData/teacher' : '/gazeData/sync',
         {
@@ -253,7 +253,7 @@ function fixationConfusionBinding (samples) {
     // fixations.forEach((fixation, i) => console.log(`#${i+1}:${fixation.data.start} - ${fixation.data.end}, contains ${fixation.data.confusionCount}`))
 
     if (fixations[lastConfusedFixation].confusionCount > 0) {
-        console.log('draw box!')
+        console.log('Draw prompt box!')
         showPromptBox(fixations[lastConfusedFixation], patch_w, patch_h);
     } else {
         showPromptBox(fixations[lastConfusedFixation], -1, -1); // -1 means to delete
@@ -263,7 +263,7 @@ function fixationConfusionBinding (samples) {
 }
 
 async function signaling(endpoint, data, role) {
-    // post... [ Dongyin: one day I will refactor this function to name post ]
+    // post
     let headers = { 'Content-Type': 'application/json' },
         body = JSON.stringify({ ...data, role: role });
 
@@ -311,7 +311,7 @@ async function query() {
 async function report(event) {
     document.getElementById('plotting_svg').innerHTML = '';
 
-    console.log('You\'ve clicked on SVG! @'+new Date().getTime());
+    console.log('You\'ve clicked on SVG to report confusion! @'+new Date().getTime());
 
     // TODO: send data to server
     // signaling(
@@ -325,7 +325,7 @@ async function report(event) {
 }
 
 function showPromptBox(fixation, minWidth, minHeight) {
-    console.log(minWidth < 0 ? 'REMOVE PROMPT BOX' : 'SHOW PROMPT BOX')
+    console.log(minWidth < 0 ? 'REMOVE prompt box' : 'SHOW prompt box');
 
     let tFast = d3.transition()
         .duration(500);
@@ -487,7 +487,7 @@ async function reportState(stage, label) {
             reporting = false;
         }
     } catch (err) {
-        console.log('ERROR:', err);
+        console.error('ERROR:', err);
     }
 
     return result;

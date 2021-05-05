@@ -1,23 +1,35 @@
 // Require modules
-const {errorHandler} = require("./errorHandler");
+const {errorHandler, getLogFilename} = require("./errorHandler");
 
 const express = require('express');
 const http = require('http');
 const path = require('path');
+const fs = require('fs');
 
 // Settings
 const PORT = process.env.PORT || 5000;
+
+// Definition of constants
+const STUDENT = 1;
+const TEACHER = 2;
+const FILEPATH = '/mnt/fileserver';
+const stuedntsFilename = path.join(FILEPATH, 'registeredInfo', 'registeredStudents.json');
+const trialsFilename = path.join(FILEPATH, 'registeredInfo', 'registeredTrials.json');
+const logger = winston.createLogger({
+    transports: [
+        new winston.transports.Console(),
+        new winston.transports.File({ filename: getLogFilename('server') })
+    ]
+});
 
 // Run the application
 const app = express();
 let server = http.Server(app);
 server.listen(PORT, function () {
-    console.log('dedicated server running');
+    logger.info('dedicated server running');
 });
 
 // Global storage
-const STUDENT = 1;
-const TEACHER = 2;
 let all_fixations = new Map();
 let all_saccades = new Map();
 let all_cognitive = new Map();
@@ -26,7 +38,28 @@ let last_seen = {};
 // Deploy or test locally
 const DEPLOY = true;
 
-app.get('/',(req, res) => {
+// Graceful shotdowns
+function terminationHandle(signal) {
+    logger.info(`Dedicated servre received a ${signal} signal`);
+
+    // Close opened registeredTrials.json file
+
+    server.close(() => {
+        process.exit(0)
+    })
+
+    // If server hasn't finished in 1000ms, shut down process
+    setTimeout(() => {
+        process.exit(0)
+    }, 1000).unref() // Prevents the timeout from registering on event loop
+}
+
+process.on('SIGINT', terminationHandle);
+process.on('SIGTERM', terminationHandle);
+
+// ===================================
+// When testing locally
+app.get('/', (req, res) => {
     if (DEPLOY) {
         // When deployed on k8s
         res.send(`<h1>Dedicated server is on.</h1>`);
@@ -36,18 +69,15 @@ app.get('/',(req, res) => {
     }
 })
 
-// ===================================
-// When testing locally
 if (!DEPLOY) {
     const multipart = require("connect-multiparty");
     const multipartyMiddleware = multipart();
-    const fs = require('fs');
 
-    const FILEPATH = '/Users/hudongyin/Documents/Projects/gazelearning/python/data_temp';
+    const LOCALFILEPATH = '/Users/hudongyin/Documents/Projects/gazelearning/python/data_temp';
     // please change to local filepath where gaze/face will be stored
 
     let registeredStudents = new Map(); // Student Name => Student Number, which is the order of student
-    fs.readFile("./restricted/users/registeredStudents.json", 'utf-8', (err, data) => {
+    fs.readFile('./restricted/users/registeredStudents.json', 'utf-8', (err, data) => {
         if (err) throw err;
         let nameList = JSON.parse(data);
         nameList.forEach((item, index) => {
@@ -75,7 +105,8 @@ if (!DEPLOY) {
     function newUserLogin(req, res, next) {
         // Creates user directory and generate cookie
         let content = req.body;
-        console.log(content);
+        logger.debug('============================')
+        logger.debug(content);
         const identity = +content.identity;
 
         if (identity === STUDENT) {
@@ -89,7 +120,7 @@ if (!DEPLOY) {
             const studentNumber = registeredStudents.get(content.name).toString();
             if (!fs.existsSync(path.join(FILEPATH, studentNumber), '/gaze')) {
                 fs.mkdir(path.join(FILEPATH, studentNumber, '/gaze'),
-                    {recursive: true},
+                    { recursive: true },
                     (err) => {
                         if (err) throw err;
                     });
@@ -113,7 +144,7 @@ if (!DEPLOY) {
             })
         );
 
-        res.send({message: 'Cookie set.'});
+        res.send({ message: 'Cookie set.' });
     }
 
 
@@ -125,11 +156,11 @@ if (!DEPLOY) {
         res.send(`<h1>Dedicated server, page /gazeData/teacher</h1>`);
     })
 
-    app.post('/gazeData/teacher', express.json({type: '*/*'}), async (req, res) => {
+    app.post('/gazeData/teacher', express.json({ type: '*/*' }), async (req, res) => {
         // let { , role, pts } = req.body;
         let role = +req.body['role'];
-        console.log('==========================');
-        console.log(`Received POST from ${role === STUDENT ? 'student' : 'teacher'}`);
+        logger.info('==========================');
+        logger.info(`Received POST from ${role === STUDENT ? 'student' : 'teacher'}`);
 
         try {
             // teacher(2) or student(1)
@@ -156,8 +187,7 @@ if (!DEPLOY) {
                 });
 
                 for (let [stuNum, cognitive] of all_cognitive.entries()) {
-                    console.log({stuNum, ...cognitive})
-                    cognitiveFlat.push({stuNum, ...cognitive});
+                    cognitiveFlat.push({ stuNum, ...cognitive });
                 }
 
                 fixationFlat = fixationFlat.flat();
@@ -166,7 +196,7 @@ if (!DEPLOY) {
                 fixationX = fixationFlat.map(fixation => [fixation.x_per]);
                 fixationY = fixationFlat.map(fixation => [fixation.y_per]);
 
-                console.log(`Fixations to cluster : ${fixationX.length}`);
+                logger.info(`Fixations to cluster : ${fixationX.length}`);
 
                 res.statusCode = 200;
                 res.format({
@@ -184,13 +214,13 @@ if (!DEPLOY) {
             } else {
                 // we have students posting gaze information
                 let stuNum = req.body['stuNum'];
-                console.log(`Student number : ${stuNum}`);
+                logger.info(`Student number : ${stuNum}`);
 
                 all_fixations.set(stuNum, req.body['fixations']);
                 all_saccades.set(stuNum, req.body['saccades']);
                 all_cognitive.set(stuNum, req.body['cognitive']);
 
-                console.log(`Receive ${all_fixations.get(stuNum).length} fixations at ${new Date()}`);
+                logger.info(`Receive ${all_fixations.get(stuNum).length} fixations at ${new Date()}`);
 
                 res.statusCode = 200;
                 res.send({
@@ -200,8 +230,8 @@ if (!DEPLOY) {
                 last_seen[stuNum] = Date.now();
             }
         } catch (e) {
-            console.error(e.message);
-            res.send({error: e.message});
+            logger.error(e.message);
+            res.send({ error: e.message });
         }
     });
 
@@ -209,7 +239,7 @@ if (!DEPLOY) {
         let now = Date.now();
         Object.entries(last_seen).forEach(([name, ts]) => {
             if ((now - ts) > 5000) {
-                // console.log(`${name} lost connection. remove!`);
+                // logger.info(`${name} lost connection. remove!`);
                 all_fixations.delete(name);
                 all_saccades.delete(name);
             }
@@ -239,23 +269,25 @@ class Trial {
     }
 }
 
+// ===Initialization
 let registeredTrials = [];
-registeredTrials.push(new Trial({
-    title: 'Introduction in Linear Algebra',
-    abstract: 'This lecture will briefly introduce some basic concepts in linear algebra, such as vector, matrix and rules of calculation.',
-    instructor: 'David Liu',
-    time: (new Date('Mon Apr 5 2021 13:00:00 GMT+0800')).getTime(),
-    zoomid: '71123774899',
-}, {
-    gazeinfo: true,
-    coginfo: true,
-}));
+// Read registered lecture infomation list
+fs.readFile(trialsFilename, 'utf-8', (err, data) => {
+    if (err) throw err;
+    let lectureList = JSON.parse(data);
+    let current = new Date().getTime();
+    lectureList.forEach((item) => {
+        if (item.lecture.time <= current) return;
+        registeredTrials.push(new Trial(item.lecture, item.setting));
+    });
+});
 
+// === Handles requests from administrator
 let adminRouter = express.Router();
 app.use('/admin', adminRouter);
 app.get('/admin.html',
     cookieParser(),
-    express.json({type: '*/*'}),
+    express.json({ type: '*/*' }),
     verifyUser,
     (req, res) => {
         res.statusCode = 200;
@@ -263,7 +295,7 @@ app.get('/admin.html',
     }
 );
 
-adminRouter.post('/', express.json({type: '*/*'}), generateAuthCookie);
+adminRouter.post('/', express.json({ type: '*/*' }), generateAuthCookie);
 adminRouter.get('/trial',
     (req, res) => {
         res.statusCode = 200;
@@ -278,11 +310,11 @@ adminRouter.get('/trials',
     });
 adminRouter.post('/trials',
     cookieParser(),
-    express.json({type: '*/*'}),
+    express.json({ type: '*/*' }),
     verifyUser,
     informationPost);
 
-// Error handling
+// === Error handling
 app.use(errorHandler);
 
 function generateAuthCookie(req, res) {
@@ -326,40 +358,45 @@ function informationPost(req, res) {
     // {verb: add, lecture: lecture-info, setting: setting-info}
     // {verb: delete, trialno: index}
     // {verb: update, trialno: index, info: info}
-    console.log('===================================');
-    console.log('Received ' + req.body.verb.toUpperCase() + ' request.')
+    logger.info('===================================');
+    logger.info('Received ' + req.body.verb.toUpperCase() + ' request.')
     switch (req.body.verb) {
         case 'add':
             registeredTrials.push(new Trial(req.body.lecture, req.body.setting));
             registeredTrials.sort((a, b) => a.lecture.time - b.lecture.time);
             res.statusCode = 202;
             res.send('Add new trial successfully.');
-            console.log('Add new trial successfully. There are ' + registeredTrials.length + ' registered trials.');
-            console.log(req.body.lecture, req.body.setting);
+            logger.info('Add new trial successfully. There are ' + registeredTrials.length + ' registered trials.');
+            logger.info(req.body.lecture, req.body.setting);
             break
         case 'delete':
             registeredTrials.splice(req.body.trialno, 1); // from index req.body.trialno remove 1 element
             res.statusCode = 202;
             res.send('Delete specified trial successfully.');
-            console.log('Delete specified trial successfully. There are ' + registeredTrials.length + ' registered trials.');
+            logger.info('Delete specified trial successfully. There are ' + registeredTrials.length + ' registered trials.');
             break
         case 'update':
             registeredTrials[req.body.trialno].updateInfo(req.body.info);
             res.statusCode = 202;
             res.send('Update specified trial successfully.');
-            console.log('Update specified trial successfully. There are ' + registeredTrials.length + ' registered trials.');
-            console.log(req.body.info);
+            logger.info('Update specified trial successfully. There are ' + registeredTrials.length + ' registered trials.');
+            logger.info(req.body.info);
             break
         default:
             res.statusCode = 404;
             res.send('Invalid verb.')
     }
+    
+    fs.writeFile(trialsFilename, JSON.stringify(registeredTrials), 'utf-8', (err) => {
+        if (err) throw err;
+        logger.info('The trials has been saved to file!');
+    })
 }
 
 // ===================================
 // Some code about administration control (Timing control)
 
-const options = { /* ... */};
+const options = { /* ... */ };
 const io = require('socket.io')(server, options);
 
 /* abstract */
@@ -406,10 +443,10 @@ adminNamespace.use((socket, next) => {
         const session = sessionStore.findSession(sessionID);
         if (session) {
 
-            console.log('============================')
-            console.log('Existing socket.')
-            console.log(`session.name: ${session.name}`);
-            console.log(`session.identity: ${session.identity}`);
+            logger.info('============================')
+            logger.info('Existing socket.')
+            logger.info(`session.name: ${session.name}`);
+            logger.info(`session.identity: ${session.identity}`);
 
             socket.sessionID = sessionID;
             socket.userID = session.userID;
@@ -424,12 +461,12 @@ adminNamespace.use((socket, next) => {
     socket.name = socket.handshake.auth.name;
     socket.identity = socket.handshake.auth.identity;
 
-    console.log('============================')
-    console.log('New socket.')
-    console.log(`socket.handshake.auth.name: ${socket.handshake.auth.name}`);
-    console.log(`socket.handshake.auth.identity: ${socket.handshake.auth.identity}`);
-    console.log(`socket.name: ${socket.name}`);
-    console.log(`socket.identity: ${socket.identity}`);
+    logger.info('============================')
+    logger.info('New socket.')
+    logger.debug(`socket.handshake.auth.name: ${socket.handshake.auth.name}`);
+    logger.debug(`socket.handshake.auth.identity: ${socket.handshake.auth.identity}`);
+    logger.info(`socket.name: ${socket.name}`);
+    logger.info(`socket.identity: ${socket.identity}`);
 
     next();
 })
@@ -457,8 +494,8 @@ adminNamespace.on("connection", socket => {
     }
 
     adminNamespace.to("admin").emit("users", users); // When new users logged in, notify admin
-    console.log(`Connected users:`);
-    console.log(users);
+    logger.info(`Connected users:`);
+    logger.info(users);
 
     socket.on("ready", () => {
         // event ready comes from the teacherPage/studentPage.
@@ -483,28 +520,28 @@ adminNamespace.on("connection", socket => {
 
         let delay = registeredTrials[0].lecture.time - Date.now();
 
-        if (delay > 0 && ( unregisterEvent === undefined || unregisterEvent._idleTimeout < 0 )) {
+        if (delay > 0 && (unregisterEvent === undefined || unregisterEvent._idleTimeout < 0)) {
             // unregisterEvent === undefined : server just initialized
             // unregisterEvent._idleTimeout < 0 : last timed-out function is executed
 
             // Schedule "student start" event for students
             let startStudentEvent = setTimeout(() => {
                 adminNamespace.to("student").emit("student start");
-                console.log('============================');
-                console.log('student start is sent to students');
+                logger.info('============================');
+                logger.info('student start is sent to students');
             }, delay);
 
             // Schedule "teacher start" event for instructor
             let startInstructorEvent = setTimeout(() => {
                 adminNamespace.to("teacher").to("admin").emit("teacher start");
-                console.log('teacher start is sent to teacher and administrator');
+                logger.info('teacher start is sent to teacher and administrator');
             }, delay + 2 * 1000); // delay 2 seconds then students
 
             // Unregister trial
             unregisterEvent = setTimeout(() => {
                 registeredTrials.shift();
-                console.log('============================');
-                console.log('Trial is removed.');
+                logger.info('============================');
+                logger.info('Trial is removed.');
             }, delay + 30 * 60 * 1000);
         }
     });
@@ -533,23 +570,24 @@ adminNamespace.on("connection", socket => {
 
 const kmeans = require('ml-kmeans');
 const { Matrix, EigenvalueDecomposition } = require('ml-matrix');
+const { datetozulu } = require("jsrsasign");
 
 function spectralCluster(X, Y, repeat) {
-    console.log(`inside spectral cluster, X : ${X.length}, Y : ${Y.length}, repeat : ${repeat}`)
+    logger.debug(`inside spectral cluster, X : ${X.length}, Y : ${Y.length}, repeat : ${repeat}`)
 
     let matX = X instanceof Matrix ? X : new Matrix(X);
     let matY = Y instanceof Matrix ? Y : new Matrix(Y);
 
     // Construct similarity matrix
     let sigma = 7.5;
-    let distance = matX.repeat({columns:matX.rows})
-        .subtract(matX.transpose().repeat({rows:matX.rows}))
+    let distance = matX.repeat({ columns: matX.rows })
+        .subtract(matX.transpose().repeat({ rows: matX.rows }))
         .pow(2)
         .add(
-            matY.repeat({columns:matY.rows})
-                .subtract(matY.transpose().repeat({rows:matY.rows}))
+            matY.repeat({ columns: matY.rows })
+                .subtract(matY.transpose().repeat({ rows: matY.rows }))
                 .pow(2)
-        ).sqrt().div(-2*sigma*sigma).exp();
+        ).sqrt().div(-2 * sigma * sigma).exp();
     let D = Matrix.diag(
         distance.mmul(Matrix.ones(distance.rows, 1)).to1DArray().map(item => 1 / item)
     );
@@ -562,17 +600,17 @@ function spectralCluster(X, Y, repeat) {
     let k = deltaLambda.slice(0, Math.ceil(lambda.length / 2))
         .reduce((maxIdx, item, index) => deltaLambda[maxIdx] < item ? index : maxIdx, 0) + 1;
     // var k = Math.random() > 0.5 ? 4 : 3;
-    console.log(`k = ${k}`);
+    logger.debug(`k = ${k}`);
 
     let columns = [];
-    for (let i = 0; i < k; i+=1) {
+    for (let i = 0; i < k; i += 1) {
         columns.push(i);
     } // it surprises me that JS has no native function to generate a range...
     let data = eig.eigenvectorMatrix.subMatrixColumn(columns).to2DArray(); // Dimension reduced
 
     // K-means, run repeat times for stable clustering
     let trails = []
-    for (let i = 0; i < repeat; i+=1) {
+    for (let i = 0; i < repeat; i += 1) {
         trails.push(reorder(kmeans(data, k).clusters, k));
     }
     return mode(trails, k);
@@ -584,14 +622,14 @@ function reorder(cluster, k) {
     let order = [cluster[prev]];
 
     while (nClass <= k) {
-        if (cluster[prev] !== cluster[prev + 1] && order.indexOf(cluster[prev + 1]) === -1 ) {
-            nClass+=1;
+        if (cluster[prev] !== cluster[prev + 1] && order.indexOf(cluster[prev + 1]) === -1) {
+            nClass += 1;
             order.push(cluster[prev + 1]);
         }
         prev += 1;
     }
 
-    return cluster.map(elem=>order.indexOf(elem));
+    return cluster.map(elem => order.indexOf(elem));
 }
 
 function mode(nestedArray, max) {
@@ -599,15 +637,15 @@ function mode(nestedArray, max) {
     let arrLen = nestedArray[0].length;
     let mode = [];
 
-    for (let i = 0; i < arrLen; i+=1) {
+    for (let i = 0; i < arrLen; i += 1) {
         let elemCount = Matrix.zeros(1, max).to1DArray();
-        for (let j = 0; j < depth; j+=1) {
-            elemCount[ nestedArray[j][i] ] += 1;
+        for (let j = 0; j < depth; j += 1) {
+            elemCount[nestedArray[j][i]] += 1;
         }
-        mode.push( elemCount.indexOf( Math.max(...elemCount) ));
+        mode.push(elemCount.indexOf(Math.max(...elemCount)));
     }
 
-    console.log(mode);
+    logger.debug(mode);
     return mode
 }
 

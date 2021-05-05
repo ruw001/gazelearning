@@ -1,4 +1,4 @@
-const {errorHandler} = require("./errorHandler");
+const {errorHandler, getLogFilename} = require("./errorHandler");
 
 let express = require('express');
 const path = require('path');
@@ -6,8 +6,8 @@ let fs = require('fs');
 let http = require('http');
 const multipart = require("connect-multiparty");
 const cookieParser = require('cookie-parser');
-const { Resolver } = require('dns').promises;
-// var cors = require('cors')
+const {Resolver} = require('dns').promises;
+const winston = require('winston');
 
 const PORT = process.env.PORT || 5000;
 const app = express();
@@ -18,19 +18,29 @@ const multipartyMiddleware = multipart();
 // const FILEPATH = '/Users/hudongyin/Documents/Projects/gazelearning/python/data_temp';
 const FILEPATH = '/mnt/fileserver';
 
+// Logger initialization
+const logger = winston.createLogger({
+    transports: [
+        new winston.transports.Console(),
+        new winston.transports.File({filename: getLogFilename('server')})
+    ]
+});
+
 // ===================================
 // Registered student name and instructor passcode
 const crypto = require("crypto");
-let digestMessage = function (message) {return crypto.createHash("sha256").update(message.toString()).digest("hex")};
-let teacherPasscodeHash = digestMessage( 'cogteacher' );
-let studentAuthHash = digestMessage( 'student' );
-let teacherAuthHash = digestMessage( 'teacher' );
+let digestMessage = function (message) {
+    return crypto.createHash("sha256").update(message.toString()).digest("hex")
+};
+let teacherPasscodeHash = digestMessage('cogteacher');
+let studentAuthHash = digestMessage('student');
+let teacherAuthHash = digestMessage('teacher');
 // identity of user
 const STUDENT = 1;
 const TEACHER = 2;
 // Read registered student name list
 let registeredStudents = new Map(); // Student Name => Student Number, which is the order of student
-fs.readFile("./restricted/users/registeredStudents.json", 'utf-8',(err, data) => {
+fs.readFile(path.join(FILEPATH, 'registeredInfo', 'registeredStudents.json'), 'utf-8', (err, data) => {
     if (err) throw err;
     let nameList = JSON.parse(data);
     nameList.forEach((item, index) => {
@@ -40,21 +50,21 @@ fs.readFile("./restricted/users/registeredStudents.json", 'utf-8',(err, data) =>
 
 // ===================================
 // Find dedicated service for instructor
-const dedicated_service_hostname ='dedicated-python-nodeport-service.default.svc.cluster.local';
+const dedicated_service_hostname = 'dedicated-python-nodeport-service.default.svc.cluster.local';
 let dedicated_service_address = undefined;
 const resolver = new Resolver();
 resolver.setServers(['10.52.0.10']); // Specify DNS server in the cluster.
 
 resolver.resolve4(dedicated_service_hostname).then((addresses) => {
-    console.log(`address of ${dedicated_service_hostname}: ${JSON.stringify(addresses)}`);
+    logger.info(`address of ${dedicated_service_hostname}: ${JSON.stringify(addresses)}`);
     dedicated_service_address = addresses[0]
-}).catch(e => console.log(e));
+}).catch(e => logger.error(e));
 
 // ===================================
 // HTTP server
 let server = http.Server(app);
 server.listen(PORT, function () {
-    console.log(`gaze server running @ ${PORT}`);
+    logger.info(`gaze server running @ ${PORT}`);
 });
 
 // ===================================
@@ -70,21 +80,27 @@ app.post('/users', multipartyMiddleware, newUserLogin);
 
 app.get('/studentPage.html',
     cookieParser(),
-    express.json({ type: '*/*' }),
+    express.json({type: '*/*'}),
     verifyStudent,
-    (req, res) => { res.statusCode = 200; res.sendFile(path.join(__dirname, 'restricted', 'studentPage.html')); });
+    (req, res) => {
+        res.statusCode = 200;
+        res.sendFile(path.join(__dirname, 'restricted', 'studentPage.html'));
+    });
 
 app.get('/teacherPage.html',
     cookieParser(),
-    express.json({ type: '*/*' }),
+    express.json({type: '*/*'}),
     verifyTeacher,
-    (req, res) => { res.statusCode = 200; res.sendFile(path.join(__dirname, 'restricted', 'teacherPage.html')); });
+    (req, res) => {
+        res.statusCode = 200;
+        res.sendFile(path.join(__dirname, 'restricted', 'teacherPage.html'));
+    });
 
 app.post('/gazeData/cluster', express.json(), clusteringTest);
 
 // Save and relay gaze data POSTed from students
 app.post('/gazeData/sync',
-    express.json({ type: '*/*' }),
+    express.json({type: '*/*'}),
     saveGazePoints,
     sendGazePoints,
     receptionConfirm);
@@ -95,8 +111,8 @@ app.use(errorHandler);
 function newUserLogin(req, res, next) {
     // Creates user directory and generate cookie
     let content = req.body;
-    console.log('============================')
-    console.log(content);
+    logger.debug('============================')
+    logger.debug(content);
     const identity = +content.identity;
 
     if (identity === STUDENT) {
@@ -172,7 +188,7 @@ function saveGazePoints(req, res, next) {
             `${filename}.json`
         ), {flags: 'a'});
     // ',' (comma) is the delimiter
-    writableStream.write(JSON.stringify(req.body)+',');
+    writableStream.write(JSON.stringify(req.body) + ',');
 
     // req is a ended stream.Readable. readable.readableEnded=true;
     next();
@@ -188,20 +204,20 @@ function sendGazePoints(req, res, next) {
             headers: req.headers,
         },
         (res) => {
-            console.log(`STATUS: ${res.statusCode}`);
-            console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
+            logger.info(`STATUS: ${res.statusCode}`);
+            logger.info(`HEADERS: ${JSON.stringify(res.headers)}`);
             res.setEncoding('utf8');
             res.on('data', (chunk) => {
-                console.log(`BODY: ${chunk}`);
+                logger.info(`BODY: ${chunk}`);
             });
             res.on('end', () => {
-                console.log('No more data in response.');
+                logger.info('No more data in response.');
             });
         }
     )
 
     req_instructor.on('error', (e) => {
-        console.error(`problem with request: ${e.message}`);
+        logger.error(`problem with request: ${e.message}`);
     });
 
     // Write data to request body
@@ -214,20 +230,20 @@ function sendGazePoints(req, res, next) {
 async function receptionConfirm(req, res) {
     // let { , role, pts } = req.body;
     let role = +req.body['role'];
-    console.log('==========================');
-    console.log(`Received POST from ${role === 1 ? 'student' : 'teacher'}`);
+    logger.info('==========================');
+    logger.info(`Received POST from ${role === 1 ? 'student' : 'teacher'}`);
 
     try {
         // we have students posting gaze information
         let stuNum = req.body['stuNum'];
-        console.log(`Student number : ${stuNum}`);
+        logger.info(`Student number : ${stuNum}`);
 
         res.statusCode = 200;
         res.send({
             result: `Fixations and saccades are logged @ ${Date.now()}`,
         });
     } catch (e) {
-        console.error(e.message);
+        logger.error(e.message);
         res.send({error: e.message});
     }
 }
@@ -238,18 +254,19 @@ async function receptionConfirm(req, res) {
 // ===================================
 
 const kmeans = require('ml-kmeans');
-const { Matrix, EigenvalueDecomposition } = require('ml-matrix');
+const {Matrix, EigenvalueDecomposition} = require('ml-matrix');
 
-function clusteringTest (req, res, next) {
+function clusteringTest(req, res, next) {
     // Exist because fixationTest.html is using this endpoint
     let fixations = req.body;
-    console.log(`Receive ${fixations.length} fixations at ${new Date()}`);
+    logger.info(`Receive ${fixations.length} fixations at ${new Date()}`);
 
     let fixationX = fixations.map(fixation => [fixation.x_per]);
     let fixationY = fixations.map(fixation => [fixation.y_per]);
 
-    res.format({'application/json': function(){
-            res.send({ result: JSON.stringify(spectralCluster(fixationX, fixationY, 5)) });
+    res.format({
+        'application/json': function () {
+            res.send({result: JSON.stringify(spectralCluster(fixationX, fixationY, 5))});
         }
     });
 
@@ -257,21 +274,21 @@ function clusteringTest (req, res, next) {
 }
 
 function spectralCluster(X, Y, repeat) {
-    console.log(`inside spectral cluster, X : ${X.length}, Y : ${Y.length}, repeat : ${repeat}`)
+    logger.debug(`inside spectral cluster, X : ${X.length}, Y : ${Y.length}, repeat : ${repeat}`)
 
     let matX = X instanceof Matrix ? X : new Matrix(X);
     let matY = Y instanceof Matrix ? Y : new Matrix(Y);
 
     // Construct similarity matrix
     let sigma = 2.5;
-    let distance = matX.repeat({columns:matX.rows})
-        .subtract(matX.transpose().repeat({rows:matX.rows}))
+    let distance = matX.repeat({columns: matX.rows})
+        .subtract(matX.transpose().repeat({rows: matX.rows}))
         .pow(2)
         .add(
-            matY.repeat({columns:matY.rows})
-                .subtract(matY.transpose().repeat({rows:matY.rows}))
+            matY.repeat({columns: matY.rows})
+                .subtract(matY.transpose().repeat({rows: matY.rows}))
                 .pow(2)
-        ).sqrt().div(-2*sigma*sigma).exp();
+        ).sqrt().div(-2 * sigma * sigma).exp();
     let D = Matrix.diag(
         distance.mmul(Matrix.ones(distance.rows, 1)).to1DArray().map(item => 1 / item)
     );
@@ -284,17 +301,17 @@ function spectralCluster(X, Y, repeat) {
     let k = deltaLambda.slice(0, Math.ceil(lambda.length / 2))
         .reduce((maxIdx, item, index) => deltaLambda[maxIdx] < item ? index : maxIdx, 0) + 1;
     // var k = Math.random() > 0.5 ? 4 : 3;
-    console.log(`k = ${k}`);
+    logger.debug(`k = ${k}`);
 
     let columns = [];
-    for (let i = 0; i < k; i+=1) {
+    for (let i = 0; i < k; i += 1) {
         columns.push(i);
     } // it surprises me that JS has no native function to generate a range...
     let data = eig.eigenvectorMatrix.subMatrixColumn(columns).to2DArray(); // Dimension reduced
 
     // K-means, run repeat times for stable clustering
     let trails = []
-    for (let i = 0; i < repeat; i+=1) {
+    for (let i = 0; i < repeat; i += 1) {
         trails.push(reorder(kmeans(data, k).clusters, k));
     }
     return mode(trails, k);
@@ -306,14 +323,14 @@ function reorder(cluster, k) {
     let order = [cluster[prev]];
 
     while (nClass <= k) {
-        if (cluster[prev] !== cluster[prev + 1] && order.indexOf(cluster[prev + 1]) === -1 ) {
-            nClass+=1;
+        if (cluster[prev] !== cluster[prev + 1] && order.indexOf(cluster[prev + 1]) === -1) {
+            nClass += 1;
             order.push(cluster[prev + 1]);
         }
         prev += 1;
     }
 
-    return cluster.map(elem=>order.indexOf(elem));
+    return cluster.map(elem => order.indexOf(elem));
 }
 
 function mode(nestedArray, max) {
@@ -321,15 +338,15 @@ function mode(nestedArray, max) {
     let arrLen = nestedArray[0].length;
     let mode = [];
 
-    for (let i = 0; i < arrLen; i+=1) {
+    for (let i = 0; i < arrLen; i += 1) {
         let elemCount = Matrix.zeros(1, max).to1DArray();
-        for (let j = 0; j < depth; j+=1) {
-            elemCount[ nestedArray[j][i] ] += 1;
+        for (let j = 0; j < depth; j += 1) {
+            elemCount[nestedArray[j][i]] += 1;
         }
-        mode.push( elemCount.indexOf( Math.max(...elemCount) ));
+        mode.push(elemCount.indexOf(Math.max(...elemCount)));
     }
 
-    console.log(mode);
+    logger.debug(mode);
     return mode
 }
 
@@ -342,7 +359,7 @@ function mode(nestedArray, max) {
 // let sslCrt = 'cert.pem';
 // let sslKey = 'privkey.pem';
 // async function startServer() {
-//     console.log('starting express');
+//     logger.info('starting express');
 //     try {
 //         const tls = {
 //             cert: fs.readFileSync(sslCrt),
@@ -350,24 +367,24 @@ function mode(nestedArray, max) {
 //         };
 //         httpsServer = https.createServer(tls, app);
 //         httpsServer.on('error', (e) => {
-//             console.error('https server error,', e.message);
+//             logger.error('https server error,', e.message);
 //         });
 //         await new Promise((resolve) => {
 //             httpsServer.listen(PORT, () => {
-//                 console.log(`server is running and listening on ` +
+//                 logger.info(`server is running and listening on ` +
 //                     `https://localhost:${PORT}`);
 //                 resolve();
 //             });
 //         });
 //     } catch (e) {
 //         if (e.code === 'ENOENT') {
-//             console.error('no certificates found (check config.js)');
-//             console.error('  could not start https server ... trying http');
+//             logger.error('no certificates found (check config.js)');
+//             logger.error('  could not start https server ... trying http');
 //         } else {
 //             err('could not start https server', e);
 //         }
 //         app.listen(PORT, () => {
-//             console.log(`http server listening on port ${PORT}`);
+//             logger.info(`http server listening on port ${PORT}`);
 //         });
 //     }
 // }

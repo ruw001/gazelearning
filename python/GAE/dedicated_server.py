@@ -24,6 +24,7 @@ app = Flask(__name__)
 
 STUDENT = 1
 TEACHER = 2
+FILEPATH = '/mnt/fileserver'
 all_fixations = {}
 all_saccades = {}
 all_cognitive = {}
@@ -69,7 +70,7 @@ def spectral_clustering(fx, fy):
     # No more than half the points count classes
     k = np.argmax(np.diff(vals[:vals.shape[0]//2+1])) + 1
 
-    # print('max k', vals.shape[0]//2+1)
+    # app.logger.debug('max k', vals.shape[0]//2+1)
     app.logger.info('optimal K (Fiedler):', k)
 
     X = np.real(vecs[:, 0:3])
@@ -91,7 +92,7 @@ def spectral_clustering(fx, fy):
             best_sil = sil
             best_k = k
             best_cluster = labels
-        # print(k, sil, labels)
+        # app.logger.debug(k, sil, labels)
 
     app.logger.info('sil best:', best_k, best_sil, best_cluster)
 
@@ -194,10 +195,25 @@ def remove_obs_entries():
             del all_fixations[name]
             del all_saccades[name]
 
+def getFileHandler():
+    count = 0
+    today = date.today()
+    logpath = os.path.join(FILEPATH, 'logs', str(today))
+    if not os.path.exists(logpath):
+        os.makedirs(logpath)
+    else :
+        for filename in os.listdir(logpath):
+            if ('py' in filename and 'd' in filename):
+                count += 1
+    fh = logging.FileHandler(os.path.join(logpath, 'dedicated-py-{}.log'.format(count)))
+    fh.setLevel(logging.DEBUG)
+    return fh
 
 if __name__ == '__main__':
 
     PORT = 9000
+
+    app.logger.addHandler(getFileHandler())
     # This is used when running locally only. When deploying to Google App
     # Engine, a webserver process such as Gunicorn will serve the app. This
     # can be configured by adding an `entrypoint` to app.yaml.
