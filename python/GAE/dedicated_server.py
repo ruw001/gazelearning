@@ -10,6 +10,7 @@ from flask import Flask, redirect, render_template, request
 import threading
 from threading import Thread
 import logging
+from logging.config import dictConfig
 from sklearn.datasets import make_circles
 from sklearn.neighbors import kneighbors_graph
 from sklearn.cluster import KMeans
@@ -19,26 +20,68 @@ import time
 from timeloop import Timeloop
 from datetime import timedelta
 
-
-app = Flask(__name__)
-
 STUDENT = 1
 TEACHER = 2
 # FILEPATH = '/mnt/fileserver'
 FILEPATH = '/mnt/d/mnt/fileserver'
+
+def getFilename():
+    count = 0
+    today = datetime.date.today()
+    logpath = os.path.join(FILEPATH, 'logs', str(today))
+    if not os.path.exists(logpath):
+        os.makedirs(logpath)
+    else :
+        for filename in os.listdir(logpath):
+            if ('py' in filename and 'd' in filename):
+                count += 1
+    return os.path.join(logpath, 'dedicated-py-{}.log'.format(count))
+
+class InternalFilter():
+    def filter(self, record):
+        if 'dedicated' in record.module:
+            record.module = 'Dedicated'
+        return 0 if 'internal' in record.module else 1
+
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] [%(module)s] [%(levelname)s] %(message)s',
+        'datefmt': '%Y-%m-%d %H:%M:%S'
+    }},
+    'filters': {'no-internal': {
+        '()': InternalFilter # Specify filter class with key '()'
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default',
+        'filters': ['no-internal']
+    },'file' : {
+        'class': 'logging.FileHandler',
+        'filename': getFilename(),
+        'formatter': 'default',
+        'filters': ['no-internal']
+    }},
+    'root': {
+        'level': 'INFO',
+        'handlers': ['wsgi', 'file']
+    }
+})
+
 all_fixations = {}
 all_saccades = {}
 all_cognitive = {}
 last_seen = {}
 tl = Timeloop()
 
+app = Flask(__name__)
 
 @app.route('/', methods=['GET'])
 def index():
     """ The home page has a list of prior translations and a form to
         ask for a new translation.
     """
-    app.logger.info('GET at /')
     return '<h1> Dedicated server (python) is on. </h1>'
 
 
@@ -196,28 +239,10 @@ def remove_obs_entries():
             del all_fixations[name]
             del all_saccades[name]
 
-def getFileHandler():
-    count = 0
-    today = datetime.date.today()
-    logpath = os.path.join(FILEPATH, 'logs', str(today))
-    if not os.path.exists(logpath):
-        os.makedirs(logpath)
-    else :
-        for filename in os.listdir(logpath):
-            if ('py' in filename and 'd' in filename):
-                count += 1
-
-    fh = logging.FileHandler(os.path.join(logpath, 'dedicated-py-{}.log'.format(count)))
-    fh.setLevel(logging.DEBUG)
-    fh.setFormatter( logging.Formatter('[%(asctime)s] [%(levelname)s] %(message)s',
-                                        '%Y-%m-%d %H:%M:%S') )
-    return fh
 
 if __name__ == '__main__':
 
     PORT = 9000
-    # Refined logging
-    app.logger.addHandler(getFileHandler())
     # This is used when running locally only. When deploying to Google App
     # Engine, a webserver process such as Gunicorn will serve the app. This
     # can be configured by adding an `entrypoint` to app.yaml.
@@ -227,7 +252,7 @@ if __name__ == '__main__':
     # App Engine itself will serve those files as configured in app.yaml.
     tl.start()
     try:
-        app.run(host='0.0.0.0', port=PORT, debug=True, threaded=True)
+        app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)
     except KeyboardInterrupt:
         tl.stop()
 
