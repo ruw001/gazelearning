@@ -1,13 +1,12 @@
-const {errorHandler} = require("./errorHandler");
+const {FILEPATH, errorHandler, getLogger} = require("./helpers");
 
 let express = require('express');
 const path = require('path');
-let fs = require('fs');
-let http = require('http');
+const fs = require('fs');
+const http = require('http');
 const multipart = require("connect-multiparty");
 const cookieParser = require('cookie-parser');
 const {Resolver} = require('dns').promises;
-const winston = require('winston');
 
 const PORT = process.env.PORT || 5000;
 const app = express();
@@ -15,17 +14,8 @@ const app = express();
 // To process login form
 const multipartyMiddleware = multipart();
 
-// const FILEPATH = '/Users/hudongyin/Documents/Projects/gazelearning/python/data_temp';
-const FILEPATH = 'D:\\mnt\\fileserver'
-// const FILEPATH = '/mnt/fileserver';
-
 // Logger initialization
-const logger = winston.createLogger({
-    transports: [
-        new winston.transports.Console(),
-        new winston.transports.File({filename: getLogFilename('server')})
-    ]
-});
+const logger = getLogger('server');
 
 // ===================================
 // Registered student name and instructor passcode
@@ -247,38 +237,6 @@ async function receptionConfirm(req, res) {
         logger.error(e.message);
         res.send({error: e.message});
     }
-}
-
-function getLogFilename(servername) {
-    const dedicated = servername.toLowerCase().indexOf('d') >= 0;
-    console.log({dedicated})
-
-    const today = new Date();
-    const logpath = path.join(FILEPATH, 'logs', `${today.getFullYear()}-${today.getMonth() + 1 < 10 ? '0' + (today.getMonth() + 1) : today.getMonth() + 1}-${today.getDate() < 10 ? '0' + today.getDate() : today.getDate()}`);
-    let count = 0;
-
-    if (!fs.existsSync(logpath)) {
-        fs.mkdir(logpath,
-            {recursive: true},
-            (err) => {
-                if (err) throw err;
-            });
-    } else {
-        fs.readdirSync(logpath).forEach(file => {
-            // is js log file?
-            if (file.endsWith('log') && file.toLowerCase().indexOf('js') >= 0) {
-                if (dedicated) {
-                    // filename contains d from dedicated
-                    if (file.toLowerCase().indexOf('d') >= 0) ++count;
-                } else {
-                    // filename does not contain d
-                    if (file.toLowerCase().indexOf('d') < 0) ++count;
-                }
-            }
-        });
-    }
-
-    return path.join(logpath, `${dedicated ? 'dedicated-' : ''}js-${count}.log`);
 }
 
 // ===================================
