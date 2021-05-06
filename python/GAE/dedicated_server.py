@@ -22,8 +22,8 @@ from datetime import timedelta
 
 STUDENT = 1
 TEACHER = 2
-# FILEPATH = '/mnt/fileserver'
-FILEPATH = '/mnt/d/mnt/fileserver'
+FILEPATH = '/mnt/fileserver'
+# FILEPATH = '/mnt/d/mnt/fileserver'
 
 def getFilename():
     count = 0

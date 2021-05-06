@@ -30,14 +30,13 @@ let all_cognitive = new Map();
 let last_seen = {};
 
 // Deploy or test locally
-const DEPLOY = false;
+const DEPLOY = true;
 
-// Graceful shotdowns
+// Graceful shutdowns
 function terminationHandle(signal) {
     logger.info(`Dedicated server received a ${signal} signal`);
 
     // Close opened registeredTrials.json file
-
     server.close(() => {
         process.exit(0)
     })
@@ -67,11 +66,8 @@ if (!DEPLOY) {
     const multipart = require("connect-multiparty");
     const multipartyMiddleware = multipart();
 
-    const LOCALFILEPATH = '/Users/hudongyin/Documents/Projects/gazelearning/python/data_temp';
-    // please change to local filepath where gaze/face will be stored
-
     let registeredStudents = new Map(); // Student Name => Student Number, which is the order of student
-    fs.readFile('./restricted/users/registeredStudents.json', 'utf-8', (err, data) => {
+    fs.readFile(stuedntsFilename, 'utf-8', (err, data) => {
         if (err) throw err;
         let nameList = JSON.parse(data);
         nameList.forEach((item, index) => {
@@ -112,8 +108,9 @@ if (!DEPLOY) {
             }
 
             const studentNumber = registeredStudents.get(content.name).toString();
-            if (!fs.existsSync(path.join(FILEPATH, studentNumber), '/gaze')) {
-                fs.mkdir(path.join(FILEPATH, studentNumber, '/gaze'),
+            const infoDatePath = path.join(FILEPATH, studentNumber, 'info');
+            if (!fs.existsSync(infoDatePath)) {
+                fs.mkdir(infoDatePath,
                     { recursive: true },
                     (err) => {
                         if (err) throw err;

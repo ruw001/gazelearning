@@ -29,8 +29,8 @@ TOTAL = 400
 
 # deployed = False
 
-# FILEPATH = '/mnt/fileserver'
-FILEPATH = '/mnt/d/mnt/fileserver'
+FILEPATH = '/mnt/fileserver'
+# FILEPATH = '/mnt/d/mnt/fileserver' # Test using wsl
 # FILEPATH = 'fileserver'
 
 POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
