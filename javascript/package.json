@@ -42,7 +42,8 @@
     "rollup-plugin-node-resolve": "^5.2.0",
     "socket.io": "^3.1.2",
     "sweetalert": "^2.1.2",
-    "webgazer": "^2.0.1"
+    "webgazer": "^2.0.1",
+    "winston": "^3.3.3"
   },
   "devDependencies": {
     "concurrently": "^3.5.1",

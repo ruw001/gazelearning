@@ -475,7 +475,7 @@
             body: postBody,
         }).then(response => {
             if (response.ok) {
-                alert("User information posted.");
+                alert("Trial information posted.");
                 location.reload();
             }
         }).catch(err => {
@@ -710,36 +710,42 @@
             console.log(res);
             return res;
         }).then(result => {
-            result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));
-            result.fixations.forEach(fixation => {
-                fixation.y -= navbar_offset;
-                fixation.ymin -= navbar_offset;
-                fixation.ymax -= navbar_offset;
-            });
-
             let animationTime = 1000; //ms
             let confusionRate = 0, inattentionRate = 0, total = result.cognitives.length;
 
             // [Adaptive] Follow openModal function to see how to adapt to different experiment settings
             // AoI visualization
             if (gazeInfo) {
-                console.log(result.result);
-                let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
 
-                let confusedStudents = new Set();
-                AoIs.forEach((AoI) => {
-                    for (let stuNum of AoI.confusedStudents) {
-                        if (confusedStudents.has(stuNum)) continue;
-                        confusedStudents.add(stuNum);
-                    }
-                });
-                confusionRate = confusedStudents.size;
+                if (result.fixations.length === 0) {
+                    console.warn('No fixation is received from server.');
+                } else {
+                    console.debug(result.result);
 
-                console.log(AoIs);
-                console.log(TMatrix);
+                    result.fixations = result.fixations.map(fixation => Fixation.fromFixationData(fixation));
+                    result.fixations.forEach(fixation => {
+                        fixation.y -= navbar_offset;
+                        fixation.ymin -= navbar_offset;
+                        fixation.ymax -= navbar_offset;
+                    });
 
-                showAoI(AoIs, animationTime);
-                showTransition(AoIs, TMatrix, animationTime);
+                    let [AoIs, TMatrix] = AoIBuilder(result.fixations, result.saccades, result.result);
+
+                    let confusedStudents = new Set();
+                    AoIs.forEach((AoI) => {
+                        for (let stuNum of AoI.confusedStudents) {
+                            if (confusedStudents.has(stuNum)) continue;
+                            confusedStudents.add(stuNum);
+                        }
+                    });
+                    confusionRate = confusedStudents.size;
+
+                    console.debug(AoIs);
+                    console.debug(TMatrix);
+
+                    showAoI(AoIs, animationTime);
+                    showTransition(AoIs, TMatrix, animationTime);
+                }
             }
 
             // Cognitive bar chart

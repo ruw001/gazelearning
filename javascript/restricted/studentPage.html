@@ -63,9 +63,9 @@
 </head>
 
 <body onkeypress="report(event)">
-    <!-- Gaze Predictor Settings -->
+    <!-- Gaze Predictor Settings (Uncomment with whole selection of the following block) -->
     <!-- <input id="et1" type="checkbox" onchange="changeWG()"/>
-    <label id="et1_label">WebGazer.js</label> -->
+    <label id="et1_label">WebGazer.js</label>
     <input id="et2" type="checkbox" onchange="changeGC()"/>
     <label id="et2_label">GazeCloudAPI</label>
     <div id="gazecloudopts" style='display:none'>
@@ -76,24 +76,18 @@
         <button id="cali" type="submit">Start calibrating</button>
         <button id="wg_start" type="button" onclick="beginWG()">Start tracking</button>
         <button id="wg_stop" type="button" onclick="endWG();">Stop tracking</button>
-    </form>
+    </form> -->
 
     <!--  SVG Visualization and Synchronization Settings  -->
     <input id="et3" type="button" onclick="svgDisplay(event);" value="Hide SVG"/>
-    <button id="sync" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
+    <button id="stop-tracking" type="button" onclick="GazeCloudAPI.StopEyeTracking();">Stop tracking</button>
 
     <!--  Confusion Detection Settings  -->
     <button id="neutral_btn" type="button" onclick="reportNeutral();">Report Neutral</button>
     <button id="confused_btn" type="button" onclick="reportConfusion();">Report Confusion</button>
 
     <!--dev only - start system-->
-    <button class="dev" type="button" onclick="let informal_infer = setInterval(() => {
-        updateGazePoints()
-            .catch(err => {
-                clearInterval(informal_infer);
-                console.log(err)
-            });
-    }, inferInterval);">Start Signalling [dev only]</button>
+    <button id="signalling" class="dev" type="button" onclick="informalInfer()">Start Signalling [dev only]</button>
 
     <!--  Facial Expression  -->
     <div class="meshvideo">
@@ -209,6 +203,30 @@
     <script src="js/Zoom/embed.js"></script>
     <script src="js/globalVars.js"></script>
     <script src="js/student_client.js"></script>
+
+    <script>
+        let informal_infer;
+        function informalInfer() {
+            if (typeof informal_infer === "undefined") {
+                // No informal signalling is registered
+                informal_infer = setInterval(() => {
+                    updateGazePoints()
+                        .catch(err => {
+                            clearInterval(informal_infer);
+                            console.log(err)
+                        });
+                }, inferInterval);
+                document.getElementById("signalling").innerText = "Stop signalling [dev only]";
+                console.log('============Start Signalling (informal)============');
+            } else {
+                // Clicked to unregister signalling
+                clearInterval(informal_infer);
+                informal_infer = undefined;
+                document.getElementById("signalling").innerText = "Start signalling [dev only]";
+                console.log('============Stop Signalling (informal)============');
+            }
+        }
+    </script>
 
 </body>
 

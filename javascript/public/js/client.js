@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => openModal("before-lecture-mo
 
 window.onload = async function () {
     // Fetch experiment setting
+    console.log('========== Preparing ==========');
     try {
         await fetchSetting();
     } catch (e) {
@@ -148,7 +149,7 @@ async function sync() {
     cog_svg.append("g").call(yAxis);
     console.log('Cognitive SVG set.');
 
-    console.log('Syncing...');
+    console.log('========== Synchronizing ==========');
     let userInfo = getCookie('userInfo');
     if (!userInfo) throw Error('No user information. Please log in.');
     userInfo = JSON.parse(userInfo);

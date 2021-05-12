@@ -20,15 +20,17 @@ import flask
 from flask import Flask, redirect, render_template, request
 from threading import Thread
 import logging
+from datetime import date
 import re
 import shutil
 
 CNTR = 0
-TOTAL = 1000
+TOTAL = 400
 
 # deployed = False
 
 FILEPATH = '/mnt/fileserver'
+# FILEPATH = '/mnt/d/mnt/fileserver' # Test using wsl
 # FILEPATH = 'fileserver'
 
 POI4AOI = [33, 7, 163, 144, 145, 153, 154, 155, 133, 246, 161, 160, 159,
@@ -144,7 +146,7 @@ class Metric:
 
 class StatePredictor:
 
-    def __init__(self, usrname):
+    def __init__(self, usrname, logger):
         global FILEPATH
         self.facemesh = mp.solutions.face_mesh.FaceMesh(
             max_num_faces=1,
@@ -158,6 +160,8 @@ class StatePredictor:
         self.dir = os.path.join(FILEPATH, str(self.username), 'face')
         self.trained = False
         self.model_ver = 0
+        # Same logger as gunicorn
+        self.logger = logger
         # currently we make sure old images and models are removed before each lecture
         if not os.path.exists(self.dir):
             os.makedirs(self.dir)
@@ -212,7 +216,7 @@ class StatePredictor:
         gt_label = np.array([str(label)])
         self.clf = self.clf.partial_fit(gt_input, gt_label)
 
-        print('model updated: {} -> {}'.format(self.model_ver, ver))
+        self.logger.info('model updated: {} -> {}'.format(self.model_ver, ver))
 
         self.model_ver = ver
 
@@ -224,7 +228,7 @@ class StatePredictor:
     def addData(self, img, label, frameId, incre=False, ver=0):
         global TOTAL, metricPool
         # if self.trained and not incre:
-        #     print('Ignore...')
+        #     self.logger.info('Ignore...')
         # Save collected image.
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img.flags.writeable = False
@@ -233,7 +237,7 @@ class StatePredictor:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             face_landmarks = results.multi_face_landmarks[0]
-            # print(matrix)
+            # self.logger.debug(matrix)
             cropped = getCrop(img, face_landmarks)
             img = cv2.cvtColor(cv2.resize(
                 cropped, (100, 50)), cv2.COLOR_BGR2GRAY)
@@ -278,19 +282,19 @@ class StatePredictor:
         n_component = 150
         self.pca = PCA(n_component, svd_solver='auto',
                 whiten=True).fit(inputs)
-        print('PCA fit done in {}s'.format(time.time() - t0))
+        self.logger.info('PCA fit done in {}s'.format(time.time() - t0))
 
         t0 = time.time()
         X_train_pca = self.pca.transform(inputs)
-        print('PCA transform done in {}s'.format(
+        self.logger.info('PCA transform done in {}s'.format(
             time.time() - t0))
 
         t0 = time.time()
         # self.clf = SVC()
         self.clf = SGDClassifier()
-        print(X_train_pca.shape)
+        self.logger.debug(X_train_pca.shape)
         self.clf = self.clf.fit(X_train_pca, labels)
-        print('SGDClassifier train done in {}s'.format(time.time() - t0))
+        self.logger.info('SGDClassifier train done in {}s'.format(time.time() - t0))
 
         dump(self.clf, os.path.join(self.dir, 'model_pca.0.joblib'))
         dump(self.pca, os.path.join(self.dir, 'pca.0.joblib'))
@@ -299,7 +303,7 @@ class StatePredictor:
     
     def threaded_train(self):
         Thread(target=self.train(), args=(self, )).start()
-        print('Threaded Training Started!!!')
+        self.logger.info('Threaded Training Started!!!')
         return 
 
     def confusionDetection(self, img, ver):
@@ -325,14 +329,14 @@ class StatePredictor:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         if results.multi_face_landmarks:
             face_landmarks = results.multi_face_landmarks[0]
-            # print(matrix)
+            # self.logger.debug(matrix)
             cropped = getCrop(img, face_landmarks)
             img = cv2.cvtColor(cv2.resize(
                 cropped, (100, 50)), cv2.COLOR_BGR2GRAY)
             feature = np.reshape(img, (1, -1))
             reduced_feature = self.pca.transform(feature)
             pred = self.clf.predict(reduced_feature)
-            print(pred)
+            self.logger.debug(pred)
             res = tag[int(pred[0])]
             return res
         return 'N/A'
@@ -348,7 +352,7 @@ def index():
         ask for a new translation.
     """
 
-    return "<h1>GazeLearning Server: There's nothing you can find here!< /h1 >"
+    return "<h1>GazeLearning Server: There's nothing you can find here!</h1>"
 
 
 @app.route('/detection', methods=['POST'])
@@ -356,7 +360,7 @@ def confusion_detection():
     global CNTR, TOTAL, FILEPATH
     data = request.data #.decode('utf-8')
     data = json.loads(data)
-    # print(data)
+    # app.logger.debug(data)
     img_bytes = base64.b64decode(data['img'].split(',')[1])
     im_arr = np.frombuffer(img_bytes, dtype=np.uint8)
     img = cv2.imdecode(im_arr, flags=cv2.IMREAD_COLOR)
@@ -365,13 +369,13 @@ def confusion_detection():
     ver = data['ver']
     if username not in modelPool:
         metricPool[username] = Metric()
-        modelPool[username] = StatePredictor(username)
+        modelPool[username] = StatePredictor(username, app.logger)
 
     result = 'success'
     
     try:
         if stage == 0:
-            print(username,
+            app.logger.info(username,
                 'stage', stage,
                 '{}:No.{}'.format(
                     'Confusion' if data['label'] else 'Neutral', TOTAL + 1 - data['frameId']),
@@ -379,7 +383,7 @@ def confusion_detection():
                 )
             metricPool[username].inc_req()
             modelPool[username].addData(img, data['label'], data['frameId'])
-            print('after add data')
+            app.logger.info('after add data')
             if data['frameId'] == TOTAL:
                 # Recieve first frame
                 if data['label'] == 0:
@@ -402,8 +406,7 @@ def confusion_detection():
                 img, data['label'], data['frameId'], incre=True, ver=ver)
     except Exception as e:
         result = 'ERROR'
-        logging.error('ERROR:{}'.format(e))
-        print('ERROR:{}'.format(e))
+        app.logger.error(e)
     resp = flask.Response()
     resp.set_data(json.dumps({'body': {'result': result}}))
     resp.headers['Access-Control-Allow-Origin'] = '*'
@@ -411,10 +414,10 @@ def confusion_detection():
     resp.headers["Access-Control-Allow-Headers"] = "x-api-key,Content-Type"
     resp.headers['Content-Type'] = 'application/json'
     return resp
-    
-
 
 if __name__ == '__main__':
+    # This part of code will NOT be executed since we are using gunicorn.
+
     # parser = argparse.ArgumentParser()
     # parser.add_argument("-p", "--portid", type=int, default=0,
     #                     help="port id")
@@ -430,3 +433,8 @@ if __name__ == '__main__':
     # http://flask.pocoo.org/docs/1.0/quickstart/#static-files. Once deployed,
     # App Engine itself will serve those files as configured in app.yaml.
     app.run(host='0.0.0.0', port=PORT, debug=True, threaded=True)
+else:
+    # use same log handlers as in gunicorn logger
+    gunicorn_logger = logging.getLogger('gunicorn.error')
+    app.logger.handlers = gunicorn_logger.handlers
+    app.logger.setLevel(gunicorn_logger.level)
