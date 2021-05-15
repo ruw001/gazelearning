@@ -97,8 +97,17 @@ app.post('/gazeData/sync',
     sendGazePoints,
     receptionConfirm);
 
+app.post('/gazeData/selfreport',
+    express.json({ type: '*/*' }),
+    processSelfReport);
+
 // Error handling
 app.use(errorHandler);
+
+function processSelfReport(req, res, next) {
+    // TODO: Do something with self report...
+    res.send({message: 'self report processed!'});
+}
 
 function newUserLogin(req, res, next) {
     // Creates user directory and generate cookie

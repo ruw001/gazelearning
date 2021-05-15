@@ -308,20 +308,19 @@ async function query() {
 
 }
 
-async function report(event) {
-    document.getElementById('plotting_svg').innerHTML = '';
+async function report(fix) {
+    // document.getElementById('plotting_svg').innerHTML = '';
 
     console.log('You\'ve clicked on SVG to report confusion! @'+new Date().getTime());
 
-    // TODO: send data to server
-    // signaling(
-    //     'confusion',
-    //     {
-    //         state: 'confused',
-    //         fixation: [0,0],
-    //     },
-    //     identity
-    // );
+    signaling(
+        '/gazeData/selfreport',
+        {
+            state: 'confused',
+            fixation: fix,
+        },
+        userInfo['identity']
+    );
 }
 
 function showPromptBox(fixation, minWidth, minHeight) {
@@ -335,11 +334,11 @@ function showPromptBox(fixation, minWidth, minHeight) {
     let data = minWidth < 0 ? [] : [1]; // whatever the datum is, it is not important.
     let svg = d3.selectAll("#plotting_svg");
 
-   svg.transition(tSlow)
-    .style("left", fixation.xmin+'px')
-    .style("top", fixation.ymin+'px')
-    .style("width", minWidth < 0 ? 0+'px' : Math.max(minWidth, fixation.xmax - fixation.xmin)+'px')
-    .style("height", minWidth < 0 ? 0+'px' : Math.max(minHeight, fixation.ymax - fixation.ymin)+'px');
+    svg.transition(tSlow)
+        .style("left", fixation.xmin+'px')
+        .style("top", fixation.ymin+'px')
+        .style("width", minWidth < 0 ? 0+'px' : Math.max(minWidth, fixation.xmax - fixation.xmin)+'px')
+        .style("height", minWidth < 0 ? 0+'px' : Math.max(minHeight, fixation.ymax - fixation.ymin)+'px');
 
     svg.selectAll('rect')
         .data(data)
@@ -369,6 +368,11 @@ function showPromptBox(fixation, minWidth, minHeight) {
             update => update,
             exit => exit.remove()
         );
+    svg.on("click", function () {
+        report(fixation);
+        svg.selectAll("rect").remove();
+        svg.selectAll("text").remove();
+    })
 }
 
 async function showCoords(event) {
