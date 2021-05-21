@@ -29,6 +29,10 @@ let teacherAuthHash = digestMessage('teacher');
 // identity of user
 const STUDENT = 1;
 const TEACHER = 2;
+
+let correct_preds = 0;
+let all_preds = 0;
+
 // Read registered student name list
 const studentsFilename = path.join(FILEPATH, 'registeredInfo', 'registeredStudents.json');
 let registeredStudents = new Map(); // Student Name => Student Number, which is the order of student
@@ -106,6 +110,8 @@ app.use(errorHandler);
 
 function processSelfReport(req, res, next) {
     // TODO: Do something with self report...
+    all_preds += 1;
+    correct_preds += req.body['correct'] ? 1 : 0;
     res.send({message: 'self report processed!'});
 }
 
@@ -165,13 +171,13 @@ function verifyUser(identity) {
             err.statusCode = 401;
             return next(err);
         } else { // Hash of passcode does not pass.
-            let parsedCookie = JSON.parse(req.cookies['userInfo']);
-            const authHash = identity === STUDENT ? studentAuthHash : teacherAuthHash;
-            if (parsedCookie.authcode !== authHash) {
-                let err = new Error(`${identity === STUDENT ? 'Student' : 'Instructor'} authentication code mismatch.`);
-                err.statusCode = 401;
-                return next(err);
-            }
+            // let parsedCookie = JSON.parse(req.cookies['userInfo']);
+            // const authHash = identity === STUDENT ? studentAuthHash : teacherAuthHash;
+            // if (parsedCookie.authcode !== authHash) {
+            //     let err = new Error(`${identity === STUDENT ? 'Student' : 'Instructor'} authentication code mismatch.`);
+            //     err.statusCode = 401;
+            //     return next(err);
+            // }
         }
         // Authorization code match. Allow to proceed.
         next();

@@ -5,8 +5,8 @@ const winston = require('winston');
 // const FILEPATH = '/Users/hudongyin/Documents/Projects/File storage';
 // const FILEPATH = 'D:\\mnt\\fileserver'
 
-const FILEPATH = '/mnt/fileserver';
-// const FILEPATH = '/Users/williamwang/Desktop/temp_log'
+// const FILEPATH = '/mnt/fileserver';
+const FILEPATH = '/Users/williamwang/Desktop/temp_log'
 
 const errorPage = (code, message) => `<head>
     <title>Something's wrong!</title>

@@ -38,6 +38,7 @@ let totalConfused = total;
 let collecting = 0;
 let model_ver = 0;
 let reporting = false;
+let box_click = false;
 
 // var fastMode = false;
 
